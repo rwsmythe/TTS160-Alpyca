@@ -1,4 +1,4 @@
-title = "Alpaca Sample Driver (Rotator)"
+title = "TTS160 Alpaca Driver"
 
 [network]
 ip_address = ''             # Any address

@@ -17,8 +17,8 @@ from logging import Logger
 from shr import PropertyResponse, MethodResponse, PreProcessRequest, \
                 StateValue, get_request_field, to_bool
 from exceptions import *        # Nothing but exception classes
-import serial
 from config import Config
+import TTS160Device
 
 logger: Logger = None
 
@@ -37,18 +37,6 @@ maxdev = 0                      # Single instance
 #----------------
 #Various variables needed for the driver
 
-ser = serial.Serial()   #Serial connection
-
-#Set default parameters
-ser.baudrate = 9600
-ser.bytesize = serial.EIGHTBITS
-ser.parity = serial.PARITY_NONE
-ser.stopbits = serial.STOPBITS_ONE
-#Set port
-ser.port = Config.dev_port
-
-conn_status = False                #Connection status
-
 # -----------
 # DEVICE INFO
 # -----------
@@ -66,10 +54,14 @@ class TelescopeMetadata:
     InterfaceVersion = 4   ##YOUR DEVICE INTERFACE VERSION##        # ITelescopeV4 (ASCOM platform 7)
 
 TTS160_dev = None
-def start_TTS160_dev(logger: logger):
-    logger = logger
+def start_TTS160_dev(logger: Logger):
     global TTS160_dev
-    TTS160_dev = TTS160Device(logger)
+    try:
+        TTS160_dev = TTS160Device(logger)
+        logger.info("TTS160 device initialized successfully")
+    except Exception as ex:
+        logger.error(f"Failed to initialize TTS160 device: {ex}")
+        raise
 
 # --------------
 # SYMBOLIC ENUMS
@@ -143,6 +135,7 @@ class connect:
             # ------------------------
             ### CONNECT THE DEVICE ###
             # ------------------------
+            TTS160_dev.Connect()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -153,7 +146,7 @@ class connected:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
             # -------------------------------------
-            is_conn = conn_status  ### READ CONN STATE ###
+            is_conn = TTS160_dev.isConnected  ### READ CONN STATE ###
             # -------------------------------------
             resp.text = PropertyResponse(is_conn, req).json
         except Exception as ex:
@@ -167,6 +160,12 @@ class connected:
             # --------------------------------------
             ### CONNECT OR DISCONNECT THE DEVICE ###
             # --------------------------------------
+           
+            if conn:
+                TTS160_dev.Connect()
+            else:
+                TTS160_dev.Disconnect()
+
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req, # Put is actually like a method :-(
@@ -177,7 +176,7 @@ class connecting:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
             # ------------------------------
-            val = ## GET CONNECTING STATE ##
+            val = TTS160_dev.isConnecting ## GET CONNECTING STATE ##
             # ------------------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -193,13 +192,25 @@ class description:
 class devicestate:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected:  ##IS DEV CONNECTED##
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         try:
             # ----------------------
             val = []
+            val.append(StateValue('Altitude', TTS160_dev.Altitude))
+            val.append(StateValue('AtHome', TTS160_dev.AtHome))
+            val.append(StateValue('Azimuth', TTS160_dev.Azimuth))
+            val.append(StateValue('Declination', TTS160_dev.Declincation))
+            val.append(StateValue('IsPulseGuiding', TTS160_dev.IsPulseGuiding))
+            val.append(StateValue('RightAscension', TTS160_dev.RightAscension))
+            val.append(StateValue('SideOfPier', TTS160_dev.SideOfPier))
+            val.append(StateValue('SiderealTime', TTS160_dev.SiderealTime))
+            val.append(StateValue('Slewing', TTS160_dev.Slewing))
+            val.append(StateValue('Tracking', TTS160_dev.Tracking))
+            val.append(StateValue('UTCDate', TTS160_dev.UTCDate))
+            val.append(StateValue('TimeStamp', TTS160_dev.TimeStamp))  #System or telescope??
             # val.append(StateValue('## NAME ##', ## GET VAL ##))
             # Repeat for each of the operational states per the device spec
             # ----------------------
@@ -249,7 +260,7 @@ class supportedactions:
 class abortslew:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected:  ## IS DEV CONNECTED ##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -258,6 +269,7 @@ class abortslew:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.AbortSlew()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -267,14 +279,14 @@ class abortslew:
 class alignmentmode:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected:  ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.AlignmentMode   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -285,14 +297,14 @@ class alignmentmode:
 class altitude:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected:   ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.Altitude       ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -303,14 +315,14 @@ class altitude:
 class aperturearea:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected:    ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.ApertureArea   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -321,14 +333,14 @@ class aperturearea:
 class aperturediameter:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected:  ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.ApertureDiameter   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -339,14 +351,14 @@ class aperturediameter:
 class athome:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected:  ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.AtHome ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -357,14 +369,14 @@ class athome:
 class atpark:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected:  ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.AtPark ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -375,7 +387,7 @@ class atpark:
 class axisrates:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -394,7 +406,7 @@ class axisrates:
 
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.AxisRates(axis) ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -405,14 +417,14 @@ class axisrates:
 class azimuth:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.Azimuth    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -423,14 +435,14 @@ class azimuth:
 class canfindhome:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanFindHome    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -441,7 +453,7 @@ class canfindhome:
 class canmoveaxis:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -460,7 +472,7 @@ class canmoveaxis:
 
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanMoveAxis    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -471,14 +483,14 @@ class canmoveaxis:
 class canpark:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanPark    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -489,14 +501,14 @@ class canpark:
 class canpulseguide:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanPulseGuide  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -507,14 +519,14 @@ class canpulseguide:
 class cansetdeclinationrate:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSetDeclinationRate  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -525,14 +537,14 @@ class cansetdeclinationrate:
 class cansetguiderates:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSetGuideRates   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -543,14 +555,14 @@ class cansetguiderates:
 class cansetpark:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSetPark ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -561,14 +573,14 @@ class cansetpark:
 class cansetpierside:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSetPierSide ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -579,14 +591,14 @@ class cansetpierside:
 class cansetrightascensionrate:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSetRightAscension   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -597,14 +609,14 @@ class cansetrightascensionrate:
 class cansettracking:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSetTracking ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -615,14 +627,14 @@ class cansettracking:
 class canslew:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSlew    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -633,14 +645,14 @@ class canslew:
 class canslewaltaz:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSlewAltAz   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -651,14 +663,14 @@ class canslewaltaz:
 class canslewaltazasync:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSlewAltAzAsync  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -669,14 +681,14 @@ class canslewaltazasync:
 class canslewasync:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSlewAsync   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -687,14 +699,14 @@ class canslewasync:
 class cansync:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSync    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -705,14 +717,14 @@ class cansync:
 class cansyncaltaz:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanSyncAltAz   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -723,14 +735,14 @@ class cansyncaltaz:
 class canunpark:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.CanUnpark  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -741,14 +753,14 @@ class canunpark:
 class declination:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.Declination    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -759,14 +771,14 @@ class declination:
 class declinationrate:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.DeclinationRate    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -774,7 +786,7 @@ class declinationrate:
                             DriverException(0x500, 'Telescope.Declinationrate failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -800,7 +812,7 @@ class declinationrate:
 class destinationsideofpier:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -823,7 +835,7 @@ class destinationsideofpier:
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.DestinationSideOfPier  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -834,14 +846,14 @@ class destinationsideofpier:
 class doesrefraction:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.DoesRefraction ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -849,7 +861,7 @@ class doesrefraction:
                             DriverException(0x500, 'Telescope.Doesrefraction failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -875,14 +887,14 @@ class doesrefraction:
 class equatorialsystem:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.EquatorialSystem   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -893,7 +905,7 @@ class equatorialsystem:
 class findhome:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -911,14 +923,14 @@ class findhome:
 class focallength:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.FocalLength    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -929,14 +941,14 @@ class focallength:
 class guideratedeclination:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -944,7 +956,7 @@ class guideratedeclination:
                             DriverException(0x500, 'Telescope.Guideratedeclination failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -970,14 +982,14 @@ class guideratedeclination:
 class guideraterightascension:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -985,7 +997,7 @@ class guideraterightascension:
                             DriverException(0x500, 'Telescope.Guideraterightascension failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1011,14 +1023,14 @@ class guideraterightascension:
 class ispulseguiding:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.IsPulseGuiding ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1029,7 +1041,7 @@ class ispulseguiding:
 class moveaxis:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1067,7 +1079,7 @@ class moveaxis:
 class park:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1085,7 +1097,7 @@ class park:
 class pulseguide:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1123,14 +1135,14 @@ class pulseguide:
 class rightascension:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.RightAscension ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1141,14 +1153,14 @@ class rightascension:
 class rightascensionrate:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.RightAscensionRate ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1156,7 +1168,7 @@ class rightascensionrate:
                             DriverException(0x500, 'Telescope.Rightascensionrate failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1182,7 +1194,7 @@ class rightascensionrate:
 class setpark:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1200,14 +1212,14 @@ class setpark:
 class sideofpier:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.SideOfPier ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1215,7 +1227,7 @@ class sideofpier:
                             DriverException(0x500, 'Telescope.Sideofpier failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1245,14 +1257,14 @@ class sideofpier:
 class siderealtime:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.SiderealTime   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1263,14 +1275,14 @@ class siderealtime:
 class siteelevation:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.SiteElevation  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1278,7 +1290,7 @@ class siteelevation:
                             DriverException(0x500, 'Telescope.Siteelevation failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1304,14 +1316,14 @@ class siteelevation:
 class sitelatitude:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.SiteLatitude   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1319,7 +1331,7 @@ class sitelatitude:
                             DriverException(0x500, 'Telescope.Sitelatitude failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1345,14 +1357,14 @@ class sitelatitude:
 class sitelongitude:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.SiteLongitude  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1360,7 +1372,7 @@ class sitelongitude:
                             DriverException(0x500, 'Telescope.Sitelongitude failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1386,14 +1398,14 @@ class sitelongitude:
 class slewing:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.Slewing    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1404,14 +1416,14 @@ class slewing:
 class slewsettletime:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.SlewSettleTime ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1419,7 +1431,7 @@ class slewsettletime:
                             DriverException(0x500, 'Telescope.Slewsettletime failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1445,7 +1457,7 @@ class slewsettletime:
 class slewtoaltaz:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1479,7 +1491,7 @@ class slewtoaltaz:
 class slewtoaltazasync:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1513,7 +1525,7 @@ class slewtoaltazasync:
 class slewtocoordinates:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1547,7 +1559,7 @@ class slewtocoordinates:
 class slewtocoordinatesasync:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1581,7 +1593,7 @@ class slewtocoordinatesasync:
 class slewtotarget:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1599,7 +1611,7 @@ class slewtotarget:
 class slewtotargetasync:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1617,7 +1629,7 @@ class slewtotargetasync:
 class synctoaltaz:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1651,7 +1663,7 @@ class synctoaltaz:
 class synctocoordinates:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1685,7 +1697,7 @@ class synctocoordinates:
 class synctotarget:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1703,14 +1715,14 @@ class synctotarget:
 class targetdeclination:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.TargetDeclination  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1718,7 +1730,7 @@ class targetdeclination:
                             DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1744,14 +1756,14 @@ class targetdeclination:
 class targetrightascension:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.TargetRightAscension   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1759,7 +1771,7 @@ class targetrightascension:
                             DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1785,14 +1797,14 @@ class targetrightascension:
 class tracking:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.Tracking   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1800,7 +1812,7 @@ class tracking:
                             DriverException(0x500, 'Telescope.Tracking failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1826,14 +1838,14 @@ class tracking:
 class trackingrate:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.TrackingRate   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1841,7 +1853,7 @@ class trackingrate:
                             DriverException(0x500, 'Telescope.Trackingrate failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1867,14 +1879,14 @@ class trackingrate:
 class trackingrates:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.TrackingRates  ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1885,14 +1897,14 @@ class trackingrates:
 class utcdate:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not ##IS DEV CONNECTED##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
         
         try:
             # ----------------------
-            val = ## GET PROPERTY ##
+            val = TTS160_dev.UTCDate    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1900,7 +1912,7 @@ class utcdate:
                             DriverException(0x500, 'Telescope.Utcdate failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1920,7 +1932,7 @@ class utcdate:
 class unpark:
 
     def on_put(self, req: Request, resp: Response, devnum: int):
-        if not ## IS DEV CONNECTED ##:
+        if not TTS160_dev.isConnected: ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
@@ -1929,6 +1941,7 @@ class unpark:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.Unpark()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
