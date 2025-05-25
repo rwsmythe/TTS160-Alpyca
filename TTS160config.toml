@@ -1,0 +1,9 @@
+title = "TTS160 Alpaca Driver"
+
+[device]
+dev_port = 'COM5'
+
+[site]
+site_altitude = 0
+site_latitude = 0
+site_longitude = 0
