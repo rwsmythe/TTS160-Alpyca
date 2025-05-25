@@ -9,10 +9,11 @@ location = 'Anywhere on Earth'  # Anything you want here
 verbose_driver_exceptions = true
 
 [device]
-can_reverse = true
-step_size = 1.0
-steps_per_sec = 6
-sync_write_connected = true     # True to emulate sync Connected = true (for Conform)
+#can_reverse = true
+#step_size = 1.0
+#steps_per_sec = 6
+#sync_write_connected = true     # True to emulate sync Connected = true (for Conform)
+dev_port = 'COM5'
 
 [logging]
 log_level = 'INFO'

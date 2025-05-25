@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# conf.py - Device configuration file and shared logger construction
+# config.py - Device configuration file and shared logger construction
 # Part of the AlpycaDevice Alpaca skeleton/template device driver
 #
 # Author:   Robert B. Denny <rdenny@dc3.com> (rbd)
@@ -90,10 +90,13 @@ class Config:
     # --------------
     # Device Section
     # --------------
-    can_reverse: bool = get_toml('device', 'can_reverse')
-    step_size: float = get_toml('device', 'step_size')
-    steps_per_sec: int = get_toml('device', 'steps_per_sec')
-    sync_write_connected: bool = get_toml('device', 'sync_write_connected')
+    
+    dev_port: str = get_toml('device', 'dev_port')
+    #can_reverse: bool = get_toml('device', 'can_reverse')
+    #step_size: float = get_toml('device', 'step_size')
+    #steps_per_sec: int = get_toml('device', 'steps_per_sec')
+    #sync_write_connected: bool = get_toml('device', 'sync_write_connected')
+    
     # ---------------
     # Logging Section
     # ---------------

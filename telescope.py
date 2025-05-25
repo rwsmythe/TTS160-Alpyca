@@ -18,6 +18,7 @@ from shr import PropertyResponse, MethodResponse, PreProcessRequest, \
                 StateValue, get_request_field, to_bool
 from exceptions import *        # Nothing but exception classes
 import serial
+from config import Config
 
 logger: Logger = None
 
@@ -30,6 +31,23 @@ logger: Logger = None
 # set to 0 for the simple case of controlling only one instance of this device type.
 #
 maxdev = 0                      # Single instance
+
+#----------------
+#DRIVER VARIABLES
+#----------------
+#Various variables needed for the driver
+
+ser = serial.Serial()   #Serial connection
+
+#Set default parameters
+ser.baudrate = 9600
+ser.bytesize = serial.EIGHTBITS
+ser.parity = serial.PARITY_NONE
+ser.stopbits = serial.STOPBITS_ONE
+#Set port
+ser.port = Config.dev_port
+
+conn_status = False                #Connection status
 
 # -----------
 # DEVICE INFO
@@ -46,6 +64,12 @@ class TelescopeMetadata:
     Info = 'Alpaca telescope\nImplements ITelescope\nASCOM Initiative'
     MaxDeviceNumber = maxdev
     InterfaceVersion = 4   ##YOUR DEVICE INTERFACE VERSION##        # ITelescopeV4 (ASCOM platform 7)
+
+TTS160_dev = None
+def start_TTS160_dev(logger: logger):
+    logger = logger
+    global TTS160_dev
+    TTS160_dev = TTS160Device(logger)
 
 # --------------
 # SYMBOLIC ENUMS
@@ -129,7 +153,7 @@ class connected:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
             # -------------------------------------
-            is_conn = ### READ CONN STATE ###
+            is_conn = conn_status  ### READ CONN STATE ###
             # -------------------------------------
             resp.text = PropertyResponse(is_conn, req).json
         except Exception as ex:
