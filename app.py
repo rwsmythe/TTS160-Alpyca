@@ -223,6 +223,7 @@ def main():
     # Share this logger throughout
     log.logger = logger
     exceptions.logger = logger
+    telescope.start_TTS160_dev(logger)
     discovery.logger = logger
     set_shr_logger(logger)
 

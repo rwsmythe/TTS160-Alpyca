@@ -32,8 +32,6 @@
 # SOFTWARE.
 # -----------------------------------------------------------------------------
 
-import os
-import sys
 import threading
 from pathlib import Path
 from typing import Any, Union
@@ -68,8 +66,10 @@ class TTS160Config:
         self._lock = threading.RLock()
         self._dict = {}
         self._dict2 = {}
-        self._config_file = f'{sys.path[0]}/{self.DEFAULT_CONFIG_FILE}'
-        self._override_file = self.OVERRIDE_CONFIG_PATH
+        
+        # Use pathlib for file paths
+        self._config_file = Path.cwd() / self.DEFAULT_CONFIG_FILE
+        self._override_file = Path(self.OVERRIDE_CONFIG_PATH)
         
         self._load_config()
     
@@ -90,7 +90,7 @@ class TTS160Config:
             
             # Load optional override file
             try:
-                if os.path.exists(self._override_file):
+                if self._override_file.exists():
                     self._dict2 = toml.load(self._override_file)
             except toml.TomlDecodeError as e:
                 raise TTS160ConfigError(
@@ -129,7 +129,7 @@ class TTS160Config:
         with self._lock:
             # If override file exists or has been used, update it
             # Otherwise update primary config
-            if self._dict2 or os.path.exists(self._override_file):
+            if self._dict2 or self._override_file.exists():
                 if sect not in self._dict2:
                     self._dict2[sect] = {}
                 self._dict2[sect][item] = setting
@@ -147,14 +147,14 @@ class TTS160Config:
         with self._lock:
             try:
                 # Save to override file if it exists or has been used
-                if self._dict2 or os.path.exists(self._override_file):
+                if self._dict2 or self._override_file.exists():
                     # Ensure directory exists
-                    os.makedirs(os.path.dirname(self._override_file), exist_ok=True)
-                    with open(self._override_file, 'w', encoding='utf-8') as f:
+                    self._override_file.parent.mkdir(parents=True, exist_ok=True)
+                    with self._override_file.open('w', encoding='utf-8') as f:
                         toml.dump(self._dict2, f)
                 else:
                     # Save to primary config file
-                    with open(self._config_file, 'w', encoding='utf-8') as f:
+                    with self._config_file.open('w', encoding='utf-8') as f:
                         toml.dump(self._dict, f)
             except (OSError, PermissionError) as e:
                 raise TTS160ConfigError(f"Failed to save configuration: {e}") from e

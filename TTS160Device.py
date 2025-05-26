@@ -14,7 +14,7 @@ from astropy.time import Time
 from astropy import units as u
 
 # Local imports
-from .tts160_types import CommandType, Rate, EquatorialCoordinates
+from tts160_types import CommandType, Rate, EquatorialCoordinates
 from exceptions import (
     DriverException, InvalidValueException, InvalidOperationException,
     NotImplementedException
@@ -33,14 +33,37 @@ class TTS160Device:
         self._lock = threading.RLock()
         
         # Import here to avoid circular imports
-        from . import TTS160Global
+        import TTS160Global
         self._config = TTS160Global.get_config()
         self._serial_manager = None
         
         # Connection state
-        self._is_connected = False
-        self._connecting = False
+        self._Connecting = False
+        self._Connected = False
         
+        #Static Data
+        self._Name = "TTS160 Alpaca Drive"
+        self._DriverVersion = "356.0.0"
+        self._Description = "TTS160 Alpaca Driver v356.1"
+
+        #ASCOM 'Can' Variables (Readonly, will not change)
+        self._CanFindHome = False
+        self._CanPark = True
+        self._CanPulseGuide = True
+        self._CanSetDeclinationRate = False
+        self._CanSetGuideRates = True
+        self._CanSetPark = False
+        self._CanSetPierSide = False
+        self._CanSetRightAscensionRate = False
+        self._CanSetTracking = True
+        self._CanSlew = True
+        self._CanSlewAltAz = True
+        self._CanSlewAltAzAsync = True
+        self._CanSlewAsync = True
+        self._CanSync = True
+        self._CanSyncAltAz = True
+        self._CanUnpark = False
+
         # Mount state with thread safety
         self._is_slewing = False
         self._is_slewing_to_target = False
@@ -61,12 +84,15 @@ class TTS160Device:
         self._pulse_guide_start = datetime.min
         
         # Hardware capabilities
-        self._dev_firmware = True
+        #self._dev_firmware = True  #Deprecated
         
         # Site location for coordinate transforms
         self._site_location = None
         self._update_site_location()
-    
+
+        #Other misc variables
+        self._AxisRates = [Rate(0.0, 3.5)]
+
     def _update_site_location(self) -> None:
         """Update AstroPy site location from config."""
         try:
@@ -90,45 +116,45 @@ class TTS160Device:
     def Connect(self) -> None:
         """Connect to the TTS160 mount."""
         with self._lock:
-            if self._is_connected:
+            if self._Connected:
                 return
             
-            self._connecting = True
+            self._Connecting = True
             
             try:
-                from . import TTS160Global
+                import TTS160Global
                 self._serial_manager = TTS160Global.get_serial_manager(self._logger)
                 self._serial_manager.connect(self._config.dev_port)
                 self._initialize_mount()
-                self._is_connected = True
+                self._Connected = True
                 self._logger.info("TTS160 connected successfully")
                 
             except Exception as ex:
                 self._logger.error(f"Connection failed: {ex}")
                 raise DriverException(0x500, "Connection failed", ex)
             finally:
-                self._connecting = False
+                self._Connecting = False
     
     def Disconnect(self) -> None:
         """Disconnect from the TTS160 mount."""
         with self._lock:
-            if not self._is_connected:
+            if not self._Connected:
                 return
             
-            self._connecting = True
+            self._Connecting = True
             
             try:
                 if self._serial_manager:
                     self._serial_manager.disconnect()
                     self._serial_manager = None
                 
-                self._is_connected = False
+                self._Connected = False
                 self._logger.info("TTS160 disconnected")
                 
             except Exception as ex:
                 self._logger.error(f"Disconnect error: {ex}")
             finally:
-                self._connecting = False
+                self._Connecting = False
     
     def _initialize_mount(self) -> None:
         """Initialize mount after connection."""
@@ -181,6 +207,7 @@ class TTS160Device:
     
     def _send_command(self, command: str, command_type: CommandType) -> str:
         """Send command to mount."""
+        #TODO: Or we should really be checking for self._Connected...
         if not self._serial_manager:
             raise RuntimeError("Device not connected")
         
@@ -249,6 +276,7 @@ class TTS160Device:
     def _altaz_to_radec(self, azimuth: float, altitude: float, 
                        time: datetime = None) -> tuple[float, float]:
         """Convert Alt/Az to RA/Dec using AstroPy."""
+        #TODO: Time should be preferentially taken from the mount, not the computer, I think
         if time is None:
             time = datetime.now(timezone.utc)
         
@@ -260,11 +288,31 @@ class TTS160Device:
             frame=altaz_frame
         )
         
+        #TODO: Verify that ICRS is equivalent to JNow/TopoEqu.  Also provide for conversion to J2000 if that is what the epoch is set to.
         # Transform to ICRS
         icrs_coord = altaz_coord.icrs
         
         return icrs_coord.ra.hour, icrs_coord.dec.degree
     
+    #TODO: Note, here and above: ICRS is ~J2000 unless current epoch is specified.  See "https://stackoverflow.com/questions/52900678/coordinates-transformation-in-astropy" for add'l details
+    #In order to convert to "JNow", consider doing ICRS->GCRS conversion with timenow.
+    #Implementation Example:
+    """
+    # Starting coordinates (ICRS/J2000)
+    coord = SkyCoord(ra=83.633*u.deg, dec=22.014*u.deg, frame='icrs')
+
+    # Current time and observer location
+    now = Time.now()
+    location = EarthLocation(lat=40.7*u.deg, lon=-74.0*u.deg, height=100*u.m)
+
+    # Convert to current epoch equatorial (accounting for precession)
+    coord_now = coord.transform_to('gcrs', obstime=now)
+
+    # Convert to topocentric (Alt/Az frame includes all effects)
+    altaz_frame = AltAz(obstime=now, location=location)
+    coord_topocentric = coord.transform_to(altaz_frame)
+    """
+
     def _radec_to_altaz(self, right_ascension: float, declination: float,
                        time: datetime = None) -> tuple[float, float]:
         """Convert RA/Dec to Alt/Az using AstroPy."""
@@ -319,7 +367,7 @@ class TTS160Device:
     def Connected(self) -> bool:
         """ASCOM Connected property."""
         with self._lock:
-            return self._is_connected
+            return self._Connected
     
     @Connected.setter  
     def Connected(self, value: bool) -> None:
@@ -333,19 +381,15 @@ class TTS160Device:
     def Connecting(self) -> bool:
         """ASCOM Connecting property."""
         with self._lock:
-            return self._connecting
+            return self._Connecting
     
     # Mount Position Properties
     @property
     def Altitude(self) -> float:
         """Current altitude in degrees."""
         try:
-            if self._dev_firmware:
-                result = self._send_command(":*GA#", CommandType.STRING).rstrip('#')
-                return float(result) * (180 / math.pi)  # Convert radians to degrees
-            else:
-                result = self._send_command(":GA#", CommandType.STRING)
-                return self._dms_to_degrees(result)
+            result = self._send_command(":*GA#", CommandType.STRING).rstrip('#')
+            return float(result) * (180 / math.pi)  # Convert radians to degrees
         except Exception as ex:
             raise DriverException(0x500, "Failed to get altitude", ex)
     
@@ -353,12 +397,8 @@ class TTS160Device:
     def Azimuth(self) -> float:
         """Current azimuth in degrees."""
         try:
-            if self._dev_firmware:
-                result = self._send_command(":*GZ#", CommandType.STRING).rstrip('#')
-                return float(result) * (180 / math.pi)  # Convert radians to degrees
-            else:
-                result = self._send_command(":GZ#", CommandType.STRING)
-                return self._dms_to_degrees(result)
+            result = self._send_command(":*GZ#", CommandType.STRING).rstrip('#')
+            return float(result) * (180 / math.pi)  # Convert radians to degrees
         except Exception as ex:
             raise DriverException(0x500, "Failed to get azimuth", ex)
     
@@ -366,12 +406,8 @@ class TTS160Device:
     def Declination(self) -> float:
         """Current declination in degrees."""
         try:
-            if self._dev_firmware:
-                result = self._send_command(":*GD#", CommandType.STRING).rstrip('#')
-                return float(result) * (180 / math.pi)  # Convert radians to degrees
-            else:
-                result = self._send_command(":GD#", CommandType.STRING)
-                return self._dms_to_degrees(result)
+            result = self._send_command(":*GD#", CommandType.STRING).rstrip('#')
+            return float(result) * (180 / math.pi)  # Convert radians to degrees
         except Exception as ex:
             raise DriverException(0x500, "Failed to get declination", ex)
     
@@ -379,13 +415,9 @@ class TTS160Device:
     def RightAscension(self) -> float:
         """Current right ascension in hours."""
         try:
-            if self._dev_firmware:
-                result = self._send_command(":*GR#", CommandType.STRING).rstrip('#')
-                ra = float(result) * (180 / math.pi) / 15  # Convert radians to hours
-                return ra % 24  # Normalize to 0-24 hours
-            else:
-                result = self._send_command(":GR#", CommandType.STRING)
-                return self._hms_to_hours(result)
+            result = self._send_command(":*GR#", CommandType.STRING).rstrip('#')
+            ra = float(result) * (180 / math.pi) / 15  # Convert radians to hours
+            return ra % 24  # Normalize to 0-24 hours
         except Exception as ex:
             raise DriverException(0x500, "Failed to get right ascension", ex)
     
@@ -411,6 +443,7 @@ class TTS160Device:
         """Site latitude in degrees."""
         return self._site_location.lat.degree
     
+    #TODO: I don't think this was implemented in the ASCOM driver, verify.
     @SiteLatitude.setter
     def SiteLatitude(self, value: float) -> None:
         """Set site latitude."""
@@ -428,6 +461,7 @@ class TTS160Device:
         """Site longitude in degrees."""
         return self._site_location.lon.degree
     
+    #TODO: I don't think this was implemented in the ASCOM driver, verify
     @SiteLongitude.setter  
     def SiteLongitude(self, value: float) -> None:
         """Set site longitude."""
@@ -445,6 +479,7 @@ class TTS160Device:
         """Site elevation in meters."""
         return self._site_location.height.value
     
+    #TODO: Ibid.  If I do want this implemented, it needs to feed back to the configuration object
     @SiteElevation.setter
     def SiteElevation(self, value: float) -> None:
         """Set site elevation."""
@@ -481,28 +516,26 @@ class TTS160Device:
         """True if mount is slewing."""
         try:
             # Check hardware slewing status
-            if self._dev_firmware:
-                result = self._send_command(":D#", CommandType.STRING)
-                is_slewing = result == "|#"
+            result = self._send_command(":D#", CommandType.STRING)
+            is_slewing = result == "|#"
+            
+            with self._lock:
+                if not is_slewing and self._is_slewing:
+                    # Slew just finished - handle settle time
+                    self._handle_slew_completion()
                 
-                with self._lock:
-                    if not is_slewing and self._is_slewing:
-                        # Slew just finished - handle settle time
-                        self._handle_slew_completion()
-                    
-                    self._is_slewing = is_slewing
-                    return is_slewing
-            else:
-                with self._lock:
-                    return self._is_slewing
+                self._is_slewing = is_slewing
+                return is_slewing
                 
         except Exception as ex:
             self._logger.warning(f"Error checking slewing status: {ex}")
             with self._lock:
                 return self._is_slewing
     
+    #TODO: This needs to be made asynchronous...spin it off into its own thread?
     def _handle_slew_completion(self) -> None:
         """Handle slew completion and settling."""
+        #TODO: Why use getattr rather than just the self._config.SlewSettleTime?
         settle_time = getattr(self._config, 'slew_settle_time', 0)
         if settle_time > 0:
             time.sleep(settle_time)
@@ -569,10 +602,12 @@ class TTS160Device:
         try:
             # Send to mount
             dms_str = self._degrees_to_dms(abs(value))
+            #TODO: Verify that this is what C# driver is doing.  Assuming negative unless a + in front?!
             sign = "+" if value >= 0 else ""
             command = f":Sd{sign}{dms_str}#"
             
             result = self._send_command(command, CommandType.BOOL)
+            #TODO: can python test a boolean variable like that?
             if result != "True":
                 raise InvalidValueException("Mount rejected declination value")
             
@@ -783,44 +818,44 @@ class TTS160Device:
     # Capability Properties (static for TTS160)
     @property
     def CanFindHome(self) -> bool:
-        return True
+        return self._CanFindHome
     
     @property
     def CanPark(self) -> bool:
-        return True
+        return self._CanPark
     
     @property
     def CanPulseGuide(self) -> bool:
-        return True
+        return self._CanPulseGuide
     
     @property
     def CanSetTracking(self) -> bool:
-        return True
+        return self._CanSetTracking
     
     @property
     def CanSlew(self) -> bool:
-        return True
+        return self._CanSlew
     
     @property
     def CanSlewAsync(self) -> bool:
-        return True
+        return self.CanSlewAsync
     
     def AxisRates(self, axis: int) -> List[Rate]:
         """Get available rates for specified axis."""
         if axis in [0, 1]:  # Primary and secondary axes
-            return [Rate(0.0, 3.5)]
+            return self._AxisRates
         else:
             return []
     
     # Static Properties  
     @property
     def Name(self) -> str:
-        return "TTS-160"
+        return self._Name
     
     @property
     def Description(self) -> str:
-        return "TTS160 Alpaca Driver v356.1"
+        return self._Description
     
     @property
     def DriverVersion(self) -> str:
-        return "356.1"
+        return self._DriverVersion

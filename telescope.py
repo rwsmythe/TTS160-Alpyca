@@ -60,6 +60,8 @@ class TelescopeMetadata:
 
 def start_TTS160_dev(logger: Logger):
     try:
+        global TTS160_cfg
+        global TTS160_dev
         TTS160_cfg = TTS160Global.get_config()          #Instantiate a single configuration object
         TTS160_dev = TTS160Global.get_device(logger)    #Instantiate a single device object
         logger.info("TTS160 device initialized successfully")
