@@ -4,12 +4,14 @@
 import threading
 import time
 import math
+import bisect
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from logging import Logger
+from concurrent.futures import ThreadPoolExecutor, Future
 
 # AstroPy imports for coordinate transformations
-from astropy.coordinates import SkyCoord, AltAz, ICRS, EarthLocation
+from astropy.coordinates import SkyCoord, AltAz, ICRS, EarthLocation, GCRS
 from astropy.time import Time
 from astropy import units as u
 
@@ -18,6 +20,10 @@ from tts160_types import CommandType, Rate, EquatorialCoordinates
 from exceptions import (
     DriverException, InvalidValueException, InvalidOperationException,
     NotImplementedException
+)
+from telescope import (
+    TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
+    AlignmentModes
 )
 
 
@@ -31,23 +37,28 @@ class TTS160Device:
     def __init__(self, logger: Logger):
         self._logger = logger
         self._lock = threading.RLock()
-        
+        self._executor = ThreadPoolExecutor(max_workers = 2)
+
         # Import here to avoid circular imports
         import TTS160Global
         self._config = TTS160Global.get_config()
         self._serial_manager = None
-        
+
+        self._logger.info("Instantiating serial manager")
+        self._serial_manager = TTS160Global.get_serial_manager(self._logger)
+
         # Connection state
         self._Connecting = False
         self._Connected = False
         
         #Static Data
-        self._Name = "TTS160 Alpaca Drive"
-        self._DriverVersion = "356.0.0"
-        self._Description = "TTS160 Alpaca Driver v356.1"
+        self._Name = TelescopeMetadata.Name
+        self._DriverVersion = TelescopeMetadata.Version
+        self._Description = TelescopeMetadata.Description
 
         #ASCOM 'Can' Variables (Readonly, will not change)
-        self._CanFindHome = False
+        self._CanFindHome = True
+        self._CanMoveAxis = True
         self._CanPark = True
         self._CanPulseGuide = True
         self._CanSetDeclinationRate = False
@@ -56,8 +67,8 @@ class TTS160Device:
         self._CanSetPierSide = False
         self._CanSetRightAscensionRate = False
         self._CanSetTracking = True
-        self._CanSlew = True
-        self._CanSlewAltAz = True
+        self._CanSlew = False
+        self._CanSlewAltAz = False
         self._CanSlewAltAzAsync = True
         self._CanSlewAsync = True
         self._CanSync = True
@@ -65,6 +76,7 @@ class TTS160Device:
         self._CanUnpark = False
 
         # Mount state with thread safety
+        self._slew_in_progress = None
         self._is_slewing = False
         self._is_slewing_to_target = False
         self._is_pulse_guiding = False
@@ -83,15 +95,22 @@ class TTS160Device:
         self._pulse_guide_duration = 0
         self._pulse_guide_start = datetime.min
         
-        # Hardware capabilities
-        #self._dev_firmware = True  #Deprecated
-        
         # Site location for coordinate transforms
         self._site_location = None
         self._update_site_location()
 
         #Other misc variables
         self._AxisRates = [Rate(0.0, 3.5)]
+        self._DriveRates = [DriveRates.driveSidereal, DriveRates.driveLunar, DriveRates.driveSolar]
+
+    def __del__(self):
+        # Trash collection
+        try:
+            if hasattr(self, 'executor'):
+                self.executor.shutdown(wait=False)
+            self._serial_manager.cleanup()
+        except:
+            pass
 
     def _update_site_location(self) -> None:
         """Update AstroPy site location from config."""
@@ -113,49 +132,49 @@ class TTS160Device:
             )
     
     # Connection Management
-    def Connect(self) -> None:
+    def Connect(self) -> Optional[Future]:
         """Connect to the TTS160 mount."""
         with self._lock:
             if self._Connected:
+                self._serial_manager.connection_count += 1
                 return
             
+            #If we are already trying to connect
+            if self._Connecting:
+                self._serial_manager.connection_count += 1
+                return
+
             self._Connecting = True
             
-            try:
-                import TTS160Global
+        try:
+            #self._logger.info("Starting Async Connect Routine")
+            #return self._executor.submit(self._connect_mount)
+            self._connect_mount()
+
+        except Exception as ex:
+            with self._lock:
+                self._Connecting = False  # Reset if submit fails
+            self._logger.error(f"Connection failed: {ex}")
+            raise DriverException(0x500, "Connection failed", ex)
+    
+    #Synchronous method broken out to allow either sync or async execution (using self._executor object)
+    def _connect_mount(self) -> None:
+        try:
+            import TTS160Global
+            if not self._serial_manager:
                 self._serial_manager = TTS160Global.get_serial_manager(self._logger)
-                self._serial_manager.connect(self._config.dev_port)
-                self._initialize_mount()
-                self._Connected = True
-                self._logger.info("TTS160 connected successfully")
-                
-            except Exception as ex:
-                self._logger.error(f"Connection failed: {ex}")
-                raise DriverException(0x500, "Connection failed", ex)
-            finally:
-                self._Connecting = False
-    
-    def Disconnect(self) -> None:
-        """Disconnect from the TTS160 mount."""
-        with self._lock:
-            if not self._Connected:
-                return
+
+            self._serial_manager.connect(self._config.dev_port)
+            self._Connected = True
+            self._initialize_mount()
+            self._logger.info("TTS160 connected successfully")
             
-            self._Connecting = True
-            
-            try:
-                if self._serial_manager:
-                    self._serial_manager.disconnect()
-                    self._serial_manager = None
-                
-                self._Connected = False
-                self._logger.info("TTS160 disconnected")
-                
-            except Exception as ex:
-                self._logger.error(f"Disconnect error: {ex}")
-            finally:
-                self._Connecting = False
-    
+        except Exception as ex:
+            self._logger.error(f"Connection failed: {ex}")
+            raise DriverException(0x500, "Connection failed", ex)
+        finally:
+            self._Connecting = False
+
     def _initialize_mount(self) -> None:
         """Initialize mount after connection."""
         try:
@@ -170,6 +189,10 @@ class TTS160Device:
             # Update site coordinates from mount
             self._update_site_coordinates_from_mount()
             
+            # Update mount time from computer if desired
+            if self._config.sync_time_on_connect:
+                self.UTCDate = datetime.now(timezone.utc)
+
             # Initialize state
             with self._lock:
                 self._is_slewing = False
@@ -192,23 +215,59 @@ class TTS160Device:
             lon_result = self._send_command(":*Gg#", CommandType.STRING)
             longitude = -1 * self._dms_to_degrees(lon_result)  # Convert to West negative
             
-            # Update AstroPy location
-            elevation = float(self._config.site_elevation) if self._config.site_elevation else 0.0
-            self._site_location = EarthLocation(
-                lat=latitude * u.deg,
-                lon=longitude * u.deg,
-                height=elevation * u.m
-            )
+            with self._lock:
+                # Update configuration
+                self._config.site_latitude = latitude
+                self._config.site_longitude = longitude
+                self._config.save()
+                # Update AstroPy location
+                elevation = float(self._config.site_elevation) if self._config.site_elevation else 0.0
+                self._site_location = EarthLocation(
+                    lat=latitude * u.deg,
+                    lon=longitude * u.deg,
+                    height=elevation * u.m
+                )
             
             self._logger.info(f"Site coordinates: {latitude:.6f}°, {longitude:.6f}°, {elevation}m")
             
         except Exception as ex:
             self._logger.warning(f"Failed to update site coordinates: {ex}")
     
+    def Disconnect(self) -> None:
+        """Disconnect from the TTS160 mount."""
+        with self._lock:
+            if not self._Connected:
+                return
+
+            self._Connecting = True
+            
+            try:
+                if self._serial_manager:
+                    self._serial_manager.disconnect()
+                    self._serial_manager = None
+                
+                if not self._serial_manager or not self._serial_manager.is_connected:
+                    self._Connected = False
+                
+                self._logger.info("TTS160 disconnected")
+                
+            except Exception as ex:
+                self._logger.error(f"Disconnect error: {ex}")
+            finally:
+                self._Connecting = False
+
+    def CommandBlind(self, msg: str) -> None:
+        return NotImplementedException()
+    
+    def CommandBool(self, msg: str) -> bool:
+        return NotImplementedException()
+    
+    def CommandString(self, msg: str) -> str:
+        return NotImplementedException()
+
     def _send_command(self, command: str, command_type: CommandType) -> str:
         """Send command to mount."""
-        #TODO: Or we should really be checking for self._Connected...
-        if not self._serial_manager:
+        if not self._Connected:
             raise RuntimeError("Device not connected")
         
         return self._serial_manager.send_command(command, command_type)
@@ -362,6 +421,13 @@ class TTS160Device:
             
         return ha
     
+    def _condition_ha(self, ha) -> float:
+        """Condition hour angle to be in range -12.0 to +12.0"""
+        ha = ha % 24.0
+        if ha > 12.0:
+            ha -= 24.0
+        return ha
+
     # Connection Properties
     @property
     def Connected(self) -> bool:
@@ -383,6 +449,28 @@ class TTS160Device:
         with self._lock:
             return self._Connecting
     
+    # Mount Actions
+    def Action(self, action_name: str, action_parameters: str) -> str:
+        """Invokes the specified device-specific custom action."""
+        self._logger.info(f"Action: {action_name}; Parameters: {action_parameters}")
+        
+        try:
+            self._check_connected("Action")
+            action_name = action_name.lower()
+            
+            if action_name == "fieldrotationangle":
+                self._logger.info("FieldRotationAngle - Retrieving")
+                result = self._send_command(":ra#", CommandType.STRING)
+                self._logger.info(f"FieldRotationAngle - Retrieved: {result}")
+                return result
+            
+            raise NotImplementedException(f"Action '{action_name}' is not implemented")
+            
+        except Exception as ex:
+            self._logger.error(f"Action error: {ex}")
+            raise
+
+
     # Mount Position Properties
     @property
     def Altitude(self) -> float:
@@ -437,6 +525,10 @@ class TTS160Device:
         except Exception as ex:
             raise DriverException(0x500, "Failed to get sidereal time", ex)
     
+    def DestinationSideOfPier(self, ra: float, dec: float) -> PierSide:
+
+        return self._calculate_side_of_pier(ra)
+
     # Site Properties
     @property  
     def SiteLatitude(self) -> float:
@@ -494,11 +586,21 @@ class TTS160Device:
     
     # Mount State Properties
     @property
+    def AlignmentMode(self) -> AlignmentModes:
+        return AlignmentModes.algAltAz
+
+    @property
     def AtHome(self) -> bool:
         """True if mount is at home position."""
         with self._lock:
             return self._is_at_home
     
+    @AtHome.setter
+    def AtHome(self, value: bool) -> None:
+        """True if mount is at home position."""
+        with self._lock:
+            self._is_at_home = value
+
     @property
     def AtPark(self) -> bool:
         """True if mount is parked."""
@@ -510,22 +612,96 @@ class TTS160Device:
         """Set parked state."""
         with self._lock:
             self._is_parked = value
+
+    @property
+    def EquatorialSystem(self) -> EquatorialCoordinateType:
+        """Which Equatorial Type does the mount use"""
+        self._logger.info("Querying current epoch")
+        result = self._send_command(":*E#", CommandType.BOOL)
+        if result:
+            self._logger.info(f"Retrieved {result}, indicating Topocentric Equatorial")
+            return EquatorialCoordinateType.equTopocentric
+        else:
+            self._logger.info(f"Retrieved {result}, indicating J2000")
+            return EquatorialCoordinateType.equJ2000
     
+    @property
+    def GuideRateDeclination(self) -> float:
+        rate = int(self._send_command(":*gRG#", CommandType.STRING).rstrip('#'))
+        guide_rates = {
+            0: 1.0 / 3600.0,
+            1: 3.0 / 3600.0,
+            2: 5.0 / 3600.0,
+            3: 10.0 / 3600.0,
+            4: 20.0 / 3600.0
+        }
+        return guide_rates.get(rate, 0)
+    
+    @GuideRateDeclination.setter
+    def GuideRateDeclination(self, value: float) -> None:
+        value *= 3600
+        #TODO: Determine correct exception to raise
+        #if value < 0:
+        #    raise ValueError(f"{value / 3600} is less than 0")
+
+        thresholds = [1.5, 4.0, 7.5, 15.0]
+        val = bisect.bisect_left(thresholds, value)
+
+        self._send_command(f":gRS{val}#", CommandType.BLIND)
+
+    @property
+    def GuideRateRightAscension(self) -> float:
+        rate = int(self._send_command(":*gRG#", CommandType.STRING).rstrip('#'))
+        guide_rates = {
+            0: 1.0 / 3600.0,
+            1: 3.0 / 3600.0,
+            2: 5.0 / 3600.0,
+            3: 10.0 / 3600.0,
+            4: 20.0 / 3600.0
+        }
+        return guide_rates.get(rate, 0)
+
+    @GuideRateRightAscension.setter
+    def GuideRateRightAscension(self, value: float) -> None:
+        value *= 3600
+        #TODO: Determine correct exception to raise
+        #if value < 0:
+        #    raise ValueError(f"{value / 3600} is less than 0")
+
+        thresholds = [1.5, 4.0, 7.5, 15.0]
+        val = bisect.bisect_left(thresholds, value)
+
+        self._send_command(f":gRS{val}#", CommandType.BLIND)
+
+    def _calculate_side_of_pier(self, right_ascension) -> PierSide:
+        """Calculate which side of pier the telescope should be on"""
+        hour_angle = self._condition_ha(self.SiderealTime - right_ascension)
+        destination_sop = PierSide.pierEast if hour_angle > 0 else PierSide.pierWest
+        return destination_sop
+
+    @property
+    def SideOfPier(self) -> PierSide:
+        """Calculates and returns SideofPier"""
+        return self._calculate_side_of_pier(self.RightAscension)
+
     @property
     def Slewing(self) -> bool:
         """True if mount is slewing."""
         try:
-            # Check hardware slewing status
-            result = self._send_command(":D#", CommandType.STRING)
-            is_slewing = result == "|#"
             
-            with self._lock:
-                if not is_slewing and self._is_slewing:
-                    # Slew just finished - handle settle time
-                    self._handle_slew_completion()
+            return self._slew_in_progress and not self._slew_in_progress.done()                    
+            
+            # Check hardware slewing status
+            #result = self._send_command(":D#", CommandType.STRING)
+            #is_slewing = result == "|#"
+            
+            #with self._lock:
+            #    if not is_slewing and self._is_slewing:
+            #        # Slew just finished - handle settle time
+            #        self._handle_slew_completion()
                 
-                self._is_slewing = is_slewing
-                return is_slewing
+            #    self._is_slewing = is_slewing
+            #    return is_slewing
                 
         except Exception as ex:
             self._logger.warning(f"Error checking slewing status: {ex}")
@@ -658,6 +834,7 @@ class TTS160Device:
         try:
             self._send_command(":Q#", CommandType.BLIND)
             
+            #TODO: Review all of these flags for necessity
             # Reset all movement states
             with self._lock:
                 self._is_slewing = False
@@ -669,14 +846,112 @@ class TTS160Device:
         except Exception as ex:
             raise DriverException(0x500, "Failed to abort slew", ex)
     
+    def FindHome(self):
+        """Locates the telescope's home position (synchronous)"""
+        self._logger.info("Moving to Home")
+        
+        try:
+            
+            if self._is_parked:
+                raise InvalidOperationException("The requirest operation cannot be undertaken at this time: the mount is parked.")
+
+            if self.Slewing:
+                raise InvalidOperationException("The requested operation cannot be undertaken at this time: the mount is slewing.")
+            
+            if self.AtHome:
+                self._logger.info("Mount is already at Home")
+                return
+
+            #TODO: pull park alt and az and use those rather than 180/0    
+            home_az = 180
+            current_time = Time.now()
+            
+            # Try altitudes 0-9 degrees to find position above horizon
+            for target_alt in range(10):
+                altaz_coord = AltAz(
+                    az=home_az * u.deg, 
+                    alt=target_alt * u.deg,
+                    obstime=current_time,
+                    location=self._site_location
+                )
+                
+                # Convert to GCRS with current epoch (JNow)
+                gcrs_coord = altaz_coord.transform_to(GCRS(obstime=current_time))
+                self.TargetDeclination = gcrs_coord.dec.deg
+                self.TargetRightAscension = gcrs_coord.ra.hour
+                
+                # Try to slew - returns False if target is reachable
+                if not bool(int(self._send_command(":MS#", CommandType.STRING))):
+                    self._executor.submit(self._monitor_home_arrival, target_alt)
+                    self._slew_in_progress = self._executor.submit(self._monitor_slew_status)
+                    return
+            
+            raise InvalidOperationException("Home position is below horizon, check mount alignment")
+            
+        except Exception as ex:
+            self._logger.error(f"FindHome error: {ex}")
+            raise
+    
+    def _monitor_slew_status(self) -> None:
+        """Monitor thread to keep track of mount motion."""
+        try: 
+
+            # Check hardware slewing status
+            while self._send_command(":D#", CommandType.STRING) == "|#":
+                time.sleep(0.1)  # 100 ms between checks
+            
+            time.sleep(self._config.slew_settle_time)  # slew settle time is given in seconds
+                
+        except Exception as ex:
+
+            raise DriverException(0x502, f"Error checking slew status {ex}. Verify mount operation before proceeding!")
+  
+    
+    #TODO: This needs to be made asynchronous...spin it off into its own thread?
+    #def _handle_slew_completion(self) -> None:
+    #    """Handle slew completion and settling."""
+    #    #TODO: Why use getattr rather than just the self._config.SlewSettleTime?
+    #    settle_time = getattr(self._config, 'slew_settle_time', 0)
+    #    if settle_time > 0:
+    #        time.sleep(settle_time)
+        
+        # Reset slewing flags
+    #    self._is_slewing = False
+    #    self._is_slewing_to_target = False
+    #    self._moving_primary = False
+    #    self._moving_secondary = False
+
+    def _monitor_home_arrival(self, target_alt) -> None:
+        """Monitor slewing completion and verify home position"""
+        try:
+            while self.Slewing:
+                time.sleep(0.5)
+            
+            alt, az = self.Altitude, self.Azimuth
+            
+            if abs(alt - target_alt) < 2 and abs(180 - az) < 5:
+                self.AtHome = True
+                self._logger.info(f"Arrived at home. Alt: {alt:.1f}, Az: {az:.1f}")
+            else:
+                msg = f"Did not reach home position. Alt: {alt:.1f}, Az: {az:.1f}"
+                self._logger.error(msg)
+                raise DriverException(f"FindHome error: {msg}")
+
+        except Exception as ex:
+            self._logger.error(f"FindHome monitoring exception: {ex}")
+            raise
+    
+    def SlewToAltAz(self, altitude: float, azimuth: float) -> None:
+        """Slew to given altaz coordinates (synchronous)."""
+        raise NotImplementedException()
+    
+    def SlewToAltAzAsync(self, altitude: float, azimuth: float) -> None:
+        """Slew to given altaz coordinates (asynchronous)."""
+        test = False
+
     def SlewToCoordinates(self, rightAscension: float, declination: float) -> None:
         """Slew to given equatorial coordinates (synchronous)."""
-        # Set target coordinates
-        self.TargetRightAscension = rightAscension
-        self.TargetDeclination = declination
-        
-        # Start slew
-        self.SlewToTarget()
+        raise NotImplementedException()
     
     def SlewToCoordinatesAsync(self, rightAscension: float, declination: float) -> None:
         """Slew to given equatorial coordinates (asynchronous)."""
@@ -689,35 +964,8 @@ class TTS160Device:
     
     def SlewToTarget(self) -> None:
         """Slew to current target coordinates (synchronous)."""
-        with self._lock:
-            if not self._is_target_set:
-                raise InvalidOperationException("Target not set")
-        
-        try:
-            # Send slew command
-            result = self._send_command(":MS#", CommandType.BOOL)
-            if result == "True":
-                raise InvalidOperationException("Target below horizon")
-            
-            # Store slew target
-            with self._lock:
-                self._slew_target = self._target
-                self._is_slewing = True
-                self._is_slewing_to_target = True
-                self._is_at_home = False
-            
-            # Wait for slew completion
-            timeout = 180  # seconds
-            start_time = time.time()
-            
-            while self.Slewing:
-                time.sleep(0.2)
-                if time.time() - start_time > timeout:
-                    self.AbortSlew()
-                    raise DriverException(0x500, "Slew timeout")
-            
-        except Exception as ex:
-            raise DriverException(0x500, "Slew failed", ex)
+        raise NotImplementedException()        
+
     
     def SlewToTargetAsync(self) -> None:
         """Slew to target coordinates (asynchronous)."""
@@ -725,20 +973,20 @@ class TTS160Device:
             if not self._is_target_set:
                 raise InvalidOperationException("Target not set")
         
-        try:
-            # Send slew command
-            result = self._send_command(":MS#", CommandType.BOOL)
-            if result == "True":
-                raise InvalidOperationException("Target below horizon")
-            
-            # Store slew target and set flags
-            self._slew_target = self._target
-            self._is_slewing = True
-            self._is_slewing_to_target = True
-            self._is_at_home = False
-            
-        except Exception as ex:
-            raise DriverException(0x500, "Async slew failed", ex)
+            try:
+                # Send slew command
+                result = self._send_command(":MS#", CommandType.BOOL)
+                if result == "True":
+                    raise InvalidOperationException("Target below horizon")
+                
+                self._slew_in_progress = self._executor.submit(self._monitor_slew_status)
+
+                # Store slew target and set flags
+                self._slew_target = self._target
+                self._is_at_home = False
+                
+            except Exception as ex:
+                raise DriverException(0x500, "Async slew failed", ex)
     
     def PulseGuide(self, direction: int, duration: int) -> None:
         """Pulse guide in specified direction for given duration."""
@@ -786,7 +1034,7 @@ class TTS160Device:
     
     # UTC Date Property
     @property
-    def UTCDate(self) -> datetime:
+    def UTCDate(self) -> str:
         """Get mount's UTC date and time."""
         try:
             # Get local date and time from mount
@@ -810,11 +1058,42 @@ class TTS160Device:
             # Convert to UTC
             utc_dt = local_dt + timedelta(hours=offset_hours)
             
-            return utc_dt.replace(tzinfo=timezone.utc)
+            return utc_dt.replace(tzinfo=timezone.utc).isoformat()
             
         except Exception as ex:
             raise DriverException(0x500, "Failed to get UTC date", ex)
     
+    @UTCDate.setter
+    def UTCDate(self, value: datetime) -> None:
+        """Set mount's UTC date and time."""
+        try:
+            # Get UTC offset from mount
+            utc_offset = self._send_command(":GG#", CommandType.STRING)
+            offset_hours = float(utc_offset.rstrip('#'))
+            
+            # Convert UTC to local time
+            local_dt = value - timedelta(hours=offset_hours)
+            
+            self._logger.info(f"Setting mount time to: {value}")
+
+            # Set date (MM/dd/yy format)
+            date_str = local_dt.strftime("%m/%d/%y")
+            date_response = self._send_command(f":SC{date_str}#", CommandType.STRING)
+            if not (date_response.rstrip('#') == '1'):
+                raise DriverException(0x501, f"Invalid date: {date_str}")
+            
+            # Set time (HH:mm:ss format)
+            time_str = local_dt.strftime("%H:%M:%S")
+            time_response = self._send_command(f":SL{time_str}#", CommandType.STRING)
+            if not (time_response.rstrip('#') == '1'):
+                raise DriverException(0x501, f"Invalid time: {time_str}")
+            
+            # Firmware bug workaround - throwaway SiderealTime call
+            _ = self.SiderealTime
+            
+        except Exception as ex:
+            raise DriverException(0x500, "Failed to set UTC date", ex)
+
     # Capability Properties (static for TTS160)
     @property
     def CanFindHome(self) -> bool:
@@ -829,6 +1108,10 @@ class TTS160Device:
         return self._CanPulseGuide
     
     @property
+    def CanSetPierSide(self) -> bool:
+        return self._CanSetPierSide
+
+    @property
     def CanSetTracking(self) -> bool:
         return self._CanSetTracking
     
@@ -838,14 +1121,42 @@ class TTS160Device:
     
     @property
     def CanSlewAsync(self) -> bool:
-        return self.CanSlewAsync
+        return self._CanSlewAsync
     
+    def CanMoveAxis(self, axis) -> bool:
+        
+        if axis <= 1:
+            return self._CanMoveAxis
+        else:
+            return False
+    
+    @property
+    def CanSetDeclinationRate(self) -> bool:
+        return self._CanSetDeclinationRate
+    
+    @property
+    def CanSetRightAscensionRate(self) -> bool:
+        return self._CanSetRightAscensionRate
+    
+    @property
+    def CanSetPark(self) -> bool:
+        return self._CanSetPark
+    
+    @property
+    def CanSetGuideRates(self) -> bool:
+        return self._CanSetGuideRates  
+
     def AxisRates(self, axis: int) -> List[Rate]:
         """Get available rates for specified axis."""
         if axis in [0, 1]:  # Primary and secondary axes
             return self._AxisRates
         else:
             return []
+    
+    @property
+    def TrackingRates(self) -> List[DriveRates]:
+        """Get available tracking rates."""
+        return self._DriveRates
     
     # Static Properties  
     @property

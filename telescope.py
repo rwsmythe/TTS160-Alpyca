@@ -152,7 +152,7 @@ class connected:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
             # -------------------------------------
-            is_conn = TTS160_dev.isConnected  ### READ CONN STATE ###
+            is_conn = TTS160_dev.Connected  ### READ CONN STATE ###
             # -------------------------------------
             resp.text = PropertyResponse(is_conn, req).json
         except Exception as ex:
@@ -182,7 +182,7 @@ class connecting:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
             # ------------------------------
-            val = TTS160_dev.isConnecting ## GET CONNECTING STATE ##
+            val = TTS160_dev.Connecting() ## GET CONNECTING STATE ##
             # ------------------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -232,6 +232,7 @@ class disconnect:
             # ---------------------------
             ### DISCONNECT THE DEVICE ###
             # ---------------------------
+            TTS160_dev.Disconnect()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -412,12 +413,13 @@ class axisrates:
 
         try:
             # ----------------------
+            logger.info(f"Calling for axis rate with argument {axis}")
             val = TTS160_dev.AxisRates(axis) ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
-                            DriverException(0x500, 'Telescope.Axisrates failed', ex)).json
+                            DriverException(0x500, 'Telescope.AxisRates failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class azimuth:
@@ -478,7 +480,7 @@ class canmoveaxis:
 
         try:
             # ----------------------
-            val = TTS160_dev.CanMoveAxis    ## GET PROPERTY ##
+            val = TTS160_dev.CanMoveAxis(axis)    ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -604,7 +606,7 @@ class cansetrightascensionrate:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSetRightAscension   ## GET PROPERTY ##
+            val = TTS160_dev.CanSetRightAscensionRate   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -1912,6 +1914,7 @@ class utcdate:
         try:
             # ----------------------
             val = TTS160_dev.UTCDate    ## GET PROPERTY ##
+            logger.info(f"Retrieved date: {val}")
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:

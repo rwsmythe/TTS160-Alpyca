@@ -6,7 +6,7 @@ import time
 from typing import Optional
 import serial
 from logging import Logger
-from .tts160_types import CommandType
+from tts160_types import CommandType
 
 
 class SerialManager:
@@ -16,24 +16,24 @@ class SerialManager:
         self._logger = logger
         self._lock = threading.RLock()
         self._serial: Optional[serial.Serial] = None
-        self._connection_count = 0
+        self.connection_count = 0
         self._max_retries = 5
         self._retry_timeout = 0.5
     
     def connect(self, port: str) -> None:
         """Connect to serial port."""
         with self._lock:
-            if self._connection_count == 0:
+            if self.connection_count == 0:
                 self._initialize_connection(port)
-            self._connection_count += 1
-            self._logger.info(f"Serial connection count: {self._connection_count}")
+            self.connection_count += 1
+            self._logger.info(f"Serial connection count: {self.connection_count}")
     
     def disconnect(self) -> None:
         """Disconnect from serial port."""
         with self._lock:
-            self._connection_count -= 1
-            self._logger.info(f"Serial connection count: {self._connection_count}")
-            if self._connection_count <= 0:
+            self.connection_count -= 1
+            self._logger.info(f"Serial connection count: {self.connection_count}")
+            if self.connection_count <= 0:
                 self._cleanup_connection()
     
     def _initialize_connection(self, port: str) -> None:
@@ -69,7 +69,7 @@ class SerialManager:
     def cleanup(self) -> None:
         """Force cleanup of connection."""
         with self._lock:
-            self._connection_count = 0
+            self.connection_count = 0
             self._cleanup_connection()
     
     @property

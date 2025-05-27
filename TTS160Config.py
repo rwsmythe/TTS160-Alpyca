@@ -173,6 +173,7 @@ class TTS160Config:
     # Configuration section constants
     DEVICE_SECTION = 'device'
     SITE_SECTION = 'site'
+    DRIVER_SECTION = 'driver'
     
     # --------------
     # Device Section
@@ -181,7 +182,7 @@ class TTS160Config:
     @property
     def dev_port(self) -> str:
         """Device port configuration."""
-        return self._get_toml(self.DEVICE_SECTION, 'dev_port') or ''
+        return self._get_toml(self.DEVICE_SECTION, 'dev_port') or 'COM1'
     
     @dev_port.setter
     def dev_port(self, value: str) -> None:
@@ -194,7 +195,7 @@ class TTS160Config:
     @property
     def site_elevation(self) -> Union[str, float]:
         """Site elevation configuration."""
-        return self._get_toml(self.SITE_SECTION, 'site_elevation') or ''
+        return self._get_toml(self.SITE_SECTION, 'site_elevation') or 0.0
     
     @site_elevation.setter
     def site_elevation(self, value: Union[str, float]) -> None:
@@ -203,7 +204,7 @@ class TTS160Config:
     @property
     def site_latitude(self) -> Union[str, float]:
         """Site latitude configuration."""
-        return self._get_toml(self.SITE_SECTION, 'site_latitude') or ''
+        return self._get_toml(self.SITE_SECTION, 'site_latitude') or 0.0
     
     @site_latitude.setter
     def site_latitude(self, value: Union[str, float]) -> None:
@@ -212,7 +213,7 @@ class TTS160Config:
     @property
     def site_longitude(self) -> Union[str, float]:
         """Site longitude configuration."""
-        return self._get_toml(self.SITE_SECTION, 'site_longitude') or ''
+        return self._get_toml(self.SITE_SECTION, 'site_longitude') or 0.0
     
     @site_longitude.setter
     def site_longitude(self, value: Union[str, float]) -> None:
@@ -225,3 +226,16 @@ class TTS160Config:
             f"config_file='{self._config_file}', "
             f"override_file='{self._override_file}')"
         )
+    
+    #-----------------
+    # Driver Section
+    #-----------------
+
+    @property
+    def sync_time_on_connect(self) -> bool:
+        """Synch mount time with computer on connect."""
+        return self._get_toml(self.DRIVER_SECTION, 'sync_time_on_connect') or True
+    
+    @sync_time_on_connect.setter
+    def sync_time_on_connect(self, value: bool) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'sync_time_on_connect', value)

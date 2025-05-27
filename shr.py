@@ -85,9 +85,9 @@ def set_shr_logger(lgr):
 # Static metadata not subject to configuration changes
 class DeviceMetadata:
     """ Metadata describing the Alpaca Device/Server """
-    Version = '0.2'
-    Description = 'Alpaca Sample Rotator '
-    Manufacturer = 'ASCOM Initiative'
+    Version = '0.1'
+    Description = 'Alpaca TTS160 Server '
+    Manufacturer = 'Reid Smythe'
 
 # --------------------------------
 # NAME/VALUE PAIRS FOR DEVICESTATE
