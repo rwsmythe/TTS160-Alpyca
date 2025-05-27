@@ -6,9 +6,9 @@ This driver is a python-based alpaca driver for the TTS-160 mount.  It will have
 Because this is written in python, it naturally lends itself to being multiplatform, so the driver will now be able to be used natively on any platform that has the required python libraries, and with any applications that support Alpaca.
 
 ## Differences from the original ASCOM driver
-*For windows users, this driver will have to be manually started.  There is an ASCOM capability to subsequently generate a local driver which will then act as a normal ASCOM driver and not need to be manually started.
-*The driver will natively allow for connection from remote machines, assuming the OS allows access on the required ports (the normal ALPACA ports are used).  The machine the driver runs on must be physically connected to the mount.
-*There is no requirement for ASCOM to be installed on the machine running the driver.  The driver runs a stand-alone webserver that handles the requests and communicates directly with the mount.
+-For windows users, this driver will have to be manually started.  There is an ASCOM capability to subsequently generate a local driver which will then act as a normal ASCOM driver and not need to be manually started.\n
+-The driver will natively allow for connection from remote machines, assuming the OS allows access on the required ports (the normal ALPACA ports are used).  The machine the driver runs on must be physically connected to the mount.\n
+-There is no requirement for ASCOM to be installed on the machine running the driver.  The driver runs a stand-alone webserver that handles the requests and communicates directly with the mount.
 
 ## Firmware Compatibility
 This driver is intended to be compatible with firmware from **356** onward.
