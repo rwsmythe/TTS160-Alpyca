@@ -5,6 +5,7 @@ import threading
 import time
 import math
 import bisect
+from fractions import Fraction
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from logging import Logger
@@ -23,7 +24,7 @@ from exceptions import (
 )
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
-    AlignmentModes
+    AlignmentModes, TelescopeAxes, GuideDirections
 )
 
 
@@ -102,6 +103,25 @@ class TTS160Device:
         #Other misc variables
         self._AxisRates = [Rate(0.0, 3.5)]
         self._DriveRates = [DriveRates.driveSidereal, DriveRates.driveLunar, DriveRates.driveSolar]
+
+        #MoveAxis specific variables
+        self._TICKS_PER_DEGREE = {
+            TelescopeAxes.axisPrimary: 13033502.0 / 360.0,    # H axis
+            TelescopeAxes.axisSecondary: 13146621.0 / 360.0   # E axis
+        }
+        self._TICKS_PER_PULSE = 7.0
+        self._CLOCK_FREQ = 57600
+        self._MAX_RATE = max(rate.maximum for rate in self._AxisRates)
+
+        self._AXIS_COMMANDS = {
+            TelescopeAxes.axisPrimary: {
+                'stop': ':Qe#', 'pos': ':*Me', 'neg': ':*Mw', 'name': 'Primary'
+            },
+            TelescopeAxes.axisSecondary: {
+                'stop': ':Qn#', 'pos': ':*Mn', 'neg': ':*Ms', 'name': 'Secondary'
+            }
+        }
+
 
     def __del__(self):
         # Trash collection
@@ -749,17 +769,37 @@ class TTS160Device:
     def IsPulseGuiding(self) -> bool:
         """True if pulse guiding is active."""
         with self._lock:
-            # Check if pulse guide duration has expired
-            if (self._pulse_guide_start > datetime.min and 
-                self._pulse_guide_duration > 0):
+            if not hasattr(self, '_pulse_guide_monitor') or not self._pulse_guide_monitor:
+                return False
                 
-                elapsed = (datetime.now() - self._pulse_guide_start).total_seconds() * 1000
-                if elapsed >= self._pulse_guide_duration:
-                    self._is_pulse_guiding = False
-                    self._pulse_guide_start = datetime.min
+            timenow = datetime.now()
             
-            return self._is_pulse_guiding
-    
+            for axis, monitor in self._pulse_guide_monitor.items():
+                if not monitor or monitor.done():
+                    continue
+                    
+                # Get axis-specific variables
+                if axis == 'ns':
+                    if not hasattr(self, '_pulse_guide_ns_start'):
+                        continue
+                    start_time = self._pulse_guide_ns_start
+                    duration = self._pulse_guide_ns_duration
+                    stop_event = self._stop_pulse_ns
+                else:  # ew
+                    if not hasattr(self, '_pulse_guide_ew_start'):
+                        continue
+                    start_time = self._pulse_guide_ew_start  
+                    duration = self._pulse_guide_ew_duration
+                    stop_event = self._stop_pulse_ew
+                
+                # Check if timeout exceeded
+                if (timenow - start_time).total_seconds() >= (duration / 1000.0):
+                    stop_event.set()
+                else:
+                    return True  # At least one pulse is still active
+                    
+            return False
+        
     # Target Properties
     @property
     def TargetDeclination(self) -> float:
@@ -905,21 +945,6 @@ class TTS160Device:
         except Exception as ex:
 
             raise DriverException(0x502, f"Error checking slew status {ex}. Verify mount operation before proceeding!")
-  
-    
-    #TODO: This needs to be made asynchronous...spin it off into its own thread?
-    #def _handle_slew_completion(self) -> None:
-    #    """Handle slew completion and settling."""
-    #    #TODO: Why use getattr rather than just the self._config.SlewSettleTime?
-    #    settle_time = getattr(self._config, 'slew_settle_time', 0)
-    #    if settle_time > 0:
-    #        time.sleep(settle_time)
-        
-        # Reset slewing flags
-    #    self._is_slewing = False
-    #    self._is_slewing_to_target = False
-    #    self._moving_primary = False
-    #    self._moving_secondary = False
 
     def _monitor_home_arrival(self, target_alt) -> None:
         """Monitor slewing completion and verify home position"""
@@ -941,6 +966,65 @@ class TTS160Device:
             self._logger.error(f"FindHome monitoring exception: {ex}")
             raise
     
+    def MoveAxis(self, axis: TelescopeAxes, rate: float) -> None:
+        """Move telescope axis at specified rate."""
+        
+        try:
+
+            if self._is_parked:
+                raise InvalidOperationException("Cannot move axis: mount is parked")
+            
+            if abs(rate) > self._MAX_RATE:
+                raise InvalidValueException(f"Rate {rate} exceeds limit ±{self._MAX_RATE} deg/sec")
+            
+            if axis not in self._AXIS_COMMANDS:
+                raise InvalidValueException(f"Invalid axis: {axis}")
+
+            #TODO: check for goto in progress
+
+            # Calculate timing parameters
+            if rate == 0:
+                time_to_pulse = 1.0
+            else:
+                time_to_pulse = (self._CLOCK_FREQ * self._TICKS_PER_PULSE) / (abs(rate) * self._TICKS_PER_DEGREE[axis])
+            
+            # Convert to fraction and scale
+            frac = Fraction(time_to_pulse).limit_denominator(9999)
+            num, den = frac.numerator, frac.denominator
+            
+            if den < 4999:
+                mult = 4999 // den
+                num *= mult
+                den *= mult
+            
+            if num == 0:
+                den = 9999
+
+            self._logger.info(f"MoveAxis - Num: {num}; Den: {den}; Result: {num / den}")
+            
+            # Execute command
+            cmds = self._AXIS_COMMANDS[axis]
+            
+            if rate == 0:
+                self._logger.info(f"Stopping {cmds['name']} Axis")
+                self._send_command(cmds['stop'], CommandType.BLIND)
+            else:
+                cmd_base = cmds['pos'] if rate > 0 else cmds['neg']
+                command = f"{cmd_base}{abs(num):04d}{abs(den):04d}#"
+                self._logger.info(f"Sending Command: {command}")
+                self._send_command(command, CommandType.BLIND)
+                
+                self._is_slewing = True
+                self._is_at_home = False
+                
+                #TODO: Evaluate for removal of these variables
+                if axis == TelescopeAxes.axisPrimary:
+                    self._moving_primary = True
+                else:
+                    self._moving_secondary = True
+        except Exception as ex:
+            DriverException(0x503, f"MoveAxis Error: {ex}")
+
     def SlewToAltAz(self, altitude: float, azimuth: float) -> None:
         """Slew to given altaz coordinates (synchronous)."""
         raise NotImplementedException()
@@ -988,34 +1072,96 @@ class TTS160Device:
             except Exception as ex:
                 raise DriverException(0x500, "Async slew failed", ex)
     
-    def PulseGuide(self, direction: int, duration: int) -> None:
+    def PulseGuide(self, direction: GuideDirections, duration: int) -> None:
         """Pulse guide in specified direction for given duration."""
         if not 0 <= duration <= 9999:
             raise InvalidValueException(f"Duration {duration} outside valid range 0-9999ms")
         
+        if not hasattr(self, '_pulse_guide_monitor'):
+            self._stop_pulse_ns = threading.Event()
+            self._stop_pulse_ew = threading.Event() 
+            self._pulse_guide_monitor = {'ns': None, 'ew': None}
+        
+        command_map = {
+            GuideDirections.guideEast: f":Mge{duration:04d}#",
+            GuideDirections.guideWest: f":Mgw{duration:04d}#", 
+            GuideDirections.guideNorth: f":Mgs{duration:04d}#",
+            GuideDirections.guideSouth: f":Mgn{duration:04d}#"
+        }
+        
+        if direction not in command_map:
+            raise InvalidValueException(f"Invalid guide direction: {direction}")
+        
         try:
-            # Map directions to mount commands (note: N/S are reversed on TTS160)
-            command_map = {
-                2: f":Mge{duration:04d}#",    # guideEast
-                3: f":Mgw{duration:04d}#",    # guideWest
-                0: f":Mgs{duration:04d}#",    # guideNorth (reversed)
-                1: f":Mgn{duration:04d}#"     # guideSouth (reversed)
-            }
-            
-            if direction not in command_map:
-                raise InvalidValueException(f"Invalid guide direction: {direction}")
+            with self._lock:
+                # Check for active pulse on same axis
+                if direction in [GuideDirections.guideNorth, GuideDirections.guideSouth]:
+                    if self._pulse_guide_monitor['ns'] and not self._pulse_guide_monitor['ns'].done():
+                        raise InvalidOperationException("North/South pulse guide already active")
+                        
+                    self._pulse_guide_ns_duration = duration
+                    self._pulse_guide_ns_start = datetime.now()
+                    self._stop_pulse_ns.clear()
+                    
+                else:  # East/West
+                    if self._pulse_guide_monitor['ew'] and not self._pulse_guide_monitor['ew'].done():
+                        raise InvalidOperationException("East/West pulse guide already active")
+                        
+                    self._pulse_guide_ew_duration = duration
+                    self._pulse_guide_ew_start = datetime.now()
+                    self._stop_pulse_ew.clear()
             
             self._send_command(command_map[direction], CommandType.BLIND)
             
-            # Set pulse guide state
             with self._lock:
-                self._is_pulse_guiding = True
-                self._pulse_guide_duration = duration
-                self._pulse_guide_start = datetime.now()
-            
+                if direction in [GuideDirections.guideNorth, GuideDirections.guideSouth]:
+                    self._pulse_guide_monitor['ns'] = self._executor.submit(self._pulse_guide_monitor_ns)
+                else:
+                    self._pulse_guide_monitor['ew'] = self._executor.submit(self._pulse_guide_monitor_ew)
+                    
         except Exception as ex:
-            raise DriverException(0x500, "Pulse guide failed", ex)
+            if not isinstance(ex, InvalidOperationException):
+                raise DriverException(0x500, "Pulse guide failed", ex)
+            raise
     
+    def _pulse_guide_monitor_ns(self) -> None:
+        """Monitor NS pulse guide duration."""
+        try:
+            if not hasattr(self, '_pulse_guide_ns_start') or not hasattr(self, '_pulse_guide_ns_duration'):
+                return
+                
+            start_time = self._pulse_guide_ns_start
+            duration_ms = self._pulse_guide_ns_duration
+            
+            while not self._stop_pulse_ns.wait(0.05):
+                if (datetime.now() - start_time).total_seconds() >= (duration_ms / 1000.0):
+                    break
+                    
+        except Exception as ex:
+            self._logger.error(f"Pulse guide NS monitor error: {ex}")
+        finally:
+            with self._lock:
+                self._pulse_guide_monitor['ns'] = None
+
+    def _pulse_guide_monitor_ew(self) -> None:
+        """Monitor EW pulse guide duration."""
+        try:
+            if not hasattr(self, '_pulse_guide_ew_start') or not hasattr(self, '_pulse_guide_ew_duration'):
+                return
+                
+            start_time = self._pulse_guide_ew_start
+            duration_ms = self._pulse_guide_ew_duration
+            
+            while not self._stop_pulse_ew.wait(0.05):
+                if (datetime.now() - start_time).total_seconds() >= (duration_ms / 1000.0):
+                    break
+                    
+        except Exception as ex:
+            self._logger.error(f"Pulse guide NS monitor error: {ex}")
+        finally:
+            with self._lock:
+                self._pulse_guide_monitor['ew'] = None
+
     def Park(self) -> None:
         """Park the mount."""
         if self.AtPark:

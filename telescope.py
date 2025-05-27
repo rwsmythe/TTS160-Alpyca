@@ -1134,6 +1134,7 @@ class pulseguide:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.PulseGuide(direction, duration)
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
