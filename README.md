@@ -23,6 +23,7 @@ The intent is for this driver to have a distribution package similar to the one 
 * Fix connect/disconnect logic so you can reconnect multiple times
 * Verify multiple connects and disconnects from multiple clients (Sharpcap, NINA, phd, etc...) do not break connect/disconnect logic
 * Continue converting methods - SlewToxxx should be the last big ones.  Also need the syncs, now that I think of it
+* Have abort slew bypass settling time: set _goto_in_progress to False before sending the abort command.
 
 ## Good TODOs
 * Run existing methods through Claude to ensure pythonic, best practices, documented, etc...
