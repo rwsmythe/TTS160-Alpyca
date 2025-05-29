@@ -55,6 +55,11 @@ class TTS160Config:
         site_elevation: Observatory elevation
         site_latitude: Observatory latitude  
         site_longitude: Observatory longitude
+        sync_time_on_connect: Sync mount time with computer on initial connect
+        pulse_guide_equatorial_frame: Pulses move mount in the equatorial frame
+        pulse_guide_altitude_compensation: Compensate azimuth pulse length for altitude
+        pulse_guide_max_compensation: maximum compensation time to prevent a timeout condition due to unexpected length (int, ms)
+        pulse_guide_compensation_buffer: set a safety buffer to the maximum compensation time (int, ms)
     """
     
     # Class constants
@@ -219,14 +224,6 @@ class TTS160Config:
     def site_longitude(self, value: Union[str, float]) -> None:
         self._put_toml(self.SITE_SECTION, 'site_longitude', value)
     
-    def __repr__(self) -> str:
-        """Return string representation for debugging."""
-        return (
-            f"{self.__class__.__name__}("
-            f"config_file='{self._config_file}', "
-            f"override_file='{self._override_file}')"
-        )
-    
     #-----------------
     # Driver Section
     #-----------------
@@ -239,3 +236,49 @@ class TTS160Config:
     @sync_time_on_connect.setter
     def sync_time_on_connect(self, value: bool) -> None:
         self._put_toml(self.DRIVER_SECTION, 'sync_time_on_connect', value)
+
+    @property
+    def pulse_guide_equatorial_frame(self) -> bool:
+        """Use the equatorial frame for pulse guides"""
+        return self._get_toml(self.DRIVER_SECTION, 'pulse_guide_equatorial_frame') or True
+    
+    @pulse_guide_equatorial_frame.setter
+    def pulse_guide_equatorial_frame(self, value: bool) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'pulse_guide_equatorial_frame',value)
+
+    @property
+    def pulse_guide_altitude_compensation(self) -> bool:
+        """Compensate azimuth pulse length for mount altitude"""
+        return self._get_toml(self.DRIVER_SECTION, 'pulse_guide_altitude_compensation') or True
+
+    @pulse_guide_altitude_compensation.setter
+    def pulse_guide_altitude_compensation(self, value: bool) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'pulse_guide_altitude_compensation', value)
+
+    @property
+    def pulse_guide_max_compensation(self) -> int:
+        """Compensate azimuth pulse length for mount altitude"""
+        return self._get_toml(self.DRIVER_SECTION, 'pulse_guide_max_compensation') or 1000
+
+    @pulse_guide_max_compensation.setter
+    def pulse_guide_altitude_compensation(self, value: int) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'pulse_guide_max_compensation', value)
+
+    @property
+    def pulse_guide_compensation_buffer(self) -> int:
+        """Compensate azimuth pulse length for mount altitude"""
+        return self._get_toml(self.DRIVER_SECTION, 'pulse_guide_compensation_buffer') or 20
+
+    @pulse_guide_compensation_buffer.setter
+    def pulse_guide_compensation_buffer(self, value: int) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'pulse_guide_compensation_buffer', value)
+    
+
+
+    def __repr__(self) -> str:
+        """Return string representation for debugging."""
+        return (
+            f"{self.__class__.__name__}("
+            f"config_file='{self._config_file}', "
+            f"override_file='{self._override_file}')"
+        )

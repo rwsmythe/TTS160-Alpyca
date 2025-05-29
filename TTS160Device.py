@@ -7,7 +7,7 @@ import math
 import bisect
 from fractions import Fraction
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from logging import Logger
 from concurrent.futures import ThreadPoolExecutor, Future
 
@@ -86,7 +86,8 @@ class TTS160Device:
         self._is_parked = False
         self._is_at_home = False
         self._tracking = False
-        
+        self._goto_in_progress = False  #Indicates if a goto is in progress rather than just slew to allow for moveaxis to be executed during....moveaxis
+
         # Target state
         self._target = EquatorialCoordinates(0.0, 0.0)
         self._slew_target = EquatorialCoordinates(0.0, 0.0)
@@ -352,64 +353,286 @@ class TTS160Device:
         
         return f"{h:02d}:{m:02d}:{seconds:04.1f}"
     
-    def _altaz_to_radec(self, azimuth: float, altitude: float, 
-                       time: datetime = None) -> tuple[float, float]:
-        """Convert Alt/Az to RA/Dec using AstroPy."""
-        #TODO: Time should be preferentially taken from the mount, not the computer, I think
-        if time is None:
-            time = datetime.now(timezone.utc)
+    def _altaz_to_icrs(self, azimuth: float, altitude: float) -> Tuple[float, float]:
+        """
+        Convert Alt/Az coordinates to J2000 ICRS RA/Dec.
         
-        # Create AltAz coordinate
-        altaz_frame = AltAz(obstime=Time(time), location=self._site_location)
-        altaz_coord = SkyCoord(
-            az=azimuth * u.deg,
-            alt=altitude * u.deg,
-            frame=altaz_frame
-        )
-        
-        #TODO: Verify that ICRS is equivalent to JNow/TopoEqu.  Also provide for conversion to J2000 if that is what the epoch is set to.
-        # Transform to ICRS
-        icrs_coord = altaz_coord.icrs
-        
-        return icrs_coord.ra.hour, icrs_coord.dec.degree
-    
-    #TODO: Note, here and above: ICRS is ~J2000 unless current epoch is specified.  See "https://stackoverflow.com/questions/52900678/coordinates-transformation-in-astropy" for add'l details
-    #In order to convert to "JNow", consider doing ICRS->GCRS conversion with timenow.
-    #Implementation Example:
-    """
-    # Starting coordinates (ICRS/J2000)
-    coord = SkyCoord(ra=83.633*u.deg, dec=22.014*u.deg, frame='icrs')
+        Args:
+            azimuth: Azimuth in decimal degrees (0-360)
+            altitude: Altitude in decimal degrees (-90 to +90)
+            
+        Returns:
+            Tuple of (right_ascension_hours, declination_degrees)
+            
+        Raises:
+            InvalidValueException: Invalid coordinate values
+            DriverException: Coordinate transformation failure
+        """
+        try:
+            # Validate inputs
+            if not (0 <= azimuth <= 360):
+                raise InvalidValueException(f"Azimuth {azimuth} outside valid range 0-360 degrees")
+            if not (-90 <= altitude <= 90):
+                raise InvalidValueException(f"Altitude {altitude} outside valid range -90 to +90 degrees")
+                
+            # Create AltAz coordinate at current time
+            current_time = Time.now()
+            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_coord = SkyCoord(
+                az=azimuth * u.deg,
+                alt=altitude * u.deg,
+                frame=altaz_frame
+            )
+            
+            # Transform to ICRS (J2000)
+            icrs_coord = altaz_coord.transform_to(ICRS())
+            
+            return icrs_coord.ra.hour, icrs_coord.dec.degree
+            
+        except Exception as ex:
+            if isinstance(ex, InvalidValueException):
+                raise
+            raise DriverException(0x500, f"Alt/Az to ICRS conversion failed: {ex}")
 
-    # Current time and observer location
-    now = Time.now()
-    location = EarthLocation(lat=40.7*u.deg, lon=-74.0*u.deg, height=100*u.m)
 
-    # Convert to current epoch equatorial (accounting for precession)
-    coord_now = coord.transform_to('gcrs', obstime=now)
+    def _icrs_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
+        """
+        Convert J2000 ICRS RA/Dec to Alt/Az coordinates.
+        
+        Args:
+            right_ascension: Right ascension in decimal hours (0-24)
+            declination: Declination in decimal degrees (-90 to +90)
+            
+        Returns:
+            Tuple of (azimuth_degrees, altitude_degrees)
+            
+        Raises:
+            InvalidValueException: Invalid coordinate values
+            DriverException: Coordinate transformation failure
+        """
+        try:
+            # Validate inputs
+            if not (0 <= right_ascension < 24):
+                raise InvalidValueException(f"Right ascension {right_ascension} outside valid range 0-24 hours")
+            if not (-90 <= declination <= 90):
+                raise InvalidValueException(f"Declination {declination} outside valid range -90 to +90 degrees")
+                
+            # Create ICRS coordinate
+            icrs_coord = SkyCoord(
+                ra=right_ascension * u.hour,
+                dec=declination * u.deg,
+                frame=ICRS()
+            )
+            
+            # Transform to AltAz at current time
+            current_time = Time.now()
+            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_coord = icrs_coord.transform_to(altaz_frame)
+            
+            # Normalize azimuth to 0-360 range
+            azimuth = altaz_coord.az.degree
+            if azimuth < 0:
+                azimuth += 360
+            elif azimuth >= 360:
+                azimuth -= 360
+                
+            return azimuth, altaz_coord.alt.degree
+            
+        except Exception as ex:
+            if isinstance(ex, InvalidValueException):
+                raise
+            raise DriverException(0x500, f"ICRS to Alt/Az conversion failed: {ex}")
 
-    # Convert to topocentric (Alt/Az frame includes all effects)
-    altaz_frame = AltAz(obstime=now, location=location)
-    coord_topocentric = coord.transform_to(altaz_frame)
-    """
 
-    def _radec_to_altaz(self, right_ascension: float, declination: float,
-                       time: datetime = None) -> tuple[float, float]:
-        """Convert RA/Dec to Alt/Az using AstroPy."""
-        if time is None:
-            time = datetime.now(timezone.utc)
+    def _altaz_to_gcrs(self, azimuth: float, altitude: float) -> Tuple[float, float]:
+        """
+        Convert Alt/Az coordinates to topocentric equatorial GCRS RA/Dec (current epoch).
         
-        # Create ICRS coordinate
-        icrs_coord = SkyCoord(
-            ra=right_ascension * u.hour,
-            dec=declination * u.deg,
-            frame='icrs'
-        )
+        Args:
+            azimuth: Azimuth in decimal degrees (0-360)
+            altitude: Altitude in decimal degrees (-90 to +90)
+            
+        Returns:
+            Tuple of (right_ascension_hours, declination_degrees)
+            
+        Raises:
+            InvalidValueException: Invalid coordinate values
+            DriverException: Coordinate transformation failure
+        """
+        try:
+            # Validate inputs
+            if not (0 <= azimuth <= 360):
+                raise InvalidValueException(f"Azimuth {azimuth} outside valid range 0-360 degrees")
+            if not (-90 <= altitude <= 90):
+                raise InvalidValueException(f"Altitude {altitude} outside valid range -90 to +90 degrees")
+                
+            # Create AltAz coordinate at current time
+            current_time = Time.now()
+            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_coord = SkyCoord(
+                az=azimuth * u.deg,
+                alt=altitude * u.deg,
+                frame=altaz_frame
+            )
+            
+            # Transform to GCRS at current time (topocentric equatorial)
+            gcrs_coord = altaz_coord.transform_to(GCRS(obstime=current_time))
+            
+            return gcrs_coord.ra.hour, gcrs_coord.dec.degree
+            
+        except Exception as ex:
+            if isinstance(ex, InvalidValueException):
+                raise
+            raise DriverException(0x500, f"Alt/Az to GCRS conversion failed: {ex}")
+
+
+    def _gcrs_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
+        """
+        Convert topocentric equatorial GCRS RA/Dec (current epoch) to Alt/Az coordinates.
         
-        # Transform to AltAz
-        altaz_frame = AltAz(obstime=Time(time), location=self._site_location)
-        altaz_coord = icrs_coord.transform_to(altaz_frame)
+        Args:
+            right_ascension: Right ascension in decimal hours (0-24)
+            declination: Declination in decimal degrees (-90 to +90)
+            
+        Returns:
+            Tuple of (azimuth_degrees, altitude_degrees)
+            
+        Raises:
+            InvalidValueException: Invalid coordinate values
+            DriverException: Coordinate transformation failure
+        """
+        try:
+            # Validate inputs
+            if not (0 <= right_ascension < 24):
+                raise InvalidValueException(f"Right ascension {right_ascension} outside valid range 0-24 hours")
+            if not (-90 <= declination <= 90):
+                raise InvalidValueException(f"Declination {declination} outside valid range -90 to +90 degrees")
+                
+            # Create GCRS coordinate at current time
+            current_time = Time.now()
+            gcrs_coord = SkyCoord(
+                ra=right_ascension * u.hour,
+                dec=declination * u.deg,
+                frame=GCRS(obstime=current_time)
+            )
+            
+            # Transform to AltAz
+            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_coord = gcrs_coord.transform_to(altaz_frame)
+            
+            # Normalize azimuth to 0-360 range
+            azimuth = altaz_coord.az.degree
+            if azimuth < 0:
+                azimuth += 360
+            elif azimuth >= 360:
+                azimuth -= 360
+                
+            return azimuth, altaz_coord.alt.degree
+            
+        except Exception as ex:
+            if isinstance(ex, InvalidValueException):
+                raise
+            raise DriverException(0x500, f"GCRS to Alt/Az conversion failed: {ex}")
+
+
+    def _icrs_to_gcrs(self, right_ascension: float, declination: float) -> Tuple[float, float]:
+        """
+        Convert J2000 ICRS RA/Dec to topocentric equatorial GCRS RA/Dec (current epoch).
         
-        return altaz_coord.az.degree, altaz_coord.alt.degree
+        Accounts for precession, nutation, and other time-dependent effects.
+        
+        Args:
+            right_ascension: Right ascension in decimal hours (0-24)
+            declination: Declination in decimal degrees (-90 to +90)
+            
+        Returns:
+            Tuple of (right_ascension_hours, declination_degrees)
+            
+        Raises:
+            InvalidValueException: Invalid coordinate values
+            DriverException: Coordinate transformation failure
+        """
+        try:
+            # Validate inputs
+            if not (0 <= right_ascension < 24):
+                raise InvalidValueException(f"Right ascension {right_ascension} outside valid range 0-24 hours")
+            if not (-90 <= declination <= 90):
+                raise InvalidValueException(f"Declination {declination} outside valid range -90 to +90 degrees")
+                
+            # Create ICRS coordinate (J2000)
+            icrs_coord = SkyCoord(
+                ra=right_ascension * u.hour,
+                dec=declination * u.deg,
+                frame=ICRS()
+            )
+            
+            # Transform to GCRS at current time
+            current_time = Time.now()
+            gcrs_coord = icrs_coord.transform_to(GCRS(obstime=current_time))
+            
+            # Normalize RA to 0-24 hour range
+            ra_hours = gcrs_coord.ra.hour
+            if ra_hours < 0:
+                ra_hours += 24
+            elif ra_hours >= 24:
+                ra_hours -= 24
+                
+            return ra_hours, gcrs_coord.dec.degree
+            
+        except Exception as ex:
+            if isinstance(ex, InvalidValueException):
+                raise
+            raise DriverException(0x500, f"ICRS to GCRS conversion failed: {ex}")
+
+
+    def _gcrs_to_icrs(self, right_ascension: float, declination: float) -> Tuple[float, float]:
+        """
+        Convert topocentric equatorial GCRS RA/Dec (current epoch) to J2000 ICRS RA/Dec.
+        
+        Removes precession, nutation, and other time-dependent effects.
+        
+        Args:
+            right_ascension: Right ascension in decimal hours (0-24)
+            declination: Declination in decimal degrees (-90 to +90)
+            
+        Returns:
+            Tuple of (right_ascension_hours, declination_degrees)
+            
+        Raises:
+            InvalidValueException: Invalid coordinate values
+            DriverException: Coordinate transformation failure
+        """
+        try:
+            # Validate inputs
+            if not (0 <= right_ascension < 24):
+                raise InvalidValueException(f"Right ascension {right_ascension} outside valid range 0-24 hours")
+            if not (-90 <= declination <= 90):
+                raise InvalidValueException(f"Declination {declination} outside valid range -90 to +90 degrees")
+                
+            # Create GCRS coordinate at current time
+            current_time = Time.now()
+            gcrs_coord = SkyCoord(
+                ra=right_ascension * u.hour,
+                dec=declination * u.deg,
+                frame=GCRS(obstime=current_time)
+            )
+            
+            # Transform to ICRS (J2000)
+            icrs_coord = gcrs_coord.transform_to(ICRS())
+            
+            # Normalize RA to 0-24 hour range
+            ra_hours = icrs_coord.ra.hour
+            if ra_hours < 0:
+                ra_hours += 24
+            elif ra_hours >= 24:
+                ra_hours -= 24
+                
+            return ra_hours, icrs_coord.dec.degree
+            
+        except Exception as ex:
+            if isinstance(ex, InvalidValueException):
+                raise
+            raise DriverException(0x500, f"GCRS to ICRS conversion failed: {ex}")
     
     def _calculate_sidereal_time(self, time: datetime = None) -> float:
         """Calculate local apparent sidereal time using AstroPy."""
@@ -729,18 +952,20 @@ class TTS160Device:
                 return self._is_slewing
     
     #TODO: This needs to be made asynchronous...spin it off into its own thread?
-    def _handle_slew_completion(self) -> None:
-        """Handle slew completion and settling."""
-        #TODO: Why use getattr rather than just the self._config.SlewSettleTime?
-        settle_time = getattr(self._config, 'slew_settle_time', 0)
-        if settle_time > 0:
-            time.sleep(settle_time)
+    #def _handle_slew_completion(self) -> None:
+    #    """Handle slew completion and settling."""
+    #    #TODO: Why use getattr rather than just the self._config.SlewSettleTime?
+    #    settle_time = getattr(self._config, 'slew_settle_time', 0)
+    #    if settle_time > 0:
+    #        time.sleep(settle_time)
         
-        # Reset slewing flags
-        self._is_slewing = False
-        self._is_slewing_to_target = False
-        self._moving_primary = False
-        self._moving_secondary = False
+    #    # Reset slewing flags
+    #    #TODO: Can we get rid of moving primary, moving secondary??  What about _is_slewing?  _is_slewing_to_target?
+    #    self._is_slewing = False
+    #    self._is_slewing_to_target = False
+    #    self._moving_primary = False
+    #    self._moving_secondary = False
+    #    self._goto_in_progress = False
     
     @property
     def Tracking(self) -> bool:
@@ -767,37 +992,92 @@ class TTS160Device:
     
     @property
     def IsPulseGuiding(self) -> bool:
-        """True if pulse guiding is active."""
-        with self._lock:
-            if not hasattr(self, '_pulse_guide_monitor') or not self._pulse_guide_monitor:
+        """
+        True if the mount is currently executing a PulseGuide() command.
+        
+        This property indicates whether any pulse guide operation is active on either
+        the North/South or East/West axis. It automatically stops expired pulse guides
+        and cleans up monitoring resources.
+        
+        Returns:
+            bool: True if pulse guiding is active on any axis, False otherwise
+            
+        Raises:
+            DriverException: If an error occurs checking pulse guide status
+            
+        Note:
+            A pulse guide command may be so short that this property reads False
+            immediately after calling PulseGuide(). This indicates successful
+            completion, not failure.
+        """
+        try:
+            with self._lock:
+                # Return False if monitoring infrastructure doesn't exist
+                if not hasattr(self, '_pulse_guide_monitor') or not self._pulse_guide_monitor:
+                    return False
+                
+                current_time = datetime.now()
+                active_pulses = []
+                
+                # Check each axis for active pulse guides
+                for axis in ['ns', 'ew']:
+                    if self._is_axis_pulse_active(axis, current_time):
+                        active_pulses.append(axis)
+                        
+                return len(active_pulses) > 0
+                
+        except Exception as ex:
+            raise DriverException(0x500, f"Failed to check pulse guide status: {ex}")
+
+
+    def _is_axis_pulse_active(self, axis: str, current_time: datetime) -> bool:
+        """
+        Check if pulse guide is active on specified axis and stop if expired.
+        
+        Args:
+            axis: Axis identifier ('ns' or 'ew')
+            current_time: Current timestamp for duration calculation
+            
+        Returns:
+            bool: True if pulse guide is still active on this axis
+            
+        Raises:
+            Exception: Propagates any timing or threading errors
+        """
+        monitor = self._pulse_guide_monitor.get(axis)
+        
+        # No monitor or monitor completed
+        if not monitor or monitor.done():
+            return False
+        
+        # Get axis-specific timing attributes
+        start_attr = f'_pulse_guide_{axis}_start'
+        duration_attr = f'_pulse_guide_{axis}_duration'
+        stop_event_attr = f'_stop_pulse_{axis}'
+        
+        # Check if required attributes exist
+        if not all(hasattr(self, attr) for attr in [start_attr, duration_attr, stop_event_attr]):
+            return False
+        
+        try:
+            start_time = getattr(self, start_attr)
+            duration_ms = getattr(self, duration_attr)
+            stop_event = getattr(self, stop_event_attr)
+            
+            # Calculate elapsed time in seconds
+            elapsed_seconds = (current_time - start_time).total_seconds()
+            duration_seconds = duration_ms / 1000.0
+            
+            # Stop pulse if duration exceeded
+            if elapsed_seconds >= duration_seconds:
+                stop_event.set()
                 return False
                 
-            timenow = datetime.now()
+            return True
             
-            for axis, monitor in self._pulse_guide_monitor.items():
-                if not monitor or monitor.done():
-                    continue
-                    
-                # Get axis-specific variables
-                if axis == 'ns':
-                    if not hasattr(self, '_pulse_guide_ns_start'):
-                        continue
-                    start_time = self._pulse_guide_ns_start
-                    duration = self._pulse_guide_ns_duration
-                    stop_event = self._stop_pulse_ns
-                else:  # ew
-                    if not hasattr(self, '_pulse_guide_ew_start'):
-                        continue
-                    start_time = self._pulse_guide_ew_start  
-                    duration = self._pulse_guide_ew_duration
-                    stop_event = self._stop_pulse_ew
-                
-                # Check if timeout exceeded
-                if (timenow - start_time).total_seconds() >= (duration / 1000.0):
-                    stop_event.set()
-                else:
-                    return True  # At least one pulse is still active
-                    
+        except (AttributeError, TypeError, ValueError) as ex:
+            # Attribute access or timing calculation error - consider pulse inactive
+            self._logger.warning(f"Pulse guide timing error for {axis} axis: {ex}")
             return False
         
     # Target Properties
@@ -922,8 +1202,8 @@ class TTS160Device:
                 
                 # Try to slew - returns False if target is reachable
                 if not bool(int(self._send_command(":MS#", CommandType.STRING))):
-                    self._executor.submit(self._monitor_home_arrival, target_alt)
-                    self._slew_in_progress = self._executor.submit(self._monitor_slew_status)
+                    self._executor.submit(self._home_arrival_monitor, target_alt)
+                    self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
                     return
             
             raise InvalidOperationException("Home position is below horizon, check mount alignment")
@@ -932,7 +1212,7 @@ class TTS160Device:
             self._logger.error(f"FindHome error: {ex}")
             raise
     
-    def _monitor_slew_status(self) -> None:
+    def _slew_status_monitor(self) -> None:
         """Monitor thread to keep track of mount motion."""
         try: 
 
@@ -940,13 +1220,16 @@ class TTS160Device:
             while self._send_command(":D#", CommandType.STRING) == "|#":
                 time.sleep(0.1)  # 100 ms between checks
             
-            time.sleep(self._config.slew_settle_time)  # slew settle time is given in seconds
-                
+            #We only care about slew settle time after gotos...
+            if self._goto_in_progress:
+                time.sleep(self._config.slew_settle_time)  # slew settle time is given in seconds
+                self._goto_in_progress = False
+
         except Exception as ex:
 
             raise DriverException(0x502, f"Error checking slew status {ex}. Verify mount operation before proceeding!")
 
-    def _monitor_home_arrival(self, target_alt) -> None:
+    def _home_arrival_monitor(self, target_alt) -> None:
         """Monitor slewing completion and verify home position"""
         try:
             while self.Slewing:
@@ -980,7 +1263,8 @@ class TTS160Device:
             if axis not in self._AXIS_COMMANDS:
                 raise InvalidValueException(f"Invalid axis: {axis}")
 
-            #TODO: check for goto in progress
+            if self._goto_in_progress:
+                raise InvalidOperationException("Cannot execute MoveAxis while Goto is in progress.")
 
             # Calculate timing parameters
             if rate == 0:
@@ -1063,6 +1347,7 @@ class TTS160Device:
                 if result == "True":
                     raise InvalidOperationException("Target below horizon")
                 
+                self._goto_in_progress = True
                 self._slew_in_progress = self._executor.submit(self._monitor_slew_status)
 
                 # Store slew target and set flags
@@ -1073,59 +1358,326 @@ class TTS160Device:
                 raise DriverException(0x500, "Async slew failed", ex)
     
     def PulseGuide(self, direction: GuideDirections, duration: int) -> None:
-        """Pulse guide in specified direction for given duration."""
+        """
+        Pulse guide in specified direction for given duration.
+        
+        Args:
+            direction: Guide direction (North/South/East/West)
+            duration: Duration in milliseconds (0-9999)
+            
+        Raises:
+            InvalidValueException: Invalid direction or duration
+            InvalidOperationException: Mount parked, slewing, or axis conflict
+            DriverException: Command execution or conversion failure
+        """
+        # Input validation
+        if not isinstance(direction, GuideDirections):
+            raise InvalidValueException(f"Invalid guide direction: {direction}")
         if not 0 <= duration <= 9999:
             raise InvalidValueException(f"Duration {duration} outside valid range 0-9999ms")
         
+        with self._lock:
+            # State validation
+            if self._is_parked:
+                raise InvalidOperationException("Cannot move axis: mount is parked")
+            if self.Slewing:
+                raise InvalidOperationException("Cannot pulse guide while slewing")
+                
+            # Check for axis conflicts
+            self._check_pulse_guide_conflicts(direction)
+            
+            # Initialize monitoring infrastructure if needed
+            self._initialize_pulse_guide_monitoring()
+            
+            try:
+                # Determine pulse parameters based on configuration
+                if self._config.pulse_guide_equatorial_frame:
+                    ns_dir, ns_dur, ew_dir, ew_dur = self._convert_equatorial_pulse(direction, duration)
+                else:
+                    ns_dir, ns_dur, ew_dir, ew_dur = self._get_standard_pulse_params(direction, duration)
+                
+                # Execute pulse guide commands
+                self._execute_pulse_guide(ns_dir, ns_dur, ew_dir, ew_dur, duration)
+                
+            except Exception as ex:
+                if isinstance(ex, (InvalidValueException, InvalidOperationException)):
+                    raise
+                raise DriverException(0x500, "Pulse guide failed", ex)
+
+
+    def _check_pulse_guide_conflicts(self, direction: GuideDirections) -> None:
+        """Check for active pulse guide conflicts on the same axis."""
+        if not hasattr(self, '_pulse_guide_monitor'):
+            return
+            
+        if direction in [GuideDirections.guideNorth, GuideDirections.guideSouth]:
+            monitor = self._pulse_guide_monitor.get('ns')
+            if monitor and not monitor.done():
+                raise InvalidOperationException("North/South pulse guide already active")
+        else:  # East/West
+            monitor = self._pulse_guide_monitor.get('ew')
+            if monitor and not monitor.done():
+                raise InvalidOperationException("East/West pulse guide already active")
+
+
+    def _initialize_pulse_guide_monitoring(self) -> None:
+        """Initialize pulse guide monitoring infrastructure."""
         if not hasattr(self, '_pulse_guide_monitor'):
             self._stop_pulse_ns = threading.Event()
             self._stop_pulse_ew = threading.Event() 
             self._pulse_guide_monitor = {'ns': None, 'ew': None}
+
+
+    def _get_standard_pulse_params(self, direction: GuideDirections, duration: int) -> Tuple[GuideDirections, int, GuideDirections, int]:
+        """
+        Get pulse parameters for standard (non-equatorial) mode.
         
+        Returns:
+            Tuple of (ns_direction, ns_duration, ew_direction, ew_duration)
+        """
+        ns_dir = GuideDirections.guideNorth
+        ns_dur = 0
+        ew_dir = GuideDirections.guideEast  
+        ew_dur = 0
+        
+        if direction == GuideDirections.guideNorth:
+            ns_dir = GuideDirections.guideNorth
+            ns_dur = duration
+        elif direction == GuideDirections.guideSouth:
+            ns_dir = GuideDirections.guideSouth
+            ns_dur = duration
+        elif direction == GuideDirections.guideEast:
+            ew_dir = GuideDirections.guideEast
+            ew_dur = duration
+        elif direction == GuideDirections.guideWest:
+            ew_dir = GuideDirections.guideWest
+            ew_dur = duration
+        
+        # Apply altitude compensation for East/West in standard mode
+        if (self._config.pulse_guide_altitude_compensation and 
+            direction in [GuideDirections.guideEast, GuideDirections.guideWest]):
+            ew_dur = self._apply_altitude_compensation(ew_dur)
+
+        return ns_dir, ns_dur, ew_dir, ew_dur
+
+
+    def _convert_equatorial_pulse(self, direction: GuideDirections, duration: int) -> Tuple[GuideDirections, int, GuideDirections, int]:
+        """
+        Convert equatorial pulse guide command to alt/az pulse parameters.
+        
+        Transforms the requested RA/Dec motion into corresponding Alt/Az motions
+        using coordinate transformations.
+        
+        Args:
+            direction: Requested guide direction in equatorial frame
+            duration: Requested duration in milliseconds
+            
+        Returns:
+            Tuple of (ns_direction, ns_duration, ew_direction, ew_duration)
+            
+        Raises:
+            DriverException: Coordinate transformation failure
+        """
+        try:
+            # Convert duration to seconds and get guide rate
+            duration_sec = duration / 1000.0
+            guide_rate = self.GuideRateDeclination  # deg/sec
+            
+            # Calculate RA/Dec deltas based on equatorial direction
+            delta_ra = 0.0  # degrees
+            delta_dec = 0.0  # degrees
+            
+            if direction == GuideDirections.guideNorth:
+                delta_dec = duration_sec * guide_rate
+            elif direction == GuideDirections.guideSouth:
+                delta_dec = -duration_sec * guide_rate
+            elif direction == GuideDirections.guideEast:
+                delta_ra = duration_sec * guide_rate
+            elif direction == GuideDirections.guideWest:
+                delta_ra = -duration_sec * guide_rate
+                
+            # Get current telescope position
+            current_time = Time.now()
+            current_ra = self.RightAscension  # hours
+            current_dec = self.Declination    # degrees
+            
+            # Calculate final equatorial position
+            final_ra = current_ra + delta_ra / 15.0  # convert degrees to hours
+            final_dec = current_dec + delta_dec
+            
+            # Transform current position to AltAz
+            current_gcrs = GCRS(
+                ra=current_ra * u.hour,
+                dec=current_dec * u.deg,
+                obstime=current_time
+            )
+            current_altaz = current_gcrs.transform_to(AltAz(
+                obstime=current_time,
+                location=self._site_location
+            ))
+            
+            # Transform final position to AltAz
+            final_gcrs = GCRS(
+                ra=final_ra * u.hour,
+                dec=final_dec * u.deg,
+                obstime=current_time
+            )
+            final_altaz = final_gcrs.transform_to(AltAz(
+                obstime=current_time,
+                location=self._site_location
+            ))
+            
+            # Calculate Alt/Az deltas
+            delta_alt = final_altaz.alt.deg - current_altaz.alt.deg
+            delta_az = final_altaz.az.deg - current_altaz.az.deg
+            
+            # Handle azimuth wrap-around (choose shortest path)
+            if delta_az > 180:
+                delta_az -= 360
+            elif delta_az < -180:
+                delta_az += 360
+                
+            # Convert deltas to pulse durations
+            ns_dur = abs(round(delta_alt / guide_rate * 1000))
+            ew_dur = abs(round(delta_az / guide_rate * 1000))
+            
+            # Determine mount directions based on delta signs
+            ns_dir = GuideDirections.guideSouth if delta_alt >= 0 else GuideDirections.guideNorth
+            ew_dir = GuideDirections.guideEast if delta_az >= 0 else GuideDirections.guideWest
+            
+            return ns_dir, ns_dur, ew_dir, ew_dur
+            
+        except Exception as ex:
+            raise DriverException(0x500, f"Equatorial pulse conversion failed: {ex}")
+
+
+    def _apply_altitude_compensation(self, duration: int) -> int:
+        """
+        Apply altitude compensation to East/West pulse duration.
+        
+        Compensates for the cosine effect where East/West motion appears
+        slower at higher altitudes due to coordinate geometry.
+        
+        Args:
+            duration: Original duration in milliseconds
+            
+        Returns:
+            Compensated duration in milliseconds
+            
+        Raises:
+            DriverException: Compensation calculation failure
+        """
+        try:
+            alt = self.Altitude
+            max_alt = 89.0  # Prevent divide by zero near zenith
+            
+            if alt > max_alt:
+                alt = max_alt
+                
+            alt_rad = math.radians(alt)
+            compensated_duration = round(duration / math.cos(alt_rad))
+            
+            # Apply compensation limits to prevent excessive durations
+            max_comp = self._config.pulse_guide_max_compensation
+            buffer = self._config.pulse_guide_compensation_buffer
+            
+            if compensated_duration > (duration + max_comp):
+                compensated_duration = duration + max_comp - buffer
+                
+            return max(0, compensated_duration)
+            
+        except Exception as ex:
+            raise DriverException(0x500, f"Altitude compensation failed: {ex}")
+
+
+    def _execute_pulse_guide(self, ns_dir: GuideDirections, ns_dur: int, 
+                            ew_dir: GuideDirections, ew_dur: int, original_duration: int) -> None:
+        """
+        Execute pulse guide commands and start monitoring threads.
+        
+        Args:
+            ns_dir: North/South direction
+            ns_dur: North/South duration in milliseconds  
+            ew_dir: East/West direction
+            ew_dur: East/West duration in milliseconds
+            original_duration: Original requested duration for synchronous mode
+            
+        Raises:
+            DriverException: Command execution failure
+        """
+        # Hardware command mappings - standard mode (physically correct)
         command_map = {
-            GuideDirections.guideEast: f":Mge{duration:04d}#",
-            GuideDirections.guideWest: f":Mgw{duration:04d}#", 
-            GuideDirections.guideNorth: f":Mgs{duration:04d}#",
-            GuideDirections.guideSouth: f":Mgn{duration:04d}#"
+            GuideDirections.guideEast: ":Mge{:04d}#",
+            GuideDirections.guideWest: ":Mgw{:04d}#", 
+            GuideDirections.guideNorth: ":Mgs{:04d}#",  # Note: North uses 's'
+            GuideDirections.guideSouth: ":Mgn{:04d}#"   # Note: South uses 'n'
         }
         
-        if direction not in command_map:
-            raise InvalidValueException(f"Invalid guide direction: {direction}")
+        # For equatorial mode, swap East/West commands to match GuideDirections semantics
+        if self._config.pulse_guide_equatorial_frame:
+            command_map[GuideDirections.guideEast] = ":Mgw{:04d}#"  # Swapped
+            command_map[GuideDirections.guideWest] = ":Mge{:04d}#"  # Swapped
+        
+        monitors_started = []
         
         try:
-            with self._lock:
-                # Check for active pulse on same axis
-                if direction in [GuideDirections.guideNorth, GuideDirections.guideSouth]:
-                    if self._pulse_guide_monitor['ns'] and not self._pulse_guide_monitor['ns'].done():
-                        raise InvalidOperationException("North/South pulse guide already active")
-                        
-                    self._pulse_guide_ns_duration = duration
-                    self._pulse_guide_ns_start = datetime.now()
-                    self._stop_pulse_ns.clear()
-                    
-                else:  # East/West
-                    if self._pulse_guide_monitor['ew'] and not self._pulse_guide_monitor['ew'].done():
-                        raise InvalidOperationException("East/West pulse guide already active")
-                        
-                    self._pulse_guide_ew_duration = duration
-                    self._pulse_guide_ew_start = datetime.now()
-                    self._stop_pulse_ew.clear()
+            # Execute North/South command if needed
+            if ns_dur > 0:
+                command = command_map[ns_dir].format(ns_dur)
+                self._send_command(command, CommandType.BLIND)
+                
+                # Start NS monitoring
+                self._pulse_guide_ns_duration = ns_dur
+                self._pulse_guide_ns_start = datetime.now()
+                self._stop_pulse_ns.clear()
+                self._pulse_guide_monitor['ns'] = self._executor.submit(self._pulse_guide_monitor_ns)
+                monitors_started.append('ns')
             
-            self._send_command(command_map[direction], CommandType.BLIND)
-            
-            with self._lock:
-                if direction in [GuideDirections.guideNorth, GuideDirections.guideSouth]:
-                    self._pulse_guide_monitor['ns'] = self._executor.submit(self._pulse_guide_monitor_ns)
-                else:
-                    self._pulse_guide_monitor['ew'] = self._executor.submit(self._pulse_guide_monitor_ew)
+            # Execute East/West command if needed  
+            if ew_dur > 0:
+                command = command_map[ew_dir].format(ew_dur)
+                self._send_command(command, CommandType.BLIND)
+                
+                # Start EW monitoring
+                self._pulse_guide_ew_duration = ew_dur
+                self._pulse_guide_ew_start = datetime.now()
+                self._stop_pulse_ew.clear()
+                self._pulse_guide_monitor['ew'] = self._executor.submit(self._pulse_guide_monitor_ew)
+                monitors_started.append('ew')
+
+            # Alpaca methods cannot be synchronous or a timeout error could result    
+            # Handle synchronous mode
+            #if self._config.pulse_guide_duration_synchronous:
+            #    time.sleep(original_duration / 1000.0)
+            #    # Signal monitors to stop
+            #    if 'ns' in monitors_started:
+            #        self._stop_pulse_ns.set()
+            #    if 'ew' in monitors_started:
+            #        self._stop_pulse_ew.set()
                     
         except Exception as ex:
-            if not isinstance(ex, InvalidOperationException):
-                raise DriverException(0x500, "Pulse guide failed", ex)
-            raise
-    
+            # Cleanup any started monitors on failure
+            self._cleanup_failed_pulse_guide(monitors_started)
+            raise DriverException(0x500, f"Pulse guide execution failed: {ex}")
+
+
+    def _cleanup_failed_pulse_guide(self, monitors_started: list) -> None:
+        """Clean up pulse guide monitors after execution failure."""
+        for axis in monitors_started:
+            if axis == 'ns':
+                self._stop_pulse_ns.set()
+                if self._pulse_guide_monitor['ns']:
+                    self._pulse_guide_monitor['ns'].cancel()
+                    self._pulse_guide_monitor['ns'] = None
+            else:  # ew
+                self._stop_pulse_ew.set()
+                if self._pulse_guide_monitor['ew']:
+                    self._pulse_guide_monitor['ew'].cancel()
+                    self._pulse_guide_monitor['ew'] = None
+
+
     def _pulse_guide_monitor_ns(self) -> None:
-        """Monitor NS pulse guide duration."""
+        """Monitor North/South pulse guide duration."""
         try:
             if not hasattr(self, '_pulse_guide_ns_start') or not hasattr(self, '_pulse_guide_ns_duration'):
                 return
@@ -1143,8 +1695,9 @@ class TTS160Device:
             with self._lock:
                 self._pulse_guide_monitor['ns'] = None
 
+
     def _pulse_guide_monitor_ew(self) -> None:
-        """Monitor EW pulse guide duration."""
+        """Monitor East/West pulse guide duration."""
         try:
             if not hasattr(self, '_pulse_guide_ew_start') or not hasattr(self, '_pulse_guide_ew_duration'):
                 return
@@ -1157,7 +1710,7 @@ class TTS160Device:
                     break
                     
         except Exception as ex:
-            self._logger.error(f"Pulse guide NS monitor error: {ex}")
+            self._logger.error(f"Pulse guide EW monitor error: {ex}")
         finally:
             with self._lock:
                 self._pulse_guide_monitor['ew'] = None
