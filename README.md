@@ -23,7 +23,8 @@ The intent is for this driver to have a distribution package similar to the one 
 * Fix connect/disconnect logic so you can reconnect multiple times
 * Verify multiple connects and disconnects from multiple clients (Sharpcap, NINA, phd, etc...) do not break connect/disconnect logic
 * Continue converting methods - SlewToxxx should be the last big ones.  Also need the syncs, now that I think of it
-* Have abort slew bypass settling time: set _goto_in_progress to False before sending the abort command.
+* Have abort slew bypass settling time: set _goto_in_progress to False before sending the abort command
+* Implement EquatorialSystem in applicable functions.  Likely make two alt-az <-> ra-dec conversion functions that will choose the correct epoch based on the mount so that we don't need to check in each and every function.  Functions...SlewToAltAzAsync, SlewToCoordinatesAsync, all of the Syncs, FindHome, any others?
 
 ## Good TODOs
 * Run existing methods through Claude to ensure pythonic, best practices, documented, etc...
