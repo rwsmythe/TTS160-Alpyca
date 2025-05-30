@@ -19,7 +19,7 @@ There will be a GUI developed to handle driver settings (similar to the ASCOM dr
 ## Distribution Packages
 The intent is for this driver to have a distribution package similar to the one for ASCOM driver.  Ideally, this will include for deployment on Linux/Raspbian and Mac OSes as well.
 
-## Things do before conform testing
+## TODO before conform testing
 * Fix connect/disconnect logic so you can reconnect multiple times
 * Verify multiple connects and disconnects from multiple clients (Sharpcap, NINA, phd, etc...) do not break connect/disconnect logic
 * Continue converting methods - SlewToxxx should be the last big ones.  Also need the syncs, now that I think of it
