@@ -51,7 +51,8 @@ class TTS160Device:
         # Connection state
         self._Connecting = False
         self._Connected = False
-        
+
+
         #Static Data
         self._Name = TelescopeMetadata.Name
         self._DriverVersion = TelescopeMetadata.Version
@@ -78,15 +79,15 @@ class TTS160Device:
 
         # Mount state with thread safety
         self._slew_in_progress = None
-        self._is_slewing = False
-        self._is_slewing_to_target = False
+        #self._is_slewing = False
+        #self._is_slewing_to_target = False
         self._is_pulse_guiding = False
-        self._moving_primary = False
-        self._moving_secondary = False
+        #self._moving_primary = False
+        #self._moving_secondary = False
         self._is_parked = False
         self._is_at_home = False
         self._tracking = False
-        self._goto_in_progress = False  #Indicates if a goto is in progress rather than just slew to allow for moveaxis to be executed during....moveaxis
+        self._goto_in_progress = False  #Indicates if a goto is in progress rather than just slew to allow for moveaxis to be executed during...moveaxis
 
         # Target state
         self._target = EquatorialCoordinates(0.0, 0.0)
@@ -168,9 +169,10 @@ class TTS160Device:
             self._Connecting = True
             
         try:
-            #self._logger.info("Starting Async Connect Routine")
-            #return self._executor.submit(self._connect_mount)
-            self._connect_mount()
+            self._logger.info("Starting Async Connect Routine")
+            self._config.reload()
+            self._executor.submit(self._connect_mount)
+            return
 
         except Exception as ex:
             with self._lock:
@@ -186,8 +188,10 @@ class TTS160Device:
                 self._serial_manager = TTS160Global.get_serial_manager(self._logger)
 
             self._serial_manager.connect(self._config.dev_port)
-            self._Connected = True
             self._initialize_mount()
+            with self._lock:
+                self._Connected = True
+                self._Connecting = False
             self._logger.info("TTS160 connected successfully")
             
         except Exception as ex:
@@ -215,12 +219,12 @@ class TTS160Device:
                 self.UTCDate = datetime.now(timezone.utc)
 
             # Initialize state
-            with self._lock:
-                self._is_slewing = False
-                self._is_slewing_to_target = False
-                self._is_pulse_guiding = False
-                self._moving_primary = False
-                self._moving_secondary = False
+            #with self._lock:
+            #    self._is_slewing = False
+            #    self._is_slewing_to_target = False
+            #    self._is_pulse_guiding = False
+            #    self._moving_primary = False
+            #    self._moving_secondary = False
             
         except Exception as ex:
             raise DriverException(0x500, "Mount initialization failed", ex)
@@ -260,10 +264,15 @@ class TTS160Device:
             if not self._Connected:
                 return
 
+            if self._serial_manager.connection_count > 1:
+                self._serial_manager.connection_count -= 1
+                return
+
             self._Connecting = True
             
             try:
                 if self._serial_manager:
+                    self._config.save()
                     self._serial_manager.disconnect()
                     self._serial_manager = None
                 
@@ -288,11 +297,15 @@ class TTS160Device:
 
     def _send_command(self, command: str, command_type: CommandType) -> str:
         """Send command to mount."""
-        if not self._Connected:
-            raise RuntimeError("Device not connected")
+        try:
+
+            if not self._Connected:
+                raise RuntimeError("Device not connected")
+            
+            return self._serial_manager.send_command(command, command_type)
+        except Exception as ex:
+            raise DriverException(0x555, f"Error sending command: {ex}")
         
-        return self._serial_manager.send_command(command, command_type)
-    
     # Coordinate Conversion Utilities
     def _dms_to_degrees(self, dms_str: str) -> float:
         """Convert DMS string to degrees."""
@@ -1152,16 +1165,18 @@ class TTS160Device:
     def AbortSlew(self) -> None:
         """Abort any current slewing."""
         try:
+            
+            self._goto_in_progress = False
             self._send_command(":Q#", CommandType.BLIND)
             
             #TODO: Review all of these flags for necessity
             # Reset all movement states
-            with self._lock:
-                self._is_slewing = False
-                self._is_slewing_to_target = False
-                self._is_pulse_guiding = False
-                self._moving_primary = False
-                self._moving_secondary = False
+            #with self._lock:
+            #    self._is_slewing = False
+            #    self._is_slewing_to_target = False
+            #    self._is_pulse_guiding = False
+            #    self._moving_primary = False
+            #    self._moving_secondary = False
             
         except Exception as ex:
             raise DriverException(0x500, "Failed to abort slew", ex)
@@ -1173,7 +1188,7 @@ class TTS160Device:
         try:
             
             if self._is_parked:
-                raise InvalidOperationException("The requirest operation cannot be undertaken at this time: the mount is parked.")
+                raise InvalidOperationException("The requested operation cannot be undertaken at this time: the mount is parked.")
 
             if self.Slewing:
                 raise InvalidOperationException("The requested operation cannot be undertaken at this time: the mount is slewing.")
@@ -1727,9 +1742,28 @@ class TTS160Device:
         except Exception as ex:
             raise DriverException(0x500, "Park failed", ex)
     
+    def SetPark(self) -> None:
+        """Set the telescopes park position to its current position."""
+
+        try:
+            self._config.park_location = True
+            park_alt = round(self.Altitude, 3)
+            park_az = round(self.Azimuth, 3)
+            
+            self._config.park_location_altitude = park_alt
+            self._config.park_location_azimuth = park_az
+            
+            # Format as DDD.ddd for both azimuth and altitude
+            command = f":*PS1{park_az:07.3f}{park_alt:07.3f}#"
+            self._send_command(command, CommandType.BLIND)
+            self._config.save()
+            
+        except Exception as ex:
+            raise DriverException(0x500, f"SetPark failed: {ex}")
+
     def Unpark(self) -> None:
         """Unpark the mount (not supported by TTS160)."""
-        raise InvalidOperationException("Unpark is not supported by TTS160")
+        raise NotImplementedException()
     
     # UTC Date Property
     @property
