@@ -1265,7 +1265,7 @@ class TTS160Device:
             # Send to mount
             dms_str = self._degrees_to_dms(abs(value))
             #TODO: Verify that this is what C# driver is doing.  Assuming negative unless a + in front?!
-            sign = "+" if value >= 0 else ""
+            sign = "+" if value >= 0 else "-"
             command = f":Sd{sign}{dms_str}#"
             
             result = self._send_command(command, CommandType.BOOL)
@@ -1979,8 +1979,8 @@ class TTS160Device:
             self._config.park_location_altitude = park_alt
             self._config.park_location_azimuth = park_az
             
-            # Format as DDD.ddd for both azimuth and altitude
-            command = f":*PS1{park_az:07.3f}{park_alt:07.3f}#"
+            # Format as DDD.ddd for azimuth and DD.ddd for altitude
+            command = f":*PS1{park_az:07.3f}{park_alt:06.3f}#"
             self._send_command(command, CommandType.BLIND)
             self._config.save()
             
