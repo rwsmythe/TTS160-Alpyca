@@ -1,0 +1,783 @@
+2025-05-26T21:28:23.627 INFO Instantiating serial manager
+2025-05-26T21:28:23.636 INFO TTS160 device initialized successfully
+2025-05-26T21:28:23.685 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
+2025-05-26T21:28:28.996 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-05-26T21:28:28.996 INFO 127.0.0.1 -> {'Connected': 'True', 'ClientID': '9024', 'ClientTransactionID': '433'}
+2025-05-26T21:28:28.996 INFO Serial connection opened on COM5
+2025-05-26T21:28:28.996 INFO Serial connection count: 1
+2025-05-26T21:28:29.053 INFO Connected to: TTS-160 Panther
+2025-05-26T21:28:29.053 INFO Firmware: 356C (Aug 21 2024)
+2025-05-26T21:28:29.100 INFO Site coordinates: 21.347222°, -157.903333°, 0.0m
+2025-05-26T21:28:29.710 INFO TTS160 connected successfully
+2025-05-26T21:28:29.714 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=434
+2025-05-26T21:28:29.714 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.721 INFO 127.0.0.1 -> GET /api/v1/telescope/0/interfaceversion?ClientID=9024&ClientTransactionID=435
+2025-05-26T21:28:29.721 INFO 127.0.0.1 <- 4
+2025-05-26T21:28:29.721 INFO 127.0.0.1 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=9024&ClientTransactionID=436
+2025-05-26T21:28:29.721 INFO Querying current epoch
+2025-05-26T21:28:29.727 INFO Retrieved False, indicating Topocentric Equatorial
+2025-05-26T21:28:29.727 INFO 127.0.0.1 <- 1
+2025-05-26T21:28:29.737 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=9024&ClientTransactionID=437
+2025-05-26T21:28:29.737 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-05-26T21:28:29.740 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=438
+2025-05-26T21:28:29.740 INFO 127.0.0.1 <- False
+2025-05-26T21:28:29.740 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=439
+2025-05-26T21:28:29.784 INFO 127.0.0.1 <- 2025-05-26 21:28:29+00:00
+2025-05-26T21:28:29.790 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:29.792 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=440
+2025-05-26T21:28:29.795 INFO 127.0.0.1 <- 21.347222222222218
+2025-05-26T21:28:29.795 INFO 127.0.0.1 -> GET /api/v1/telescope/0/description?ClientID=9024&ClientTransactionID=441
+2025-05-26T21:28:29.797 INFO 127.0.0.1 <- TTS160 Alpaca Driver
+2025-05-26T21:28:29.797 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=442
+2025-05-26T21:28:29.797 INFO 127.0.0.1 <- -157.90333333333336
+2025-05-26T21:28:29.797 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverinfo?ClientID=9024&ClientTransactionID=443
+2025-05-26T21:28:29.800 INFO 127.0.0.1 <- Alpaca telescope
+Implements ITelescope
+ASCOM Initiative
+2025-05-26T21:28:29.800 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=444
+2025-05-26T21:28:29.800 INFO 127.0.0.1 <- 0.0
+2025-05-26T21:28:29.803 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=9024&ClientTransactionID=445
+2025-05-26T21:28:29.816 INFO 127.0.0.1 <- -0.0
+2025-05-26T21:28:29.816 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverversion?ClientID=9024&ClientTransactionID=446
+2025-05-26T21:28:29.816 INFO 127.0.0.1 <- 356.0.0
+2025-05-26T21:28:29.816 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=9024&ClientTransactionID=447
+2025-05-26T21:28:29.816 INFO 127.0.0.1 <- False
+2025-05-26T21:28:29.816 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=9024&ClientTransactionID=448
+2025-05-26T21:28:29.816 INFO 127.0.0.1 <- False
+2025-05-26T21:28:29.825 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=449
+2025-05-26T21:28:29.825 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.825 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=9024&ClientTransactionID=450
+2025-05-26T21:28:29.834 INFO 127.0.0.1 <- 180.00042091829943
+2025-05-26T21:28:29.834 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=451&Axis=0
+2025-05-26T21:28:29.834 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.845 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=9024&ClientTransactionID=452
+2025-05-26T21:28:29.847 INFO 127.0.0.1 <- 3.260473628971462
+2025-05-26T21:28:29.847 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=453&Axis=0
+2025-05-26T21:28:29.863 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.863 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=9024&ClientTransactionID=454
+2025-05-26T21:28:29.880 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T21:28:29.880 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=455&Axis=1
+2025-05-26T21:28:29.880 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.880 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=456
+2025-05-26T21:28:29.880 INFO 127.0.0.1 <- False
+2025-05-26T21:28:29.894 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=9024&ClientTransactionID=457
+2025-05-26T21:28:29.913 INFO 127.0.0.1 <- 3.2611666666666643
+2025-05-26T21:28:29.915 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=458&Axis=1
+2025-05-26T21:28:29.915 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.917 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=459
+2025-05-26T21:28:29.917 INFO 127.0.0.1 <- 0.0
+2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=461
+2025-05-26T21:28:29.919 INFO 127.0.0.1 <- 21.347222222222218
+2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=460&Axis=0
+2025-05-26T21:28:29.919 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=462
+2025-05-26T21:28:29.919 INFO 127.0.0.1 <- -157.90333333333336
+2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=463&Axis=1
+2025-05-26T21:28:29.919 INFO 127.0.0.1 <- True
+2025-05-26T21:28:29.926 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=464
+2025-05-26T21:28:29.942 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:30.149 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=465
+2025-05-26T21:28:30.165 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:30.373 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=466
+2025-05-26T21:28:30.396 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:30.404 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=467
+2025-05-26T21:28:30.407 INFO 127.0.0.1 <- False
+2025-05-26T21:28:30.420 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9024&ClientTransactionID=468
+2025-05-26T21:28:30.420 INFO 127.0.0.1 <- False
+2025-05-26T21:28:30.420 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=469
+2025-05-26T21:28:30.420 INFO 127.0.0.1 <- False
+2025-05-26T21:28:30.424 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=9024&ClientTransactionID=470
+2025-05-26T21:28:30.424 INFO 127.0.0.1 <- True
+2025-05-26T21:28:30.427 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canfindhome?ClientID=9024&ClientTransactionID=471
+2025-05-26T21:28:30.427 INFO 127.0.0.1 <- False
+2025-05-26T21:28:30.427 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpark?ClientID=9024&ClientTransactionID=472
+2025-05-26T21:28:30.433 INFO 127.0.0.1 <- True
+2025-05-26T21:28:30.433 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpark?ClientID=9024&ClientTransactionID=473
+2025-05-26T21:28:30.433 INFO 127.0.0.1 <- False
+2025-05-26T21:28:30.436 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=9024&ClientTransactionID=474
+2025-05-26T21:28:30.441 INFO 127.0.0.1 <- False
+2025-05-26T21:28:30.441 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=475
+2025-05-26T21:28:30.441 INFO 127.0.0.1 <- True
+2025-05-26T21:28:30.441 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=476
+2025-05-26T21:28:30.452 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:30.678 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=477
+2025-05-26T21:28:30.680 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:30.901 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=478
+2025-05-26T21:28:30.955 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:30.962 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=479
+2025-05-26T21:28:30.962 INFO 127.0.0.1 <- True
+2025-05-26T21:28:30.962 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=480
+2025-05-26T21:28:30.978 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:31.184 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=481
+2025-05-26T21:28:31.237 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:31.443 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=482
+2025-05-26T21:28:31.455 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:31.459 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=483
+2025-05-26T21:28:31.460 INFO 127.0.0.1 <- True
+2025-05-26T21:28:31.463 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=484&Axis=0
+2025-05-26T21:28:31.463 INFO 127.0.0.1 <- True
+2025-05-26T21:28:31.466 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=485&Axis=1
+2025-05-26T21:28:31.467 INFO 127.0.0.1 <- True
+2025-05-26T21:28:31.469 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=9024&ClientTransactionID=486&Axis=0
+2025-05-26T21:28:31.469 INFO Calling for axis rate with argument 0
+2025-05-26T21:28:31.470 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-05-26T21:28:31.472 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=9024&ClientTransactionID=487&Axis=1
+2025-05-26T21:28:31.472 INFO Calling for axis rate with argument 1
+2025-05-26T21:28:31.472 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-05-26T21:28:31.474 INFO 127.0.0.1 -> GET /api/v1/telescope/0/supportedactions?ClientID=9024&ClientTransactionID=488
+2025-05-26T21:28:31.475 INFO 127.0.0.1 <- []
+2025-05-26T21:28:31.476 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9024&ClientTransactionID=489
+2025-05-26T21:28:31.476 INFO 127.0.0.1 <- 0
+2025-05-26T21:28:31.477 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9024&ClientTransactionID=490
+2025-05-26T21:28:31.477 INFO 127.0.0.1 <- True
+2025-05-26T21:28:31.478 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9024&ClientTransactionID=491
+2025-05-26T21:28:31.478 INFO 127.0.0.1 <- False
+2025-05-26T21:28:31.479 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9024&ClientTransactionID=492
+2025-05-26T21:28:31.479 INFO 127.0.0.1 <- False
+2025-05-26T21:28:31.481 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=493
+2025-05-26T21:28:31.481 INFO 127.0.0.1 <- True
+2025-05-26T21:28:31.482 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=494
+2025-05-26T21:28:31.523 INFO 127.0.0.1 <- 2025-05-26 21:28:30+00:00
+2025-05-26T21:28:31.527 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:31.732 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=495
+2025-05-26T21:28:31.775 INFO 127.0.0.1 <- 2025-05-26 21:28:30+00:00
+2025-05-26T21:28:31.777 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:31.981 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=496
+2025-05-26T21:28:32.024 INFO 127.0.0.1 <- 2025-05-26 21:28:31+00:00
+2025-05-26T21:28:32.026 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:32.030 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverversion?ClientID=9024&ClientTransactionID=497
+2025-05-26T21:28:32.030 INFO 127.0.0.1 <- 356.0.0
+2025-05-26T21:28:34.047 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=498
+2025-05-26T21:28:34.047 INFO 127.0.0.1 <- True
+2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=9024&ClientTransactionID=499
+2025-05-26T21:28:34.049 INFO 127.0.0.1 <- False
+2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=9024&ClientTransactionID=500
+2025-05-26T21:28:34.049 INFO 127.0.0.1 <- False
+2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=9024&ClientTransactionID=501
+2025-05-26T21:28:34.049 INFO 127.0.0.1 <- True
+2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9024&ClientTransactionID=502
+2025-05-26T21:28:34.049 INFO 127.0.0.1 <- False
+2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=503
+2025-05-26T21:28:34.056 INFO 127.0.0.1 <- False
+2025-05-26T21:28:34.056 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=504
+2025-05-26T21:28:34.060 INFO 127.0.0.1 <- False
+2025-05-26T21:28:34.070 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=9024&ClientTransactionID=505
+2025-05-26T21:28:34.122 INFO 127.0.0.1 <- 0.0
+2025-05-26T21:28:34.128 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=9024&ClientTransactionID=506
+2025-05-26T21:28:34.145 INFO 127.0.0.1 <- 179.9998479605043
+2025-05-26T21:28:34.147 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=9024&ClientTransactionID=507
+2025-05-26T21:28:34.162 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T21:28:34.170 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=9024&ClientTransactionID=508
+2025-05-26T21:28:34.186 INFO 127.0.0.1 <- 3.2617341361207504
+2025-05-26T21:28:34.192 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=9024&ClientTransactionID=509
+2025-05-26T21:28:34.212 INFO 127.0.0.1 <- 3.2625555555555525
+2025-05-26T21:28:34.213 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=510
+2025-05-26T21:28:34.219 INFO 127.0.0.1 <- False
+2025-05-26T21:28:34.228 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=511
+2025-05-26T21:28:34.230 INFO 127.0.0.1 <- -157.90333333333336
+2025-05-26T21:28:34.234 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=512
+2025-05-26T21:28:34.234 INFO 127.0.0.1 <- 21.347222222222218
+2025-05-26T21:28:34.236 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=513
+2025-05-26T21:28:34.236 INFO 127.0.0.1 <- 0.0
+2025-05-26T21:28:34.236 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=514
+2025-05-26T21:28:34.250 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:34.475 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=515
+2025-05-26T21:28:34.488 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:34.710 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=516
+2025-05-26T21:28:34.763 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:34.767 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=9024&ClientTransactionID=517
+2025-05-26T21:28:34.775 INFO 127.0.0.1 <- False
+2025-05-26T21:28:34.775 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=518
+2025-05-26T21:28:34.775 INFO 127.0.0.1 <- True
+2025-05-26T21:28:34.775 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=519
+2025-05-26T21:28:34.792 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:34.999 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=520
+2025-05-26T21:28:34.999 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:35.226 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=521
+2025-05-26T21:28:35.235 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:35.241 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=522
+2025-05-26T21:28:35.241 INFO 127.0.0.1 <- True
+2025-05-26T21:28:35.241 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=523
+2025-05-26T21:28:35.250 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:35.473 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=524
+2025-05-26T21:28:35.478 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:35.696 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=525
+2025-05-26T21:28:35.709 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:35.711 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9024&ClientTransactionID=526
+2025-05-26T21:28:35.716 INFO 127.0.0.1 <- 0
+2025-05-26T21:28:35.716 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9024&ClientTransactionID=527
+2025-05-26T21:28:35.716 INFO 127.0.0.1 <- True
+2025-05-26T21:28:35.716 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9024&ClientTransactionID=528
+2025-05-26T21:28:35.716 INFO 127.0.0.1 <- False
+2025-05-26T21:28:35.716 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9024&ClientTransactionID=529
+2025-05-26T21:28:35.716 INFO 127.0.0.1 <- False
+2025-05-26T21:28:35.725 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=530
+2025-05-26T21:28:35.725 INFO 127.0.0.1 <- True
+2025-05-26T21:28:35.727 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=531
+2025-05-26T21:28:35.760 INFO 127.0.0.1 <- 2025-05-26 21:28:35+00:00
+2025-05-26T21:28:35.771 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:35.982 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=532
+2025-05-26T21:28:36.021 INFO 127.0.0.1 <- 2025-05-26 21:28:35+00:00
+2025-05-26T21:28:36.021 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:36.234 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=533
+2025-05-26T21:28:36.271 INFO 127.0.0.1 <- 2025-05-26 21:28:36+00:00
+2025-05-26T21:28:36.282 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:36.285 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=534
+2025-05-26T21:28:36.285 INFO 127.0.0.1 <- True
+2025-05-26T21:28:36.285 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=9024&ClientTransactionID=535
+2025-05-26T21:28:36.285 INFO 127.0.0.1 <- False
+2025-05-26T21:28:36.298 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=9024&ClientTransactionID=536
+2025-05-26T21:28:36.298 INFO 127.0.0.1 <- False
+2025-05-26T21:28:36.298 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=9024&ClientTransactionID=537
+2025-05-26T21:28:36.298 INFO 127.0.0.1 <- True
+2025-05-26T21:28:36.303 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9024&ClientTransactionID=538
+2025-05-26T21:28:36.303 INFO 127.0.0.1 <- False
+2025-05-26T21:28:36.305 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=539
+2025-05-26T21:28:36.305 INFO 127.0.0.1 <- False
+2025-05-26T21:28:36.305 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=540
+2025-05-26T21:28:36.314 INFO 127.0.0.1 <- False
+2025-05-26T21:28:36.319 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=9024&ClientTransactionID=541
+2025-05-26T21:28:36.336 INFO 127.0.0.1 <- -0.0
+2025-05-26T21:28:36.336 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=9024&ClientTransactionID=542
+2025-05-26T21:28:36.353 INFO 127.0.0.1 <- 180.00042091829943
+2025-05-26T21:28:36.362 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=9024&ClientTransactionID=543
+2025-05-26T21:28:36.378 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T21:28:36.378 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=9024&ClientTransactionID=544
+2025-05-26T21:28:36.396 INFO 127.0.0.1 <- 3.262307093915881
+2025-05-26T21:28:36.404 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=9024&ClientTransactionID=545
+2025-05-26T21:28:36.420 INFO 127.0.0.1 <- 3.263111111111108
+2025-05-26T21:28:36.428 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=546
+2025-05-26T21:28:36.437 INFO 127.0.0.1 <- False
+2025-05-26T21:28:36.441 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=547
+2025-05-26T21:28:36.442 INFO 127.0.0.1 <- -157.90333333333336
+2025-05-26T21:28:36.442 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=548
+2025-05-26T21:28:36.447 INFO 127.0.0.1 <- 21.347222222222218
+2025-05-26T21:28:36.447 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=549
+2025-05-26T21:28:36.447 INFO 127.0.0.1 <- 0.0
+2025-05-26T21:28:36.447 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=550
+2025-05-26T21:28:36.459 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:36.680 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=551
+2025-05-26T21:28:36.697 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:36.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=552
+2025-05-26T21:28:36.935 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:28:36.942 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=9024&ClientTransactionID=553
+2025-05-26T21:28:36.950 INFO 127.0.0.1 <- False
+2025-05-26T21:28:36.950 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=554
+2025-05-26T21:28:36.950 INFO 127.0.0.1 <- True
+2025-05-26T21:28:36.950 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=555
+2025-05-26T21:28:36.968 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:37.177 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=556
+2025-05-26T21:28:37.188 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:37.396 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=557
+2025-05-26T21:28:37.409 ERROR DriverException: Telescope.Guideraterightascension failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
+    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:37.412 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=558
+2025-05-26T21:28:37.412 INFO 127.0.0.1 <- True
+2025-05-26T21:28:37.416 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=559
+2025-05-26T21:28:37.428 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:37.635 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=560
+2025-05-26T21:28:37.651 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:37.876 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=561
+2025-05-26T21:28:37.931 ERROR DriverException: Telescope.Guideratedeclination failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
+    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
+    rate = int(self._send_command(":*gRG#", CommandType.STRING))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '2#'
+
+2025-05-26T21:28:37.936 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9024&ClientTransactionID=562
+2025-05-26T21:28:37.936 INFO 127.0.0.1 <- 0
+2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9024&ClientTransactionID=563
+2025-05-26T21:28:37.938 INFO 127.0.0.1 <- True
+2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9024&ClientTransactionID=564
+2025-05-26T21:28:37.938 INFO 127.0.0.1 <- False
+2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9024&ClientTransactionID=565
+2025-05-26T21:28:37.938 INFO 127.0.0.1 <- False
+2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=566
+2025-05-26T21:28:37.938 INFO 127.0.0.1 <- True
+2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=567
+2025-05-26T21:28:37.990 INFO 127.0.0.1 <- 2025-05-26 21:28:37+00:00
+2025-05-26T21:28:37.990 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:38.212 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=568
+2025-05-26T21:28:38.258 INFO 127.0.0.1 <- 2025-05-26 21:28:37+00:00
+2025-05-26T21:28:38.260 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:38.466 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=569
+2025-05-26T21:28:38.500 INFO 127.0.0.1 <- 2025-05-26 21:28:38+00:00
+2025-05-26T21:28:38.500 ERROR DriverException: Telescope.Utcdate failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
+    resp.text = PropertyResponse(val, req).json
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
+    return json.dumps(self, default=lambda o: o.__dict__)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
+    return json.dumps(self, default=lambda o: o.__dict__)
+                                              ^^^^^^^^^^
+AttributeError: 'datetime.datetime' object has no attribute '__dict__'
+
+2025-05-26T21:28:38.577 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-05-26T21:28:38.581 INFO 127.0.0.1 -> {'Connected': 'False', 'ClientID': '9024', 'ClientTransactionID': '570'}
+2025-05-26T21:28:38.581 INFO Serial connection count: 0
+2025-05-26T21:28:38.585 ERROR Disconnect error: 'NoneType' object has no attribute 'is_connected'

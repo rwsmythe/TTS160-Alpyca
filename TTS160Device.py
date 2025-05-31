@@ -17,16 +17,15 @@ from astropy.time import Time
 from astropy import units as u
 
 # Local imports
-from tts160_types import CommandType, Rate, EquatorialCoordinates
+from tts160_types import CommandType
 from exceptions import (
     DriverException, InvalidValueException, InvalidOperationException,
-    NotImplementedException
+    NotImplementedException, ParkedException
 )
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
-    AlignmentModes, TelescopeAxes, GuideDirections
+    AlignmentModes, TelescopeAxes, GuideDirections, Rate
 )
-
 
 class TTS160Device:
     """Complete TTS160 Hardware Implementation with ASCOM compliance."""
@@ -90,10 +89,10 @@ class TTS160Device:
         self._goto_in_progress = False  #Indicates if a goto is in progress rather than just slew to allow for moveaxis to be executed during...moveaxis
 
         # Target state
-        self._target = EquatorialCoordinates(0.0, 0.0)
-        self._slew_target = EquatorialCoordinates(0.0, 0.0)
         self._is_target_set = False
-        
+        self._target_right_ascension_set = False
+        self._target_declination_set = False
+
         # Pulse guiding state
         self._pulse_guide_duration = 0
         self._pulse_guide_start = datetime.min
@@ -287,13 +286,13 @@ class TTS160Device:
                 self._Connecting = False
 
     def CommandBlind(self, msg: str) -> None:
-        return NotImplementedException()
+        raise NotImplementedException()
     
     def CommandBool(self, msg: str) -> bool:
-        return NotImplementedException()
+        raise NotImplementedException()
     
     def CommandString(self, msg: str) -> str:
-        return NotImplementedException()
+        raise NotImplementedException()
 
     def _send_command(self, command: str, command_type: CommandType) -> str:
         """Send command to mount."""
@@ -366,6 +365,46 @@ class TTS160Device:
         
         return f"{h:02d}:{m:02d}:{seconds:04.1f}"
     
+    def _altaz_to_radec(self, azimuth: float, altitude: float) -> Tuple[float, float]:
+        """
+        Convert Alt/Az coordinates to RA/Dec in the appropriate mount epoch
+
+        Args:
+            azimuth: Azimuth in decimal degrees (0-360)
+            altitude: Altitude in decimal degrees (-90 to +90)
+        
+        Returns:
+            Tuple of (right_ascension_hours, declination_degrees)
+        """
+        try:
+            #if the mount uses equTopocentric, convert to GCRS(now), otherwise convert to ICRS
+            if self.EquatorialSystem == EquatorialCoordinateType.equTopocentric:
+                return self._altaz_to_gcrs(azimuth, altitude)
+            else:
+                return self._altaz_to_icrs(azimuth, altitude)
+        except:
+            raise
+
+    def _radec_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
+        """
+        Convert RA/Dec coordinates to Alt/Az in the appropriate mount epoch
+
+        Args:
+            right_ascension: RA in decimal hours (0-24)
+            declination: Declination in decimal degrees (-90 to +90)
+        
+        Returns:
+            Tuple of (azimuth_degrees, altitude_degrees)
+        """
+        try:
+            #if the mount uses equTopocentric, convert to GCRS(now), otherwise convert to ICRS
+            if self.EquatorialSystem == EquatorialCoordinateType.equTopocentric:
+                return self._gcrs_to_altaz(right_ascension, declination)
+            else:
+                return self._icrs_to_altaz(right_ascension, declination)
+        except:
+            raise
+    
     def _altaz_to_icrs(self, azimuth: float, altitude: float) -> Tuple[float, float]:
         """
         Convert Alt/Az coordinates to J2000 ICRS RA/Dec.
@@ -406,7 +445,6 @@ class TTS160Device:
             if isinstance(ex, InvalidValueException):
                 raise
             raise DriverException(0x500, f"Alt/Az to ICRS conversion failed: {ex}")
-
 
     def _icrs_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
@@ -711,7 +749,6 @@ class TTS160Device:
         self._logger.info(f"Action: {action_name}; Parameters: {action_parameters}")
         
         try:
-            self._check_connected("Action")
             action_name = action_name.lower()
             
             if action_name == "fieldrotationangle":
@@ -785,29 +822,81 @@ class TTS160Device:
 
         return self._calculate_side_of_pier(ra)
 
-    # Site Properties
+    # Site and Telescope Properties
+    @property
+    def ApertureArea(self) -> float:
+        raise NotImplementedException()
+    
+    @ApertureArea.setter
+    def ApertureArea(self, value: float) -> None:
+        raise NotImplementedException()
+    
+    @property
+    def ApertureDiameter(self) -> float:
+        raise NotImplementedException()
+    
+    @ApertureDiameter.setter
+    def ApertureDiameter(self, value: float) -> None:
+        raise NotImplementedException()
+
+    @property
+    def DoesRefraction(self) -> bool:
+        raise NotImplementedException()
+
+    @property
+    def FocalLength(self) -> float:
+        raise NotImplementedException()
+    
+    @FocalLength.setter
+    def FocalLength(self, value: float) -> None:
+        raise NotImplementedException()
+
     @property  
     def SiteLatitude(self) -> float:
         """Site latitude in degrees."""
-        return self._site_location.lat.degree
+
+        try:
+            command = ":*Gt#"
+            latitude = self._send_command(command, CommandType.STRING).rstrip("#")
+            latitude_deg = self._dms_to_degrees(latitude)
+
+            self._site_location = EarthLocation(
+                lat = latitude_deg * u.deg,
+                lon = self._site_location.lon,
+                height = self._site_location.height
+            )
+
+            self._config.site_latitude = latitude_deg
+
+            return latitude_deg
+        except Exception as ex:
+            raise DriverException(f"Get latitude failed: {ex}")
     
     #TODO: I don't think this was implemented in the ASCOM driver, verify.
     @SiteLatitude.setter
     def SiteLatitude(self, value: float) -> None:
-        """Set site latitude."""
-        if not -90 <= value <= 90:
-            raise InvalidValueException(f"Invalid latitude: {value}")
-        
-        self._site_location = EarthLocation(
-            lat=value * u.deg,
-            lon=self._site_location.lon,
-            height=self._site_location.height
-        )
+        raise NotImplementedException()
     
     @property
     def SiteLongitude(self) -> float:
         """Site longitude in degrees."""
-        return self._site_location.lon.degree
+
+        try:
+            command = ":*Gg#"
+            longitude = self._send_command(command, CommandType.STRING).rstrip("#")
+            longitude_deg = -1 * self._dms_to_degrees(longitude) # Mount reports as east negative
+
+            self._site_location = EarthLocation(
+                lat = self._site_location.lat,
+                lon = longitude_deg * u.deg,
+                height = self._site_location.height
+            )
+
+            self._config.site_longitude = longitude_deg
+
+            return longitude_deg
+        except Exception as ex:
+            raise DriverException(f"Get latitude failed: {ex}")
     
     #TODO: I don't think this was implemented in the ASCOM driver, verify
     @SiteLongitude.setter  
@@ -960,9 +1049,8 @@ class TTS160Device:
             #    return is_slewing
                 
         except Exception as ex:
-            self._logger.warning(f"Error checking slewing status: {ex}")
-            with self._lock:
-                return self._is_slewing
+            raise DriverException(0x500, f"Error checking slewing status: {ex}")
+            
     
     #TODO: This needs to be made asynchronous...spin it off into its own thread?
     #def _handle_slew_completion(self) -> None:
@@ -1003,6 +1091,68 @@ class TTS160Device:
         except Exception as ex:
             raise DriverException(0x500, "Failed to set tracking", ex)
     
+    @property
+    def TrackingRate(self) -> DriveRates:
+
+        try:
+            command = ":*TRG#"
+            result = int(self._send_command(command, CommandType.STRING).rstrip("#"))
+            if result == 0:
+                return DriveRates.driveSidereal
+            elif result == 1:
+                return DriveRates.driveLunar
+            elif result == 2:
+                return DriveRates.driveSolar
+            else:
+                raise DriverException(0x500,f"TrackingRate get failed due to unknown value received: {result}")
+        except Exception as ex:
+            raise DriverException(0x500, f"Unknown error: {ex}")
+        
+    @TrackingRate.setter
+    def TrackingRate(self, rate: DriveRates) -> None:
+
+        try:
+            if rate == DriveRates.driveSidereal:
+                command = ":TQ#"
+            elif rate == DriveRates.driveLunar:
+                command = ":TL#"
+            elif rate == DriveRates.driveSolar:
+                command = ":TS#"
+            else:
+                raise InvalidValueException(f"Unknown rate provided: {rate}.")
+            
+            self._send_command(command, CommandType.BLIND)
+
+        except Exception as ex:
+            raise DriverException(0x500,f"Set Tracking Rate Failed: {ex}")
+
+
+    @property
+    def RightAscensionRate(self) -> float:
+        raise NotImplementedException()
+    
+    @RightAscensionRate.setter
+    def RightAscensionRate(self, value: float) -> None:
+        raise NotImplementedException()
+    
+    @property
+    def DeclinationRate(self) -> float:
+        raise NotImplementedException()
+    
+    @DeclinationRate.setter
+    def DeclinationRate(self, value: float) -> None:
+        raise NotImplementedException()
+
+    @property
+    def SlewSettleTime(self) -> int:
+        return self._config.slew_settle_time
+    
+    @SlewSettleTime.setter
+    def SlewSettleTime(self, value: int) -> None:
+        with self._lock:
+            self._config.slew_settle_time = value
+        
+
     @property
     def IsPulseGuiding(self) -> bool:
         """
@@ -1097,10 +1247,13 @@ class TTS160Device:
     @property
     def TargetDeclination(self) -> float:
         """Target declination in degrees."""
-        with self._lock:
-            if not self._is_target_set:
-                raise InvalidOperationException("Target declination not set")
-            return self._target.declination
+        if not self._target_declination_set:
+            raise InvalidOperationException("Target declination not set")
+        else:
+            command = ":*Gd#"
+            declination_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
+            declination_deg = declination_rad * 180 / math.pi
+            return declination_deg
     
     @TargetDeclination.setter
     def TargetDeclination(self, value: float) -> None:
@@ -1116,26 +1269,28 @@ class TTS160Device:
             command = f":Sd{sign}{dms_str}#"
             
             result = self._send_command(command, CommandType.BOOL)
-            #TODO: can python test a boolean variable like that?
-            if result != "True":
-                raise InvalidValueException("Mount rejected declination value")
+            if not result:
+                raise InvalidValueException(f"Mount rejected target declination assignment: {value}")
             
             # Update state
             with self._lock:
-                self._target = EquatorialCoordinates(self._target.right_ascension, value)
-                if self._target.right_ascension != 0:
+                self._target_declination_set = True
+                if self._target_right_ascension_set:
                     self._is_target_set = True
                 
         except Exception as ex:
-            raise DriverException(0x500, "Failed to set target declination", ex)
+            raise DriverException(0x500, f"Failed to set target declination {value}", ex)
     
     @property
     def TargetRightAscension(self) -> float:
         """Target right ascension in hours.""" 
-        with self._lock:
-            if not self._is_target_set:
-                raise InvalidOperationException("Target right ascension not set")
-            return self._target.right_ascension
+        if not self._target_right_ascension_set:
+            raise InvalidOperationException("Target Right Ascension not set")
+        else:
+            command = ":*Gr#"
+            right_ascension_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
+            right_ascension_deg = right_ascension_rad * 180 / math.pi
+            return right_ascension_deg
     
     @TargetRightAscension.setter
     def TargetRightAscension(self, value: float) -> None:
@@ -1149,19 +1304,19 @@ class TTS160Device:
             command = f":Sr{hms_str}#"
             
             result = self._send_command(command, CommandType.BOOL)
-            if result != "True":
-                raise InvalidValueException("Mount rejected right ascension value")
+            if not result:
+                raise InvalidValueException(f"Mount rejected target right ascension assignment: {value}")
             
             # Update state
             with self._lock:
-                self._target = EquatorialCoordinates(value, self._target.declination)
-                if self._target.declination != 0:
+                self._target_right_ascension_set = True
+                if self._target_declination_set:
                     self._is_target_set = True
                 
         except Exception as ex:
-            raise DriverException(0x500, "Failed to set target right ascension", ex)
+            raise DriverException(0x500, f"Failed to set target right ascension {value}", ex)
     
-    # Movement Methods
+    # Operation Methods
     def AbortSlew(self) -> None:
         """Abort any current slewing."""
         try:
@@ -1313,33 +1468,104 @@ class TTS160Device:
                 self._logger.info(f"Sending Command: {command}")
                 self._send_command(command, CommandType.BLIND)
                 
-                self._is_slewing = True
+                # Set up the slew status monitor if one does not exist (this immediately makes slewing be true)
+                if self._slew_in_progress is None or self._slew_in_progress.done():
+                    self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
                 self._is_at_home = False
                 
-                #TODO: Evaluate for removal of these variables
-                if axis == TelescopeAxes.axisPrimary:
-                    self._moving_primary = True
-                else:
-                    self._moving_secondary = True
         except Exception as ex:
-            DriverException(0x503, f"MoveAxis Error: {ex}")
+            raise DriverException(0x503, f"MoveAxis Error: {ex}")
 
-    def SlewToAltAz(self, altitude: float, azimuth: float) -> None:
+    def SyncToAltAz(self, azimuth: float, altitude: float) -> None:
+        
+        if self.AtPark:
+            raise ParkedException("Cannot sync while parked.")
+        
+        if not (0 <= altitude <= 90):
+            raise InvalidValueException(f"Invalid altitude: {altitude}.  Must be between 0 and 90 deg.")
+
+        if not (0 <= azimuth <= 360):
+            raise InvalidValueException(f"Invalid azimuth: {azimuth}.  Must be between 0 and 360 deg.")
+        
+        try:
+            
+            right_ascension, declination = self._altaz_to_radec(azimuth, altitude)
+            self.SyncToCoordinates(right_ascension, declination)
+
+        except Exception as ex:
+            raise DriverException(0x500,f"Sync failed: {ex}")
+
+    def SyncToCoordinates(self, right_ascension: float, declination: float) -> None:
+
+        if self.AtPark:
+            raise ParkedException("Cannot sync while parked.")
+        
+        if not (0 <= right_ascension <= 24):
+            raise InvalidValueException(f"Invalid altitude: {right_ascension}.  Must be between 0 and 24 hr.")
+
+        if not (-90 <= declination <= 90):
+            raise InvalidValueException(f"Invalid azimuth: {declination}.  Must be between -90 and 90 deg.")
+        
+        # Need to figure out how to handle the driver AlignOnSync mode.  Alternative is to query firmware on if it is in the auto alignonsync mode. <----- This is the way.
+        try:
+            self.TargetRightAscension = right_ascension
+            self.TargetDeclination = declination
+            auto_align_on_sync = ''
+            command = f":{auto_align_on_sync}CM#"
+            self._send_command(command, CommandType.STRING)
+            #Need to figure out how to put in sync wait time here to delay position requests... ~200 ms...in a non-blocking manner
+        except Exception as ex:
+            raise DriverException(f"Synchronize failed. {ex}")
+
+    def SyncToTarget(self) -> None:
+        
+        if self.AtPark:
+            raise ParkedException("Cannot sync while parked.")
+        
+         # Need to figure out how to handle the driver AlignOnSync mode.  Alternative is to query firmware on if it is in the auto alignonsync mode. <----- This is the way.
+        try:
+            auto_align_on_sync = ''
+            command = f":{auto_align_on_sync}CM#"
+            self._send_command(command, CommandType.STRING)
+            #Need to figure out how to put in sync wait time here to delay position requests... ~200 ms...in a non-blocking manner
+        except Exception as ex:
+            raise DriverException(f"Synchronize failed. {ex}")
+
+
+    def SlewToAltAz(self, azimuth: float, altitude: float) -> None:
         """Slew to given altaz coordinates (synchronous)."""
         raise NotImplementedException()
     
-    def SlewToAltAzAsync(self, altitude: float, azimuth: float) -> None:
+    def SlewToAltAzAsync(self, azimuth: float, altitude: float) -> None:
         """Slew to given altaz coordinates (asynchronous)."""
-        test = False
+        
+        if self.Slewing:
+            raise InvalidOperationException("Unable to start goto while slewing.")
+        
+        if self.Tracking:
+            raise InvalidOperationException("Unable to start AltAz goto while tracking is enabled.")
+        
+        if self.AtPark:
+            raise ParkedException("Unable to start goto while parked.")
+
+        if not (0 <= altitude <= 90):
+            raise InvalidValueException(f"Invalid altitude value: {altitude}, must be 0-90 deg.")
+        
+        if not (0 <= azimuth <= 360):
+            raise InvalidValueException(f"Invalid azimuth value: {altitude}, must be 0-360 deg.")
+        
+        right_ascension, declination = self._altaz_to_radec(azimuth, altitude)
+
+        self.SlewToCoordinatesAsync(right_ascension, declination)
 
     def SlewToCoordinates(self, rightAscension: float, declination: float) -> None:
         """Slew to given equatorial coordinates (synchronous)."""
         raise NotImplementedException()
     
-    def SlewToCoordinatesAsync(self, rightAscension: float, declination: float) -> None:
+    def SlewToCoordinatesAsync(self, right_ascension: float, declination: float) -> None:
         """Slew to given equatorial coordinates (asynchronous)."""
         # Set target coordinates
-        self.TargetRightAscension = rightAscension  
+        self.TargetRightAscension = right_ascension  
         self.TargetDeclination = declination
         
         # Start async slew
@@ -1363,10 +1589,10 @@ class TTS160Device:
                     raise InvalidOperationException("Target below horizon")
                 
                 self._goto_in_progress = True
-                self._slew_in_progress = self._executor.submit(self._monitor_slew_status)
+                self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
 
                 # Store slew target and set flags
-                self._slew_target = self._target
+                #self._slew_target = self._target  #Not sure why I think I wanted to do this
                 self._is_at_home = False
                 
             except Exception as ex:
@@ -1853,6 +2079,14 @@ class TTS160Device:
         return self._CanSlew
     
     @property
+    def CanSlewAltAz(self) -> bool:
+        return self._CanSlewAltAz
+    
+    @property
+    def CanSlewAltAzAsync(self) -> bool:
+        return self._CanSlewAltAzAsync
+
+    @property
     def CanSlewAsync(self) -> bool:
         return self._CanSlewAsync
     
@@ -1879,13 +2113,25 @@ class TTS160Device:
     def CanSetGuideRates(self) -> bool:
         return self._CanSetGuideRates  
 
-    def AxisRates(self, axis: int) -> List[Rate]:
+    def AxisRates(self, axis: TelescopeAxes) -> List[Rate]:
         """Get available rates for specified axis."""
-        if axis in [0, 1]:  # Primary and secondary axes
+        if axis in [TelescopeAxes.axisPrimary, TelescopeAxes.axisSecondary]:  # Primary and secondary axes
             return self._AxisRates
         else:
             return []
     
+    @property
+    def CanSync(self) -> bool:
+        return self._CanSync
+    
+    @property
+    def CanSyncAltAz(self) -> bool:
+        return self._CanSyncAltAz
+    
+    @property
+    def CanUnpark(self) -> bool:
+        return self._CanUnpark
+
     @property
     def TrackingRates(self) -> List[DriveRates]:
         """Get available tracking rates."""

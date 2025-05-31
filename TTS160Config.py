@@ -60,6 +60,7 @@ class TTS160Config:
         pulse_guide_altitude_compensation: Compensate azimuth pulse length for altitude
         pulse_guide_max_compensation: maximum compensation time to prevent a timeout condition due to unexpected length (int, ms)
         pulse_guide_compensation_buffer: set a safety buffer to the maximum compensation time (int, ms)
+        slew_settle_time: Settle time after slew events (int, sec)
     """
     
     # Class constants
@@ -273,7 +274,14 @@ class TTS160Config:
     def pulse_guide_compensation_buffer(self, value: int) -> None:
         self._put_toml(self.DRIVER_SECTION, 'pulse_guide_compensation_buffer', value)
     
-
+    @property
+    def slew_settle_time(self) -> int:
+        """Time to wait after slew event"""
+        return self._get_toml(self.DRIVER_SECTION, 'slew_settle_time') or 1
+    
+    @slew_settle_time.setter
+    def slew_settle_time(self, value: int) -> None:
+        self._put_toml(self.DRIVE_SECTION, 'slew_settle_time', value)
 
     def __repr__(self) -> str:
         """Return string representation for debugging."""

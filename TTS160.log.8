@@ -1,0 +1,433 @@
+2025-05-26T21:42:29.964 INFO Instantiating serial manager
+2025-05-26T21:42:29.973 INFO TTS160 device initialized successfully
+2025-05-26T21:42:30.011 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
+2025-05-26T21:42:40.932 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/connected
+2025-05-26T21:42:40.932 INFO 192.168.8.203 -> {'Connected': 'True', 'ClientID': '36812', 'ClientTransactionID': '664'}
+2025-05-26T21:42:40.936 INFO Serial connection opened on COM5
+2025-05-26T21:42:40.936 INFO Serial connection count: 1
+2025-05-26T21:42:41.024 INFO Connected to: TTS-160 Panther
+2025-05-26T21:42:41.024 INFO Firmware: 356C (Aug 21 2024)
+2025-05-26T21:42:41.067 INFO Site coordinates: 21.347222°, -157.903333°, 0.0m
+2025-05-26T21:42:41.679 INFO TTS160 connected successfully
+2025-05-26T21:42:41.682 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=36812&ClientTransactionID=665
+2025-05-26T21:42:41.682 INFO 192.168.8.203 <- True
+2025-05-26T21:42:41.687 INFO 192.168.8.203 -> GET /api/v1/telescope/0/interfaceversion?ClientID=36812&ClientTransactionID=666
+2025-05-26T21:42:41.690 INFO 192.168.8.203 <- 4
+2025-05-26T21:42:41.692 INFO 192.168.8.203 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=36812&ClientTransactionID=667
+2025-05-26T21:42:41.692 INFO Querying current epoch
+2025-05-26T21:42:41.699 INFO Retrieved False, indicating Topocentric Equatorial
+2025-05-26T21:42:41.699 INFO 192.168.8.203 <- 1
+2025-05-26T21:42:41.699 INFO 192.168.8.203 -> GET /api/v1/telescope/0/trackingrates?ClientID=36812&ClientTransactionID=668
+2025-05-26T21:42:41.699 INFO 192.168.8.203 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-05-26T21:42:41.699 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=36812&ClientTransactionID=669
+2025-05-26T21:42:41.708 INFO 192.168.8.203 <- False
+2025-05-26T21:42:41.708 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=36812&ClientTransactionID=670
+2025-05-26T21:42:41.750 INFO Retrieved date: 2025-05-26T21:42:41+00:00
+2025-05-26T21:42:41.753 INFO 192.168.8.203 <- 2025-05-26T21:42:41+00:00
+2025-05-26T21:42:41.759 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/utcdate
+2025-05-26T21:42:41.759 INFO 192.168.8.203 -> {'UTCDate': '2025-05-26T21:42:41.7631185Z', 'ClientID': '36812', 'ClientTransactionID': '671'}
+2025-05-26T21:42:41.767 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=36812&ClientTransactionID=672
+2025-05-26T21:42:41.846 INFO Retrieved date: 2025-05-26T21:42:41+00:00
+2025-05-26T21:42:41.846 INFO 192.168.8.203 <- 2025-05-26T21:42:41+00:00
+2025-05-26T21:42:41.852 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=36812&ClientTransactionID=673
+2025-05-26T21:42:41.854 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T21:42:41.854 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=36812&ClientTransactionID=674
+2025-05-26T21:42:41.854 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T21:42:41.854 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=36812&ClientTransactionID=675
+2025-05-26T21:42:41.854 INFO 192.168.8.203 <- 0.0
+2025-05-26T21:42:41.854 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=36812&ClientTransactionID=676
+2025-05-26T21:42:41.877 INFO 192.168.8.203 <- 0.0
+2025-05-26T21:42:41.883 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=36812&ClientTransactionID=677
+2025-05-26T21:42:41.885 INFO 192.168.8.203 <- False
+2025-05-26T21:42:41.886 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=36812&ClientTransactionID=678
+2025-05-26T21:42:41.886 INFO 192.168.8.203 <- False
+2025-05-26T21:42:41.886 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=36812&ClientTransactionID=679
+2025-05-26T21:42:41.903 INFO 192.168.8.203 <- 179.9998479605043
+2025-05-26T21:42:41.903 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=36812&ClientTransactionID=680
+2025-05-26T21:42:41.920 INFO 192.168.8.203 <- 3.4978691420873336
+2025-05-26T21:42:41.920 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=36812&ClientTransactionID=681
+2025-05-26T21:42:41.940 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T21:42:41.940 INFO 192.168.8.203 -> GET /api/v1/telescope/0/description?ClientID=36812&ClientTransactionID=682
+2025-05-26T21:42:41.945 INFO 192.168.8.203 <- TTS160 Alpaca Driver
+2025-05-26T21:42:41.947 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=683
+2025-05-26T21:42:41.953 INFO 192.168.8.203 <- False
+2025-05-26T21:42:41.961 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=36812&ClientTransactionID=684
+2025-05-26T21:42:41.977 INFO 192.168.8.203 <- 3.498388888888888
+2025-05-26T21:42:41.983 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=36812&ClientTransactionID=685
+2025-05-26T21:42:41.983 INFO 192.168.8.203 <- 0.0
+2025-05-26T21:42:41.986 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=36812&ClientTransactionID=686
+2025-05-26T21:42:41.987 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T21:42:41.987 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=36812&ClientTransactionID=687
+2025-05-26T21:42:41.987 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T21:42:41.987 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=688
+2025-05-26T21:42:42.009 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:42.028 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverinfo?ClientID=36812&ClientTransactionID=689
+2025-05-26T21:42:42.031 INFO 192.168.8.203 <- Alpaca telescope
+Implements ITelescope
+ASCOM Initiative
+2025-05-26T21:42:42.034 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverversion?ClientID=36812&ClientTransactionID=690
+2025-05-26T21:42:42.034 INFO 192.168.8.203 <- 356.0.0
+2025-05-26T21:42:42.040 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=36812&ClientTransactionID=691
+2025-05-26T21:42:42.040 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.040 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=692&Axis=0
+2025-05-26T21:42:42.040 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.040 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=693&Axis=0
+2025-05-26T21:42:42.040 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.040 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=694&Axis=1
+2025-05-26T21:42:42.040 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.040 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=695&Axis=1
+2025-05-26T21:42:42.040 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.040 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=696&Axis=0
+2025-05-26T21:42:42.040 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.040 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=697&Axis=1
+2025-05-26T21:42:42.040 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.230 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=698
+2025-05-26T21:42:42.247 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:42.452 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=699
+2025-05-26T21:42:42.470 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:42.476 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=700
+2025-05-26T21:42:42.488 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.491 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=36812&ClientTransactionID=701
+2025-05-26T21:42:42.492 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.495 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=36812&ClientTransactionID=702
+2025-05-26T21:42:42.495 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.500 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=36812&ClientTransactionID=703
+2025-05-26T21:42:42.501 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.503 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canfindhome?ClientID=36812&ClientTransactionID=704
+2025-05-26T21:42:42.504 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.507 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpark?ClientID=36812&ClientTransactionID=705
+2025-05-26T21:42:42.508 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.510 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpark?ClientID=36812&ClientTransactionID=706
+2025-05-26T21:42:42.510 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.512 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=36812&ClientTransactionID=707
+2025-05-26T21:42:42.519 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.521 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=36812&ClientTransactionID=708
+2025-05-26T21:42:42.521 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.524 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=36812&ClientTransactionID=709
+2025-05-26T21:42:42.534 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:42.539 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=36812&ClientTransactionID=710
+2025-05-26T21:42:42.550 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:42.553 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=711&Axis=0
+2025-05-26T21:42:42.554 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.556 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=36812&ClientTransactionID=712&Axis=1
+2025-05-26T21:42:42.558 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.560 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=36812&ClientTransactionID=713&Axis=0
+2025-05-26T21:42:42.561 INFO Calling for axis rate with argument 0
+2025-05-26T21:42:42.562 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T21:42:42.565 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=36812&ClientTransactionID=714&Axis=1
+2025-05-26T21:42:42.566 INFO Calling for axis rate with argument 1
+2025-05-26T21:42:42.566 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T21:42:42.569 INFO 192.168.8.203 -> GET /api/v1/telescope/0/supportedactions?ClientID=36812&ClientTransactionID=715
+2025-05-26T21:42:42.569 INFO 192.168.8.203 <- []
+2025-05-26T21:42:42.572 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=36812&ClientTransactionID=716
+2025-05-26T21:42:42.573 INFO 192.168.8.203 <- 0
+2025-05-26T21:42:42.574 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=36812&ClientTransactionID=717
+2025-05-26T21:42:42.575 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.576 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=36812&ClientTransactionID=718
+2025-05-26T21:42:42.576 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.578 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=36812&ClientTransactionID=719
+2025-05-26T21:42:42.578 INFO 192.168.8.203 <- False
+2025-05-26T21:42:42.579 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=36812&ClientTransactionID=720
+2025-05-26T21:42:42.579 INFO 192.168.8.203 <- True
+2025-05-26T21:42:42.580 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=36812&ClientTransactionID=721
+2025-05-26T21:42:42.657 INFO Retrieved date: 2025-05-26T21:42:41+00:00
+2025-05-26T21:42:42.659 INFO 192.168.8.203 <- 2025-05-26T21:42:41+00:00
+2025-05-26T21:42:42.665 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverversion?ClientID=36812&ClientTransactionID=722
+2025-05-26T21:42:42.666 INFO 192.168.8.203 <- 356.0.0
+2025-05-26T21:42:44.675 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=36812&ClientTransactionID=723
+2025-05-26T21:42:44.677 INFO 192.168.8.203 <- True
+2025-05-26T21:42:44.677 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=36812&ClientTransactionID=724
+2025-05-26T21:42:44.677 INFO 192.168.8.203 <- False
+2025-05-26T21:42:44.681 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=36812&ClientTransactionID=725
+2025-05-26T21:42:44.681 INFO 192.168.8.203 <- False
+2025-05-26T21:42:44.683 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=36812&ClientTransactionID=726
+2025-05-26T21:42:44.683 INFO 192.168.8.203 <- True
+2025-05-26T21:42:44.686 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=36812&ClientTransactionID=727
+2025-05-26T21:42:44.686 INFO 192.168.8.203 <- False
+2025-05-26T21:42:44.687 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=36812&ClientTransactionID=728
+2025-05-26T21:42:44.687 INFO 192.168.8.203 <- False
+2025-05-26T21:42:44.687 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=729
+2025-05-26T21:42:44.692 INFO 192.168.8.203 <- False
+2025-05-26T21:42:44.703 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=36812&ClientTransactionID=730
+2025-05-26T21:42:44.721 INFO 192.168.8.203 <- -0.0
+2025-05-26T21:42:44.726 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=36812&ClientTransactionID=731
+2025-05-26T21:42:44.743 INFO 192.168.8.203 <- 180.00042091829943
+2025-05-26T21:42:44.743 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=36812&ClientTransactionID=732
+2025-05-26T21:42:44.760 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T21:42:44.768 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=36812&ClientTransactionID=733
+2025-05-26T21:42:44.782 INFO 192.168.8.203 <- 3.498671283000517
+2025-05-26T21:42:44.782 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=36812&ClientTransactionID=734
+2025-05-26T21:42:44.799 INFO 192.168.8.203 <- 3.4992222222222207
+2025-05-26T21:42:44.811 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=735
+2025-05-26T21:42:44.815 INFO 192.168.8.203 <- False
+2025-05-26T21:42:44.828 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=36812&ClientTransactionID=736
+2025-05-26T21:42:44.830 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T21:42:44.830 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=36812&ClientTransactionID=737
+2025-05-26T21:42:44.830 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T21:42:44.830 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=36812&ClientTransactionID=738
+2025-05-26T21:42:44.830 INFO 192.168.8.203 <- 0.0
+2025-05-26T21:42:44.830 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=739
+2025-05-26T21:42:44.846 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:45.070 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=740
+2025-05-26T21:42:45.085 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:45.296 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=741
+2025-05-26T21:42:45.308 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:45.315 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=36812&ClientTransactionID=742
+2025-05-26T21:42:45.322 INFO 192.168.8.203 <- False
+2025-05-26T21:42:45.324 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=36812&ClientTransactionID=743
+2025-05-26T21:42:45.324 INFO 192.168.8.203 <- True
+2025-05-26T21:42:45.324 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=36812&ClientTransactionID=744
+2025-05-26T21:42:45.339 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:45.341 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=36812&ClientTransactionID=745
+2025-05-26T21:42:45.347 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:45.356 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=36812&ClientTransactionID=746
+2025-05-26T21:42:45.356 INFO 192.168.8.203 <- 0
+2025-05-26T21:42:45.358 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=36812&ClientTransactionID=747
+2025-05-26T21:42:45.358 INFO 192.168.8.203 <- True
+2025-05-26T21:42:45.358 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=36812&ClientTransactionID=748
+2025-05-26T21:42:45.358 INFO 192.168.8.203 <- False
+2025-05-26T21:42:45.364 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=36812&ClientTransactionID=749
+2025-05-26T21:42:45.364 INFO 192.168.8.203 <- False
+2025-05-26T21:42:45.364 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=36812&ClientTransactionID=750
+2025-05-26T21:42:45.364 INFO 192.168.8.203 <- True
+2025-05-26T21:42:45.371 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=36812&ClientTransactionID=751
+2025-05-26T21:42:45.409 INFO Retrieved date: 2025-05-26T21:42:44+00:00
+2025-05-26T21:42:45.409 INFO 192.168.8.203 <- 2025-05-26T21:42:44+00:00
+2025-05-26T21:42:46.679 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=36812&ClientTransactionID=752
+2025-05-26T21:42:46.679 INFO 192.168.8.203 <- True
+2025-05-26T21:42:46.684 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=36812&ClientTransactionID=753
+2025-05-26T21:42:46.684 INFO 192.168.8.203 <- False
+2025-05-26T21:42:46.688 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=36812&ClientTransactionID=754
+2025-05-26T21:42:46.688 INFO 192.168.8.203 <- False
+2025-05-26T21:42:46.688 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=36812&ClientTransactionID=755
+2025-05-26T21:42:46.688 INFO 192.168.8.203 <- True
+2025-05-26T21:42:46.693 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=36812&ClientTransactionID=756
+2025-05-26T21:42:46.693 INFO 192.168.8.203 <- False
+2025-05-26T21:42:46.695 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=36812&ClientTransactionID=757
+2025-05-26T21:42:46.695 INFO 192.168.8.203 <- False
+2025-05-26T21:42:46.698 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=758
+2025-05-26T21:42:46.709 INFO 192.168.8.203 <- False
+2025-05-26T21:42:46.709 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=36812&ClientTransactionID=759
+2025-05-26T21:42:46.725 INFO 192.168.8.203 <- -0.0
+2025-05-26T21:42:46.725 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=36812&ClientTransactionID=760
+2025-05-26T21:42:46.741 INFO 192.168.8.203 <- 180.00042091829943
+2025-05-26T21:42:46.755 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=36812&ClientTransactionID=761
+2025-05-26T21:42:46.772 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T21:42:46.775 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=36812&ClientTransactionID=762
+2025-05-26T21:42:46.789 INFO 192.168.8.203 <- 3.4991678464229636
+2025-05-26T21:42:46.789 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=36812&ClientTransactionID=763
+2025-05-26T21:42:46.815 INFO 192.168.8.203 <- 3.4997777777777763
+2025-05-26T21:42:46.820 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=764
+2025-05-26T21:42:46.824 INFO 192.168.8.203 <- False
+2025-05-26T21:42:46.824 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=36812&ClientTransactionID=765
+2025-05-26T21:42:46.836 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T21:42:46.836 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=36812&ClientTransactionID=766
+2025-05-26T21:42:46.841 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T21:42:46.841 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=36812&ClientTransactionID=767
+2025-05-26T21:42:46.847 INFO 192.168.8.203 <- 0.0
+2025-05-26T21:42:46.847 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=768
+2025-05-26T21:42:46.868 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:47.079 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=769
+2025-05-26T21:42:47.096 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:47.302 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=770
+2025-05-26T21:42:47.317 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:47.317 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=36812&ClientTransactionID=771
+2025-05-26T21:42:47.317 INFO 192.168.8.203 <- False
+2025-05-26T21:42:47.331 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=36812&ClientTransactionID=772
+2025-05-26T21:42:47.334 INFO 192.168.8.203 <- True
+2025-05-26T21:42:47.336 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=36812&ClientTransactionID=773
+2025-05-26T21:42:47.346 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:47.348 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=36812&ClientTransactionID=774
+2025-05-26T21:42:47.351 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:47.362 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=36812&ClientTransactionID=775
+2025-05-26T21:42:47.362 INFO 192.168.8.203 <- 0
+2025-05-26T21:42:47.362 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=36812&ClientTransactionID=776
+2025-05-26T21:42:47.362 INFO 192.168.8.203 <- True
+2025-05-26T21:42:47.368 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=36812&ClientTransactionID=777
+2025-05-26T21:42:47.368 INFO 192.168.8.203 <- False
+2025-05-26T21:42:47.370 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=36812&ClientTransactionID=778
+2025-05-26T21:42:47.370 INFO 192.168.8.203 <- False
+2025-05-26T21:42:47.370 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=36812&ClientTransactionID=779
+2025-05-26T21:42:47.370 INFO 192.168.8.203 <- True
+2025-05-26T21:42:47.377 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=36812&ClientTransactionID=780
+2025-05-26T21:42:47.419 INFO Retrieved date: 2025-05-26T21:42:46+00:00
+2025-05-26T21:42:47.419 INFO 192.168.8.203 <- 2025-05-26T21:42:46+00:00
+2025-05-26T21:42:48.671 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=36812&ClientTransactionID=781
+2025-05-26T21:42:48.671 INFO 192.168.8.203 <- True
+2025-05-26T21:42:48.675 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=36812&ClientTransactionID=782
+2025-05-26T21:42:48.675 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.679 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=36812&ClientTransactionID=783
+2025-05-26T21:42:48.679 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.679 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=36812&ClientTransactionID=784
+2025-05-26T21:42:48.679 INFO 192.168.8.203 <- True
+2025-05-26T21:42:48.685 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=36812&ClientTransactionID=785
+2025-05-26T21:42:48.685 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.687 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=36812&ClientTransactionID=786
+2025-05-26T21:42:48.687 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.687 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=787
+2025-05-26T21:42:48.743 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.747 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=36812&ClientTransactionID=788
+2025-05-26T21:42:48.765 INFO 192.168.8.203 <- 0.0
+2025-05-26T21:42:48.765 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=36812&ClientTransactionID=789
+2025-05-26T21:42:48.784 INFO 192.168.8.203 <- 179.9998479605043
+2025-05-26T21:42:48.784 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=36812&ClientTransactionID=790
+2025-05-26T21:42:48.797 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T21:42:48.797 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=36812&ClientTransactionID=791
+2025-05-26T21:42:48.815 INFO 192.168.8.203 <- 3.4997408042180944
+2025-05-26T21:42:48.829 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=36812&ClientTransactionID=792
+2025-05-26T21:42:48.848 INFO 192.168.8.203 <- 3.500333333333332
+2025-05-26T21:42:48.852 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=36812&ClientTransactionID=793
+2025-05-26T21:42:48.860 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.865 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=36812&ClientTransactionID=794
+2025-05-26T21:42:48.865 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T21:42:48.865 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=36812&ClientTransactionID=795
+2025-05-26T21:42:48.865 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T21:42:48.876 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=36812&ClientTransactionID=796
+2025-05-26T21:42:48.878 INFO 192.168.8.203 <- 0.0
+2025-05-26T21:42:48.878 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=36812&ClientTransactionID=797
+2025-05-26T21:42:48.892 ERROR DriverException: Telescope.Sideofpier failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
+    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
+    return self._calculate_side_of_pier(self.RightAscension)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
+    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
+                 ^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+
+2025-05-26T21:42:48.900 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=36812&ClientTransactionID=798
+2025-05-26T21:42:48.900 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.909 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=36812&ClientTransactionID=799
+2025-05-26T21:42:48.909 INFO 192.168.8.203 <- True
+2025-05-26T21:42:48.909 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=36812&ClientTransactionID=800
+2025-05-26T21:42:48.924 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:48.924 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=36812&ClientTransactionID=801
+2025-05-26T21:42:48.934 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T21:42:48.940 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=36812&ClientTransactionID=802
+2025-05-26T21:42:48.943 INFO 192.168.8.203 <- 0
+2025-05-26T21:42:48.943 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=36812&ClientTransactionID=803
+2025-05-26T21:42:48.943 INFO 192.168.8.203 <- True
+2025-05-26T21:42:48.947 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=36812&ClientTransactionID=804
+2025-05-26T21:42:48.947 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.951 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=36812&ClientTransactionID=805
+2025-05-26T21:42:48.951 INFO 192.168.8.203 <- False
+2025-05-26T21:42:48.953 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=36812&ClientTransactionID=806
+2025-05-26T21:42:48.953 INFO 192.168.8.203 <- True
+2025-05-26T21:42:48.958 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=36812&ClientTransactionID=807
+2025-05-26T21:42:48.987 INFO Retrieved date: 2025-05-26T21:42:48+00:00
+2025-05-26T21:42:49.002 INFO 192.168.8.203 <- 2025-05-26T21:42:48+00:00
+2025-05-26T21:42:49.065 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/connected
+2025-05-26T21:42:49.067 INFO 192.168.8.203 -> {'Connected': 'False', 'ClientID': '36812', 'ClientTransactionID': '808'}
+2025-05-26T21:42:49.067 INFO Serial connection count: 0
+2025-05-26T21:42:49.070 ERROR Disconnect error: 'NoneType' object has no attribute 'is_connected'

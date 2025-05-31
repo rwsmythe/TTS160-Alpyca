@@ -69,6 +69,18 @@ def start_TTS160_dev(logger: Logger):
         logger.error(f"Failed to initialize TTS160 device: {ex}")
         raise
 
+# ------------
+# DATA CLASSES
+# ------------
+class Rate:
+    """Represents a rate range for telescope movement."""
+    def __init__(self, minimum: float, maximum: float):
+        self.Minimum = float(minimum)
+        self.Maximum = float(maximum)
+    
+    def __repr__(self):
+        return f"Rate({self.Minimum}, {self.Maximum})"
+
 # --------------
 # SYMBOLIC ENUMS
 # --------------

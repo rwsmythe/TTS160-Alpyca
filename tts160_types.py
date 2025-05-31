@@ -2,7 +2,7 @@
 """Minimal type definitions for TTS160 driver."""
 
 from enum import IntEnum
-from dataclasses import dataclass
+#from dataclasses import dataclass
 
 
 class CommandType(IntEnum):
@@ -12,25 +12,25 @@ class CommandType(IntEnum):
     STRING = 2   # String response terminated with '#'
 
 
-class Rate:
-    """Represents a rate range for telescope movement."""
-    def __init__(self, minimum: float, maximum: float):
-        self.Minimum = float(minimum)
-        self.Maximum = float(maximum)
-    
-    def __repr__(self):
-        return f"Rate({self.Minimum}, {self.Maximum})"
+#class Rate:
+#    """Represents a rate range for telescope movement."""
+#    def __init__(self, minimum: float, maximum: float):
+#        self.Minimum = float(minimum)
+#        self.Maximum = float(maximum)
+#    
+#    def __repr__(self):
+#        return f"Rate({self.Minimum}, {self.Maximum})"
 
 
-@dataclass
-class EquatorialCoordinates:
-    """Equatorial coordinate pair."""
-    right_ascension: float  # hours
-    declination: float      # degrees
+#@dataclass
+#class EquatorialCoordinates:
+#    """Equatorial coordinate pair."""
+#    right_ascension: float  # hours
+#    declination: float      # degrees
 
 
-@dataclass
-class HorizontalCoordinates:
-    """Horizontal coordinate pair."""
-    azimuth: float     # degrees
-    altitude: float    # degrees
+#@dataclass
+#class HorizontalCoordinates:
+#    """Horizontal coordinate pair."""
+#    azimuth: float     # degrees
+#    altitude: float    # degrees

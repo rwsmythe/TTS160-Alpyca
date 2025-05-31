@@ -1,0 +1,375 @@
+2025-05-26T22:08:18.651 INFO Instantiating serial manager
+2025-05-26T22:08:18.653 INFO TTS160 device initialized successfully
+2025-05-26T22:08:18.691 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
+2025-05-26T22:08:23.405 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/connected
+2025-05-26T22:08:23.405 INFO 192.168.8.203 -> {'Connected': 'True', 'ClientID': '43287', 'ClientTransactionID': '1481'}
+2025-05-26T22:08:23.405 INFO Serial connection opened on COM5
+2025-05-26T22:08:23.405 INFO Serial connection count: 1
+2025-05-26T22:08:23.495 INFO Connected to: TTS-160 Panther
+2025-05-26T22:08:23.497 INFO Firmware: 356C (Aug 21 2024)
+2025-05-26T22:08:23.537 INFO Site coordinates: 21.347222°, -157.903333°, 0.0m
+2025-05-26T22:08:23.548 INFO Setting mount time to: 2025-05-26 22:08:23.537986+00:00
+2025-05-26T22:08:24.106 INFO TTS160 connected successfully
+2025-05-26T22:08:24.114 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=43287&ClientTransactionID=1482
+2025-05-26T22:08:24.114 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.114 INFO 192.168.8.203 -> GET /api/v1/telescope/0/interfaceversion?ClientID=43287&ClientTransactionID=1483
+2025-05-26T22:08:24.114 INFO 192.168.8.203 <- 4
+2025-05-26T22:08:24.119 INFO 192.168.8.203 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=43287&ClientTransactionID=1484
+2025-05-26T22:08:24.119 INFO Querying current epoch
+2025-05-26T22:08:24.123 INFO Retrieved False, indicating Topocentric Equatorial
+2025-05-26T22:08:24.123 INFO 192.168.8.203 <- 1
+2025-05-26T22:08:24.131 INFO 192.168.8.203 -> GET /api/v1/telescope/0/trackingrates?ClientID=43287&ClientTransactionID=1485
+2025-05-26T22:08:24.131 INFO 192.168.8.203 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-05-26T22:08:24.131 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=43287&ClientTransactionID=1486
+2025-05-26T22:08:24.131 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.136 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=43287&ClientTransactionID=1487
+2025-05-26T22:08:24.213 INFO Retrieved date: 2025-05-26T22:08:23+00:00
+2025-05-26T22:08:24.216 INFO 192.168.8.203 <- 2025-05-26T22:08:23+00:00
+2025-05-26T22:08:24.218 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/utcdate
+2025-05-26T22:08:24.218 INFO 192.168.8.203 -> {'UTCDate': '2025-05-26T22:08:24.2186704Z', 'ClientID': '43287', 'ClientTransactionID': '1488'}
+2025-05-26T22:08:24.221 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=43287&ClientTransactionID=1489
+2025-05-26T22:08:24.250 INFO Retrieved date: 2025-05-26T22:08:23+00:00
+2025-05-26T22:08:24.266 INFO 192.168.8.203 <- 2025-05-26T22:08:23+00:00
+2025-05-26T22:08:24.267 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=43287&ClientTransactionID=1490
+2025-05-26T22:08:24.271 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:08:24.275 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=43287&ClientTransactionID=1491
+2025-05-26T22:08:24.277 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:08:24.280 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=43287&ClientTransactionID=1492
+2025-05-26T22:08:24.282 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:08:24.284 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=43287&ClientTransactionID=1493
+2025-05-26T22:08:24.301 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:08:24.301 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=43287&ClientTransactionID=1494
+2025-05-26T22:08:24.301 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.307 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=43287&ClientTransactionID=1495
+2025-05-26T22:08:24.307 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.307 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=43287&ClientTransactionID=1496
+2025-05-26T22:08:24.325 INFO 192.168.8.203 <- 180.00443162286533
+2025-05-26T22:08:24.328 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=43287&ClientTransactionID=1497
+2025-05-26T22:08:24.338 INFO 192.168.8.203 <- 3.927472896876425
+2025-05-26T22:08:24.346 INFO 192.168.8.203 -> GET /api/v1/telescope/0/description?ClientID=43287&ClientTransactionID=1498
+2025-05-26T22:08:24.347 INFO 192.168.8.203 <- TTS160 Alpaca Driver
+2025-05-26T22:08:24.348 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=43287&ClientTransactionID=1499
+2025-05-26T22:08:24.361 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T22:08:24.368 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=43287&ClientTransactionID=1500
+2025-05-26T22:08:24.379 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.380 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverinfo?ClientID=43287&ClientTransactionID=1501
+2025-05-26T22:08:24.381 INFO 192.168.8.203 <- Alpaca telescope
+Implements ITelescope
+ASCOM Initiative
+2025-05-26T22:08:24.383 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=43287&ClientTransactionID=1502
+2025-05-26T22:08:24.400 INFO 192.168.8.203 <- 3.9278333333333304
+2025-05-26T22:08:24.402 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverversion?ClientID=43287&ClientTransactionID=1503
+2025-05-26T22:08:24.402 INFO 192.168.8.203 <- 356.0.0
+2025-05-26T22:08:24.406 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=43287&ClientTransactionID=1504
+2025-05-26T22:08:24.408 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:08:24.410 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=43287&ClientTransactionID=1505
+2025-05-26T22:08:24.411 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:08:24.412 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=43287&ClientTransactionID=1506
+2025-05-26T22:08:24.413 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:08:24.414 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=43287&ClientTransactionID=1507
+2025-05-26T22:08:24.447 INFO 192.168.8.203 <- 0
+2025-05-26T22:08:24.449 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=43287&ClientTransactionID=1508
+2025-05-26T22:08:24.450 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.452 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=43287&ClientTransactionID=1509
+2025-05-26T22:08:24.452 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.454 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=43287&ClientTransactionID=1510
+2025-05-26T22:08:24.454 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.454 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canfindhome?ClientID=43287&ClientTransactionID=1511
+2025-05-26T22:08:24.454 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.454 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpark?ClientID=43287&ClientTransactionID=1512
+2025-05-26T22:08:24.454 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.454 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpark?ClientID=43287&ClientTransactionID=1513
+2025-05-26T22:08:24.454 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.454 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=43287&ClientTransactionID=1514
+2025-05-26T22:08:24.467 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.470 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=43287&ClientTransactionID=1515
+2025-05-26T22:08:24.471 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.472 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=43287&ClientTransactionID=1516
+2025-05-26T22:08:24.483 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:08:24.483 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=43287&ClientTransactionID=1517
+2025-05-26T22:08:24.494 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:08:24.499 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1518&Axis=0
+2025-05-26T22:08:24.499 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.503 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1519&Axis=1
+2025-05-26T22:08:24.504 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.505 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=43287&ClientTransactionID=1520
+2025-05-26T22:08:24.505 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.506 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=43287&ClientTransactionID=1521&Axis=0
+2025-05-26T22:08:24.506 INFO Calling for axis rate with argument 0
+2025-05-26T22:08:24.506 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T22:08:24.506 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1522&Axis=0
+2025-05-26T22:08:24.507 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.507 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1524&Axis=0
+2025-05-26T22:08:24.508 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.508 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=43287&ClientTransactionID=1523&Axis=1
+2025-05-26T22:08:24.508 INFO Calling for axis rate with argument 1
+2025-05-26T22:08:24.509 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T22:08:24.509 INFO 192.168.8.203 -> GET /api/v1/telescope/0/supportedactions?ClientID=43287&ClientTransactionID=1525
+2025-05-26T22:08:24.509 INFO 192.168.8.203 <- []
+2025-05-26T22:08:24.512 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1526&Axis=1
+2025-05-26T22:08:24.512 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.513 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=43287&ClientTransactionID=1527
+2025-05-26T22:08:24.513 INFO 192.168.8.203 <- 0
+2025-05-26T22:08:24.513 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1528&Axis=1
+2025-05-26T22:08:24.514 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.514 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=43287&ClientTransactionID=1529
+2025-05-26T22:08:24.514 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.515 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1530&Axis=0
+2025-05-26T22:08:24.515 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.515 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=43287&ClientTransactionID=1531
+2025-05-26T22:08:24.517 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.518 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=43287&ClientTransactionID=1532
+2025-05-26T22:08:24.518 INFO 192.168.8.203 <- False
+2025-05-26T22:08:24.518 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=43287&ClientTransactionID=1534
+2025-05-26T22:08:24.556 INFO Retrieved date: 2025-05-26T22:08:23+00:00
+2025-05-26T22:08:24.562 INFO 192.168.8.203 <- 2025-05-26T22:08:23+00:00
+2025-05-26T22:08:24.562 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=43287&ClientTransactionID=1533&Axis=1
+2025-05-26T22:08:24.562 INFO 192.168.8.203 <- True
+2025-05-26T22:08:24.562 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverversion?ClientID=43287&ClientTransactionID=1535
+2025-05-26T22:08:24.562 INFO 192.168.8.203 <- 356.0.0
+2025-05-26T22:08:26.571 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=43287&ClientTransactionID=1536
+2025-05-26T22:08:26.571 INFO 192.168.8.203 <- True
+2025-05-26T22:08:26.579 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=43287&ClientTransactionID=1537
+2025-05-26T22:08:26.579 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.581 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=43287&ClientTransactionID=1538
+2025-05-26T22:08:26.581 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.586 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=43287&ClientTransactionID=1539
+2025-05-26T22:08:26.586 INFO 192.168.8.203 <- True
+2025-05-26T22:08:26.588 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=43287&ClientTransactionID=1540
+2025-05-26T22:08:26.588 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.588 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=43287&ClientTransactionID=1541
+2025-05-26T22:08:26.588 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.588 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=43287&ClientTransactionID=1542
+2025-05-26T22:08:26.601 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.601 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=43287&ClientTransactionID=1543
+2025-05-26T22:08:26.619 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:08:26.619 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=43287&ClientTransactionID=1544
+2025-05-26T22:08:26.633 INFO 192.168.8.203 <- 180.00443162286533
+2025-05-26T22:08:26.647 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=43287&ClientTransactionID=1545
+2025-05-26T22:08:26.664 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T22:08:26.669 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=43287&ClientTransactionID=1546
+2025-05-26T22:08:26.681 INFO 192.168.8.203 <- 3.928084051857898
+2025-05-26T22:08:26.681 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=43287&ClientTransactionID=1547
+2025-05-26T22:08:26.709 INFO 192.168.8.203 <- 3.9286666666666648
+2025-05-26T22:08:26.713 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=43287&ClientTransactionID=1548
+2025-05-26T22:08:26.715 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.715 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=43287&ClientTransactionID=1549
+2025-05-26T22:08:26.728 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:08:26.728 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=43287&ClientTransactionID=1550
+2025-05-26T22:08:26.732 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:08:26.734 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=43287&ClientTransactionID=1551
+2025-05-26T22:08:26.738 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:08:26.738 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=43287&ClientTransactionID=1552
+2025-05-26T22:08:26.806 INFO 192.168.8.203 <- 0
+2025-05-26T22:08:26.807 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=43287&ClientTransactionID=1553
+2025-05-26T22:08:26.807 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.807 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=43287&ClientTransactionID=1554
+2025-05-26T22:08:26.807 INFO 192.168.8.203 <- True
+2025-05-26T22:08:26.817 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=43287&ClientTransactionID=1555
+2025-05-26T22:08:26.824 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:08:26.829 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=43287&ClientTransactionID=1556
+2025-05-26T22:08:26.839 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:08:26.839 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=43287&ClientTransactionID=1557
+2025-05-26T22:08:26.839 INFO 192.168.8.203 <- 0
+2025-05-26T22:08:26.839 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=43287&ClientTransactionID=1558
+2025-05-26T22:08:26.839 INFO 192.168.8.203 <- True
+2025-05-26T22:08:26.846 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=43287&ClientTransactionID=1559
+2025-05-26T22:08:26.846 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.846 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=43287&ClientTransactionID=1560
+2025-05-26T22:08:26.846 INFO 192.168.8.203 <- False
+2025-05-26T22:08:26.846 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=43287&ClientTransactionID=1561
+2025-05-26T22:08:26.846 INFO 192.168.8.203 <- True
+2025-05-26T22:08:26.849 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=43287&ClientTransactionID=1562
+2025-05-26T22:08:26.891 INFO Retrieved date: 2025-05-26T22:08:26+00:00
+2025-05-26T22:08:26.891 INFO 192.168.8.203 <- 2025-05-26T22:08:26+00:00
+2025-05-26T22:08:28.568 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=43287&ClientTransactionID=1563
+2025-05-26T22:08:28.568 INFO 192.168.8.203 <- True
+2025-05-26T22:08:28.575 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=43287&ClientTransactionID=1564
+2025-05-26T22:08:28.575 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.577 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=43287&ClientTransactionID=1565
+2025-05-26T22:08:28.577 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.577 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=43287&ClientTransactionID=1566
+2025-05-26T22:08:28.577 INFO 192.168.8.203 <- True
+2025-05-26T22:08:28.585 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=43287&ClientTransactionID=1567
+2025-05-26T22:08:28.585 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.588 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=43287&ClientTransactionID=1568
+2025-05-26T22:08:28.589 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.592 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=43287&ClientTransactionID=1569
+2025-05-26T22:08:28.602 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.602 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=43287&ClientTransactionID=1570
+2025-05-26T22:08:28.659 INFO 192.168.8.203 <- -0.0
+2025-05-26T22:08:28.664 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=43287&ClientTransactionID=1571
+2025-05-26T22:08:28.682 INFO 192.168.8.203 <- 180.00443162286533
+2025-05-26T22:08:28.682 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=43287&ClientTransactionID=1572
+2025-05-26T22:08:28.698 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T22:08:28.704 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=43287&ClientTransactionID=1573
+2025-05-26T22:08:28.721 INFO 192.168.8.203 <- 3.9286570096530293
+2025-05-26T22:08:28.724 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=43287&ClientTransactionID=1574
+2025-05-26T22:08:28.746 INFO 192.168.8.203 <- 3.9292222222222186
+2025-05-26T22:08:28.746 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=43287&ClientTransactionID=1575
+2025-05-26T22:08:28.762 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.762 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=43287&ClientTransactionID=1576
+2025-05-26T22:08:28.762 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:08:28.772 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=43287&ClientTransactionID=1577
+2025-05-26T22:08:28.772 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:08:28.775 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=43287&ClientTransactionID=1578
+2025-05-26T22:08:28.778 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:08:28.778 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=43287&ClientTransactionID=1579
+2025-05-26T22:08:28.810 INFO 192.168.8.203 <- 0
+2025-05-26T22:08:28.810 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=43287&ClientTransactionID=1580
+2025-05-26T22:08:28.825 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.825 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=43287&ClientTransactionID=1581
+2025-05-26T22:08:28.825 INFO 192.168.8.203 <- True
+2025-05-26T22:08:28.825 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=43287&ClientTransactionID=1582
+2025-05-26T22:08:28.841 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:08:28.844 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=43287&ClientTransactionID=1583
+2025-05-26T22:08:28.857 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:08:28.857 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=43287&ClientTransactionID=1584
+2025-05-26T22:08:28.857 INFO 192.168.8.203 <- 0
+2025-05-26T22:08:28.857 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=43287&ClientTransactionID=1585
+2025-05-26T22:08:28.864 INFO 192.168.8.203 <- True
+2025-05-26T22:08:28.864 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=43287&ClientTransactionID=1586
+2025-05-26T22:08:28.867 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.869 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=43287&ClientTransactionID=1587
+2025-05-26T22:08:28.869 INFO 192.168.8.203 <- False
+2025-05-26T22:08:28.869 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=43287&ClientTransactionID=1588
+2025-05-26T22:08:28.869 INFO 192.168.8.203 <- True
+2025-05-26T22:08:28.874 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=43287&ClientTransactionID=1589
+2025-05-26T22:08:28.908 INFO Retrieved date: 2025-05-26T22:08:28+00:00
+2025-05-26T22:08:28.908 INFO 192.168.8.203 <- 2025-05-26T22:08:28+00:00
+2025-05-26T22:08:29.490 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/connected
+2025-05-26T22:08:29.490 INFO 192.168.8.203 -> {'Connected': 'False', 'ClientID': '43287', 'ClientTransactionID': '1590'}
+2025-05-26T22:08:29.491 INFO Serial connection count: 0
+2025-05-26T22:08:29.493 INFO TTS160 disconnected
+2025-05-26T22:11:28.406 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50195)
+2025-05-26T22:11:28.411 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50196)
+2025-05-26T22:11:28.483 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50197)
+2025-05-26T22:11:28.484 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50198)
+2025-05-26T22:11:28.498 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.499 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.500 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.501 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.513 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50199)
+2025-05-26T22:11:28.514 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50200)
+2025-05-26T22:11:28.517 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.518 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.521 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.523 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.525 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.527 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.528 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.529 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.537 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50201)
+2025-05-26T22:11:28.538 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50202)
+2025-05-26T22:11:28.540 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.540 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50203)
+2025-05-26T22:11:28.541 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50204)
+2025-05-26T22:11:28.541 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.543 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.545 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.546 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.548 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.550 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.553 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.555 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.559 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50205)
+2025-05-26T22:11:28.560 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50206)
+2025-05-26T22:11:28.562 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.564 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.565 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.568 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.568 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50207)
+2025-05-26T22:11:28.570 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.570 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50208)
+2025-05-26T22:11:28.572 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50209)
+2025-05-26T22:11:28.572 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.572 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50210)
+2025-05-26T22:11:28.575 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.576 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.577 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.577 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50211)
+2025-05-26T22:11:28.579 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.579 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50212)
+2025-05-26T22:11:28.580 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 50213)
+2025-05-26T22:11:28.580 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.581 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 50214)
+2025-05-26T22:11:28.582 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.585 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.585 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:28.587 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.588 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.590 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:28.590 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.592 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.593 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.595 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.597 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.599 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:28.601 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.602 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:28.604 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:29.048 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:29.050 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:29.054 INFO 127.0.0.1 <- [1]
+2025-05-26T22:11:29.056 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:29.058 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:29.060 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:29.063 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:29.066 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:29.066 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:29.094 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:29.095 INFO 192.168.8.203 <- [1]
+2025-05-26T22:11:29.098 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T22:11:29.100 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T22:11:38.040 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/connected
+2025-05-26T22:11:38.040 INFO 192.168.8.203 -> {'Connected': 'True', 'ClientID': '32398', 'ClientTransactionID': '1'}
+2025-05-26T22:11:38.040 ERROR Connection failed: 'NoneType' object has no attribute 'connect'
+2025-05-26T22:11:38.044 ERROR DriverException: Connection failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 163, in _connect_mount
+    self._serial_manager.connect(self._config.dev_port)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'connect'
+
+2025-05-26T22:11:38.044 ERROR Connection failed: exceptions must derive from BaseException
+2025-05-26T22:11:38.044 ERROR DriverException: Connection failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 163, in _connect_mount
+    self._serial_manager.connect(self._config.dev_port)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'connect'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 151, in Connect
+    self._connect_mount()
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 170, in _connect_mount
+    raise DriverException(0x500, "Connection failed", ex)
+TypeError: exceptions must derive from BaseException
+
+2025-05-26T22:11:38.045 ERROR DriverException: Telescope.Connected failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 163, in _connect_mount
+    self._serial_manager.connect(self._config.dev_port)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'connect'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 151, in Connect
+    self._connect_mount()
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 170, in _connect_mount
+    raise DriverException(0x500, "Connection failed", ex)
+TypeError: exceptions must derive from BaseException
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 171, in on_put
+    TTS160_dev.Connect()
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 157, in Connect
+    raise DriverException(0x500, "Connection failed", ex)
+TypeError: exceptions must derive from BaseException
+

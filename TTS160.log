@@ -1,0 +1,694 @@
+2025-05-26T23:07:41.372 INFO Instantiating serial manager
+2025-05-26T23:07:41.379 INFO TTS160 device initialized successfully
+2025-05-26T23:07:41.415 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
+2025-05-26T23:07:49.490 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 63700)
+2025-05-26T23:07:49.490 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 63701)
+2025-05-26T23:07:49.595 INFO 127.0.0.1 <- [1]
+2025-05-26T23:07:49.596 INFO 192.168.8.203 <- [1]
+2025-05-26T23:07:49.612 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T23:07:49.613 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T23:07:49.615 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T23:07:49.617 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T23:07:49.748 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 63700)
+2025-05-26T23:07:49.749 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 63701)
+2025-05-26T23:08:35.615 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 63387)
+2025-05-26T23:08:35.615 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 63388)
+2025-05-26T23:08:35.617 INFO 127.0.0.1 <- [1]
+2025-05-26T23:08:35.619 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T23:08:35.620 INFO 192.168.8.203 <- [1]
+2025-05-26T23:08:35.620 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T23:08:35.621 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T23:08:35.622 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T23:08:35.626 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 63389)
+2025-05-26T23:08:35.626 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 63390)
+2025-05-26T23:08:35.628 INFO 127.0.0.1 <- [1]
+2025-05-26T23:08:35.629 INFO 192.168.8.203 <- [1]
+2025-05-26T23:08:35.629 INFO 127.0.0.1 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T23:08:35.630 INFO 192.168.8.203 <- {'ServerName': 'Alpaca TTS160 Server ', 'Manufacturer': 'Reid Smythe', 'Version': '0.1', 'Location': 'Anywhere on Earth'}
+2025-05-26T23:08:35.631 INFO 127.0.0.1 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T23:08:35.631 INFO 192.168.8.203 <- [{'DeviceName': 'TTS-160', 'DeviceType': 'Telescope', 'DeviceNumber': 0, 'UniqueID': '1be85f47-5e5b-4993-8593-1678feb2c551'}]
+2025-05-26T23:08:35.866 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 63387)
+2025-05-26T23:08:35.868 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 63388)
+2025-05-26T23:08:35.880 INFO Disc rcv alpacadiscovery1 from ('192.168.8.203', 63389)
+2025-05-26T23:08:35.880 INFO Disc rcv alpacadiscovery1 from ('127.0.0.1', 63390)
+2025-05-26T23:08:50.058 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=1
+2025-05-26T23:08:50.058 INFO 127.0.0.1 <- False
+2025-05-26T23:08:50.186 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-05-26T23:08:50.190 INFO 127.0.0.1 -> {'Connected': 'True', 'ClientID': '45510', 'ClientTransactionID': '2'}
+2025-05-26T23:08:50.194 INFO Serial connection opened on COM5
+2025-05-26T23:08:50.194 INFO Serial connection count: 1
+2025-05-26T23:08:50.282 INFO Connected to: TTS-160 Panther
+2025-05-26T23:08:50.283 INFO Firmware: 356C (Aug 21 2024)
+2025-05-26T23:08:50.324 INFO Site coordinates: 21.347222°, -157.903333°, 0.0m
+2025-05-26T23:08:50.336 INFO Setting mount time to: 2025-05-26 23:08:50.325913+00:00
+2025-05-26T23:08:50.928 INFO TTS160 connected successfully
+2025-05-26T23:08:50.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=3
+2025-05-26T23:08:50.939 INFO 127.0.0.1 <- True
+2025-05-26T23:08:51.060 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis??ClientID=45510&ClientTransactionID=4&Axis=0
+2025-05-26T23:08:51.061 INFO 127.0.0.1 <- True
+2025-05-26T23:08:51.106 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates??ClientID=45510&ClientTransactionID=5&Axis=0
+2025-05-26T23:08:51.107 INFO Calling for axis rate with argument 0
+2025-05-26T23:08:51.107 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-05-26T23:08:51.288 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis??ClientID=45510&ClientTransactionID=6&Axis=1
+2025-05-26T23:08:51.289 INFO 127.0.0.1 <- True
+2025-05-26T23:08:51.334 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates??ClientID=45510&ClientTransactionID=7&Axis=1
+2025-05-26T23:08:51.336 INFO Calling for axis rate with argument 1
+2025-05-26T23:08:51.336 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-05-26T23:08:51.576 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=45510&ClientTransactionID=8
+2025-05-26T23:08:51.617 INFO Retrieved date: 2025-05-26T23:08:50+00:00
+2025-05-26T23:08:51.618 INFO 127.0.0.1 <- 2025-05-26T23:08:50+00:00
+2025-05-26T23:08:51.667 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=45510&ClientTransactionID=9
+2025-05-26T23:08:51.668 INFO 127.0.0.1 <- True
+2025-05-26T23:08:51.713 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewasync?ClientID=45510&ClientTransactionID=10
+2025-05-26T23:08:51.714 INFO 127.0.0.1 <- True
+2025-05-26T23:08:51.760 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canfindhome?ClientID=45510&ClientTransactionID=11
+2025-05-26T23:08:51.762 INFO 127.0.0.1 <- False
+2025-05-26T23:08:51.808 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpark?ClientID=45510&ClientTransactionID=12
+2025-05-26T23:08:51.808 INFO 127.0.0.1 <- True
+2025-05-26T23:08:51.855 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=45510&ClientTransactionID=13
+2025-05-26T23:08:51.857 INFO 127.0.0.1 <- False
+2025-05-26T23:08:51.934 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=45510&ClientTransactionID=14
+2025-05-26T23:08:51.934 INFO 127.0.0.1 <- False
+2025-05-26T23:08:51.981 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpark?ClientID=45510&ClientTransactionID=15
+2025-05-26T23:08:51.982 INFO 127.0.0.1 <- False
+2025-05-26T23:08:52.029 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canunpark?ClientID=45510&ClientTransactionID=16
+2025-05-26T23:08:52.033 ERROR DriverException: Telescope.Canunpark failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 753, in on_get
+    val = TTS160_dev.CanUnpark  ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'CanUnpark'
+
+2025-05-26T23:08:52.089 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=45510&ClientTransactionID=17
+2025-05-26T23:08:52.090 INFO 127.0.0.1 <- False
+2025-05-26T23:08:52.137 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewaltazasync?ClientID=45510&ClientTransactionID=18
+2025-05-26T23:08:52.138 ERROR DriverException: Telescope.Canslewaltazasync failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 681, in on_get
+    val = TTS160_dev.CanSlewAltAzAsync  ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'CanSlewAltAzAsync'
+
+2025-05-26T23:08:52.182 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=45510&ClientTransactionID=19
+2025-05-26T23:08:52.183 INFO 127.0.0.1 <- True
+2025-05-26T23:08:52.243 INFO 127.0.0.1 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=45510&ClientTransactionID=20
+2025-05-26T23:08:52.243 INFO Querying current epoch
+2025-05-26T23:08:52.295 INFO Retrieved False, indicating Topocentric Equatorial
+2025-05-26T23:08:52.296 INFO 127.0.0.1 <- 1
+2025-05-26T23:08:52.338 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansync?ClientID=45510&ClientTransactionID=21
+2025-05-26T23:08:52.339 ERROR DriverException: Telescope.Cansync failed
+Traceback (most recent call last):
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 717, in on_get
+    val = TTS160_dev.CanSync    ## GET PROPERTY ##
+          ^^^^^^^^^^^^^^^^^^
+AttributeError: 'TTS160Device' object has no attribute 'CanSync'
+
+2025-05-26T23:08:52.396 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=45510&ClientTransactionID=22
+2025-05-26T23:08:52.398 INFO 127.0.0.1 <- 0
+2025-05-26T23:08:52.451 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=45510&ClientTransactionID=23
+2025-05-26T23:08:52.452 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-05-26T23:08:52.485 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=45510&ClientTransactionID=24
+2025-05-26T23:08:52.486 INFO 127.0.0.1 <- 21.347222222222218
+2025-05-26T23:08:52.526 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=45510&ClientTransactionID=25
+2025-05-26T23:08:52.528 INFO 127.0.0.1 <- -157.90333333333336
+2025-05-26T23:08:52.573 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=45510&ClientTransactionID=26
+2025-05-26T23:08:52.576 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:52.620 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=45510&ClientTransactionID=27
+2025-05-26T23:08:52.701 INFO Retrieved date: 2025-05-26T23:08:51+00:00
+2025-05-26T23:08:52.701 INFO 127.0.0.1 <- 2025-05-26T23:08:51+00:00
+2025-05-26T23:08:52.761 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=28
+2025-05-26T23:08:52.762 INFO 127.0.0.1 <- False
+2025-05-26T23:08:52.765 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=45510&ClientTransactionID=29
+2025-05-26T23:08:52.783 INFO 127.0.0.1 <- 4.9386666666666645
+2025-05-26T23:08:53.196 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=30
+2025-05-26T23:08:53.212 INFO 127.0.0.1 <- 4.93820864467354
+2025-05-26T23:08:53.215 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=31
+2025-05-26T23:08:53.231 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:08:53.233 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=32
+2025-05-26T23:08:53.251 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:53.257 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=33
+2025-05-26T23:08:53.276 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:08:53.280 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=34
+2025-05-26T23:08:53.287 INFO 127.0.0.1 <- False
+2025-05-26T23:08:53.291 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=35
+2025-05-26T23:08:53.303 INFO 127.0.0.1 <- False
+2025-05-26T23:08:53.335 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=36
+2025-05-26T23:08:53.335 INFO 127.0.0.1 <- True
+2025-05-26T23:08:53.338 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=37
+2025-05-26T23:08:53.338 INFO 127.0.0.1 <- False
+2025-05-26T23:08:53.345 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=38
+2025-05-26T23:08:53.346 INFO 127.0.0.1 <- True
+2025-05-26T23:08:53.347 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=39
+2025-05-26T23:08:53.347 INFO 127.0.0.1 <- False
+2025-05-26T23:08:54.541 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=40
+2025-05-26T23:08:54.541 INFO 127.0.0.1 <- True
+2025-05-26T23:08:54.545 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=41
+2025-05-26T23:08:54.546 INFO 127.0.0.1 <- False
+2025-05-26T23:08:54.822 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=42
+2025-05-26T23:08:54.837 INFO 127.0.0.1 <- 4.9386670109096436
+2025-05-26T23:08:54.842 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=43
+2025-05-26T23:08:54.859 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:08:54.865 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=44
+2025-05-26T23:08:54.883 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:54.888 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=45
+2025-05-26T23:08:54.905 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:08:54.911 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=46
+2025-05-26T23:08:54.918 INFO 127.0.0.1 <- False
+2025-05-26T23:08:54.923 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=47
+2025-05-26T23:08:54.935 INFO 127.0.0.1 <- False
+2025-05-26T23:08:55.818 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=48
+2025-05-26T23:08:55.834 INFO 127.0.0.1 <- 4.938934391214038
+2025-05-26T23:08:55.839 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=49
+2025-05-26T23:08:55.856 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:08:55.861 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=50
+2025-05-26T23:08:55.879 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:55.883 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=51
+2025-05-26T23:08:55.900 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:08:55.905 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=52
+2025-05-26T23:08:55.912 INFO 127.0.0.1 <- False
+2025-05-26T23:08:55.916 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=53
+2025-05-26T23:08:55.926 INFO 127.0.0.1 <- False
+2025-05-26T23:08:56.039 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-05-26T23:08:56.040 INFO 127.0.0.1 -> {'Connected': 'True', 'ClientID': '36010', 'ClientTransactionID': '54'}
+2025-05-26T23:08:56.527 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=55
+2025-05-26T23:08:56.527 INFO 127.0.0.1 <- True
+2025-05-26T23:08:56.531 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=56
+2025-05-26T23:08:56.531 INFO 127.0.0.1 <- False
+2025-05-26T23:08:56.822 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=57
+2025-05-26T23:08:56.837 INFO 127.0.0.1 <- 4.93916357433209
+2025-05-26T23:08:56.843 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=58
+2025-05-26T23:08:56.860 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:08:56.862 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=59
+2025-05-26T23:08:56.880 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:56.884 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=60
+2025-05-26T23:08:56.902 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:08:56.907 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=61
+2025-05-26T23:08:56.913 INFO 127.0.0.1 <- False
+2025-05-26T23:08:56.920 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=62
+2025-05-26T23:08:56.930 INFO 127.0.0.1 <- False
+2025-05-26T23:08:57.814 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=63
+2025-05-26T23:08:57.831 INFO 127.0.0.1 <- 4.939469151822828
+2025-05-26T23:08:57.835 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=64
+2025-05-26T23:08:57.852 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:08:57.856 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=65
+2025-05-26T23:08:57.874 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:57.877 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=66
+2025-05-26T23:08:57.895 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:08:57.900 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=67
+2025-05-26T23:08:57.914 INFO 127.0.0.1 <- False
+2025-05-26T23:08:57.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=68
+2025-05-26T23:08:57.930 INFO 127.0.0.1 <- False
+2025-05-26T23:08:58.533 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=69
+2025-05-26T23:08:58.534 INFO 127.0.0.1 <- True
+2025-05-26T23:08:58.537 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=70
+2025-05-26T23:08:58.539 INFO 127.0.0.1 <- False
+2025-05-26T23:08:58.815 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=71
+2025-05-26T23:08:58.831 INFO 127.0.0.1 <- 4.939736532127222
+2025-05-26T23:08:58.837 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=72
+2025-05-26T23:08:58.852 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:08:58.857 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=73
+2025-05-26T23:08:58.875 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:58.879 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=74
+2025-05-26T23:08:58.897 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:08:58.899 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=75
+2025-05-26T23:08:58.905 INFO 127.0.0.1 <- False
+2025-05-26T23:08:58.907 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=76
+2025-05-26T23:08:58.958 INFO 127.0.0.1 <- False
+2025-05-26T23:08:59.831 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=77
+2025-05-26T23:08:59.848 INFO 127.0.0.1 <- 4.940042109617957
+2025-05-26T23:08:59.853 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=78
+2025-05-26T23:08:59.872 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:08:59.876 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=79
+2025-05-26T23:08:59.893 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:08:59.896 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=80
+2025-05-26T23:08:59.914 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:08:59.918 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=81
+2025-05-26T23:08:59.925 INFO 127.0.0.1 <- False
+2025-05-26T23:08:59.931 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=82
+2025-05-26T23:08:59.942 INFO 127.0.0.1 <- False
+2025-05-26T23:09:00.555 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=83
+2025-05-26T23:09:00.555 INFO 127.0.0.1 <- True
+2025-05-26T23:09:00.559 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=84
+2025-05-26T23:09:00.560 INFO 127.0.0.1 <- False
+2025-05-26T23:09:00.833 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=85
+2025-05-26T23:09:00.849 INFO 127.0.0.1 <- 4.9403094899223525
+2025-05-26T23:09:00.853 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=86
+2025-05-26T23:09:00.870 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:00.875 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=87
+2025-05-26T23:09:00.893 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:00.896 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=88
+2025-05-26T23:09:00.913 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:00.918 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=89
+2025-05-26T23:09:00.925 INFO 127.0.0.1 <- False
+2025-05-26T23:09:00.928 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=90
+2025-05-26T23:09:00.939 INFO 127.0.0.1 <- False
+2025-05-26T23:09:01.844 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=91
+2025-05-26T23:09:01.860 INFO 127.0.0.1 <- 4.940615067413089
+2025-05-26T23:09:01.865 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=92
+2025-05-26T23:09:01.881 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:01.887 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=93
+2025-05-26T23:09:01.905 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:01.909 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=94
+2025-05-26T23:09:01.927 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:01.934 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=95
+2025-05-26T23:09:01.941 INFO 127.0.0.1 <- False
+2025-05-26T23:09:01.946 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=96
+2025-05-26T23:09:01.957 INFO 127.0.0.1 <- False
+2025-05-26T23:09:02.550 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=97
+2025-05-26T23:09:02.550 INFO 127.0.0.1 <- True
+2025-05-26T23:09:02.554 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=98
+2025-05-26T23:09:02.555 INFO 127.0.0.1 <- False
+2025-05-26T23:09:02.846 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=99
+2025-05-26T23:09:02.863 INFO 127.0.0.1 <- 4.940844250531141
+2025-05-26T23:09:02.869 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=100
+2025-05-26T23:09:02.885 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:02.891 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=101
+2025-05-26T23:09:02.909 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:02.912 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=102
+2025-05-26T23:09:02.929 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:02.932 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=103
+2025-05-26T23:09:02.940 INFO 127.0.0.1 <- False
+2025-05-26T23:09:02.942 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=104
+2025-05-26T23:09:02.953 INFO 127.0.0.1 <- False
+2025-05-26T23:09:03.863 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=105
+2025-05-26T23:09:03.916 INFO 127.0.0.1 <- 4.941149828021878
+2025-05-26T23:09:03.922 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=106
+2025-05-26T23:09:03.939 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:03.944 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=107
+2025-05-26T23:09:03.962 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:03.967 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=108
+2025-05-26T23:09:03.985 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:03.991 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=109
+2025-05-26T23:09:03.998 INFO 127.0.0.1 <- False
+2025-05-26T23:09:04.004 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=110
+2025-05-26T23:09:04.014 INFO 127.0.0.1 <- False
+2025-05-26T23:09:04.554 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=111
+2025-05-26T23:09:04.554 INFO 127.0.0.1 <- True
+2025-05-26T23:09:04.557 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=112
+2025-05-26T23:09:04.558 INFO 127.0.0.1 <- False
+2025-05-26T23:09:04.883 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=113
+2025-05-26T23:09:04.900 INFO 127.0.0.1 <- 4.941455405512614
+2025-05-26T23:09:04.904 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=114
+2025-05-26T23:09:04.921 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:04.925 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=115
+2025-05-26T23:09:04.943 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:04.947 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=116
+2025-05-26T23:09:04.964 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:04.968 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=117
+2025-05-26T23:09:04.975 INFO 127.0.0.1 <- False
+2025-05-26T23:09:04.979 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=118
+2025-05-26T23:09:05.030 INFO 127.0.0.1 <- False
+2025-05-26T23:09:05.881 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=119
+2025-05-26T23:09:05.898 INFO 127.0.0.1 <- 4.941722785817007
+2025-05-26T23:09:05.902 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=120
+2025-05-26T23:09:05.920 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:05.925 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=121
+2025-05-26T23:09:05.944 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:05.948 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=122
+2025-05-26T23:09:05.966 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:05.971 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=123
+2025-05-26T23:09:05.979 INFO 127.0.0.1 <- False
+2025-05-26T23:09:05.984 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=124
+2025-05-26T23:09:05.995 INFO 127.0.0.1 <- False
+2025-05-26T23:09:06.543 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=125
+2025-05-26T23:09:06.544 INFO 127.0.0.1 <- True
+2025-05-26T23:09:06.549 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=126
+2025-05-26T23:09:06.549 INFO 127.0.0.1 <- False
+2025-05-26T23:09:06.871 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=127
+2025-05-26T23:09:06.894 INFO 127.0.0.1 <- 4.942028363307744
+2025-05-26T23:09:06.898 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=128
+2025-05-26T23:09:06.916 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:06.920 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=129
+2025-05-26T23:09:06.937 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:06.942 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=130
+2025-05-26T23:09:06.960 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:06.965 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=131
+2025-05-26T23:09:06.972 INFO 127.0.0.1 <- False
+2025-05-26T23:09:06.977 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=132
+2025-05-26T23:09:06.989 INFO 127.0.0.1 <- False
+2025-05-26T23:09:07.901 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=133
+2025-05-26T23:09:07.918 INFO 127.0.0.1 <- 4.942257546425797
+2025-05-26T23:09:07.921 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=134
+2025-05-26T23:09:07.940 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:07.945 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=135
+2025-05-26T23:09:07.964 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:07.968 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=136
+2025-05-26T23:09:07.986 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:07.991 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=137
+2025-05-26T23:09:07.999 INFO 127.0.0.1 <- False
+2025-05-26T23:09:08.003 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=138
+2025-05-26T23:09:08.015 INFO 127.0.0.1 <- False
+2025-05-26T23:09:08.558 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=139
+2025-05-26T23:09:08.558 INFO 127.0.0.1 <- True
+2025-05-26T23:09:08.562 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=140
+2025-05-26T23:09:08.562 INFO 127.0.0.1 <- False
+2025-05-26T23:09:08.886 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=141
+2025-05-26T23:09:08.904 INFO 127.0.0.1 <- 4.942524926730191
+2025-05-26T23:09:08.909 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=142
+2025-05-26T23:09:08.926 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:08.930 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=143
+2025-05-26T23:09:08.949 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:08.954 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=144
+2025-05-26T23:09:08.971 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:08.977 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=145
+2025-05-26T23:09:08.984 INFO 127.0.0.1 <- False
+2025-05-26T23:09:08.988 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=146
+2025-05-26T23:09:08.999 INFO 127.0.0.1 <- False
+2025-05-26T23:09:09.913 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=147
+2025-05-26T23:09:09.930 INFO 127.0.0.1 <- 4.942830504220928
+2025-05-26T23:09:09.936 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=148
+2025-05-26T23:09:09.953 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:09.959 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=149
+2025-05-26T23:09:09.977 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:09.980 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=150
+2025-05-26T23:09:09.998 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:10.003 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=151
+2025-05-26T23:09:10.010 INFO 127.0.0.1 <- False
+2025-05-26T23:09:10.015 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=152
+2025-05-26T23:09:10.028 INFO 127.0.0.1 <- False
+2025-05-26T23:09:10.571 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=153
+2025-05-26T23:09:10.571 INFO 127.0.0.1 <- True
+2025-05-26T23:09:10.575 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=154
+2025-05-26T23:09:10.575 INFO 127.0.0.1 <- False
+2025-05-26T23:09:10.912 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=155
+2025-05-26T23:09:10.928 INFO 127.0.0.1 <- 4.943097884525323
+2025-05-26T23:09:10.932 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=156
+2025-05-26T23:09:10.949 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:10.955 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=157
+2025-05-26T23:09:10.974 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:10.977 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=158
+2025-05-26T23:09:10.995 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:11.000 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=159
+2025-05-26T23:09:11.007 INFO 127.0.0.1 <- False
+2025-05-26T23:09:11.011 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=160
+2025-05-26T23:09:11.022 INFO 127.0.0.1 <- False
+2025-05-26T23:09:11.908 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=161
+2025-05-26T23:09:11.925 INFO 127.0.0.1 <- 4.943403462016059
+2025-05-26T23:09:11.930 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=162
+2025-05-26T23:09:11.947 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:11.953 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=163
+2025-05-26T23:09:11.972 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:11.975 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=164
+2025-05-26T23:09:11.993 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:11.998 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=165
+2025-05-26T23:09:12.004 INFO 127.0.0.1 <- False
+2025-05-26T23:09:12.008 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=166
+2025-05-26T23:09:12.017 INFO 127.0.0.1 <- False
+2025-05-26T23:09:12.566 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=167
+2025-05-26T23:09:12.566 INFO 127.0.0.1 <- True
+2025-05-26T23:09:12.568 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=168
+2025-05-26T23:09:12.568 INFO 127.0.0.1 <- False
+2025-05-26T23:09:12.914 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=169
+2025-05-26T23:09:12.929 INFO 127.0.0.1 <- 4.943709039506795
+2025-05-26T23:09:12.935 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=170
+2025-05-26T23:09:12.953 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:12.959 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=171
+2025-05-26T23:09:12.978 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:12.983 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=172
+2025-05-26T23:09:13.000 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:13.005 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=173
+2025-05-26T23:09:13.012 INFO 127.0.0.1 <- False
+2025-05-26T23:09:13.018 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=174
+2025-05-26T23:09:13.030 INFO 127.0.0.1 <- False
+2025-05-26T23:09:13.913 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=175
+2025-05-26T23:09:13.929 INFO 127.0.0.1 <- 4.943900025438506
+2025-05-26T23:09:13.933 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=176
+2025-05-26T23:09:13.955 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:13.960 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=177
+2025-05-26T23:09:13.978 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:13.984 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=178
+2025-05-26T23:09:14.002 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:14.007 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=179
+2025-05-26T23:09:14.014 INFO 127.0.0.1 <- False
+2025-05-26T23:09:14.019 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=180
+2025-05-26T23:09:14.030 INFO 127.0.0.1 <- False
+2025-05-26T23:09:14.568 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=181
+2025-05-26T23:09:14.568 INFO 127.0.0.1 <- True
+2025-05-26T23:09:14.571 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=182
+2025-05-26T23:09:14.571 INFO 127.0.0.1 <- False
+2025-05-26T23:09:14.925 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=183
+2025-05-26T23:09:14.941 INFO 127.0.0.1 <- 4.944205602929242
+2025-05-26T23:09:14.946 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=184
+2025-05-26T23:09:14.963 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:14.968 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=185
+2025-05-26T23:09:14.987 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:14.992 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=186
+2025-05-26T23:09:15.010 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:15.016 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=187
+2025-05-26T23:09:15.023 INFO 127.0.0.1 <- False
+2025-05-26T23:09:15.027 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=188
+2025-05-26T23:09:15.038 INFO 127.0.0.1 <- False
+2025-05-26T23:09:15.931 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=189
+2025-05-26T23:09:15.948 INFO 127.0.0.1 <- 4.944511180419979
+2025-05-26T23:09:15.952 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=190
+2025-05-26T23:09:15.969 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:15.974 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=191
+2025-05-26T23:09:15.993 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:15.998 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=192
+2025-05-26T23:09:16.015 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:16.021 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=193
+2025-05-26T23:09:16.028 INFO 127.0.0.1 <- False
+2025-05-26T23:09:16.033 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=194
+2025-05-26T23:09:16.045 INFO 127.0.0.1 <- False
+2025-05-26T23:09:16.571 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=195
+2025-05-26T23:09:16.572 INFO 127.0.0.1 <- True
+2025-05-26T23:09:16.575 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=196
+2025-05-26T23:09:16.575 INFO 127.0.0.1 <- False
+2025-05-26T23:09:16.929 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=197
+2025-05-26T23:09:16.947 INFO 127.0.0.1 <- 4.944778560724373
+2025-05-26T23:09:16.950 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=198
+2025-05-26T23:09:16.968 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:16.973 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=199
+2025-05-26T23:09:16.992 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:16.995 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=200
+2025-05-26T23:09:17.013 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:17.017 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=201
+2025-05-26T23:09:17.024 INFO 127.0.0.1 <- False
+2025-05-26T23:09:17.027 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=202
+2025-05-26T23:09:17.039 INFO 127.0.0.1 <- False
+2025-05-26T23:09:17.928 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=203
+2025-05-26T23:09:17.944 INFO 127.0.0.1 <- 4.945084138215109
+2025-05-26T23:09:17.948 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=204
+2025-05-26T23:09:17.966 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:17.972 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=205
+2025-05-26T23:09:17.990 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:17.994 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=206
+2025-05-26T23:09:18.012 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:18.014 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=207
+2025-05-26T23:09:18.021 INFO 127.0.0.1 <- False
+2025-05-26T23:09:18.023 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=208
+2025-05-26T23:09:18.074 INFO 127.0.0.1 <- False
+2025-05-26T23:09:18.570 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=209
+2025-05-26T23:09:18.571 INFO 127.0.0.1 <- True
+2025-05-26T23:09:18.574 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=210
+2025-05-26T23:09:18.574 INFO 127.0.0.1 <- False
+2025-05-26T23:09:18.930 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=211
+2025-05-26T23:09:18.945 INFO 127.0.0.1 <- 4.945389715705845
+2025-05-26T23:09:18.951 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=212
+2025-05-26T23:09:18.967 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:18.973 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=213
+2025-05-26T23:09:18.991 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:18.996 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=214
+2025-05-26T23:09:19.013 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:19.020 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=215
+2025-05-26T23:09:19.026 INFO 127.0.0.1 <- False
+2025-05-26T23:09:19.031 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=216
+2025-05-26T23:09:19.042 INFO 127.0.0.1 <- False
+2025-05-26T23:09:19.943 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=217
+2025-05-26T23:09:19.960 INFO 127.0.0.1 <- 4.945580701637556
+2025-05-26T23:09:19.967 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=218
+2025-05-26T23:09:19.983 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:19.990 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=219
+2025-05-26T23:09:20.007 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:20.012 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=220
+2025-05-26T23:09:20.030 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:20.035 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=221
+2025-05-26T23:09:20.042 INFO 127.0.0.1 <- False
+2025-05-26T23:09:20.047 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=222
+2025-05-26T23:09:20.059 INFO 127.0.0.1 <- False
+2025-05-26T23:09:20.567 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=223
+2025-05-26T23:09:20.568 INFO 127.0.0.1 <- True
+2025-05-26T23:09:20.571 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=224
+2025-05-26T23:09:20.572 INFO 127.0.0.1 <- False
+2025-05-26T23:09:20.927 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=225
+2025-05-26T23:09:20.943 INFO 127.0.0.1 <- 4.945886279128292
+2025-05-26T23:09:20.949 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=226
+2025-05-26T23:09:20.967 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:20.972 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=227
+2025-05-26T23:09:20.990 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:20.995 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=228
+2025-05-26T23:09:21.013 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:21.019 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=229
+2025-05-26T23:09:21.026 INFO 127.0.0.1 <- False
+2025-05-26T23:09:21.030 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=230
+2025-05-26T23:09:21.041 INFO 127.0.0.1 <- False
+2025-05-26T23:09:21.925 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=231
+2025-05-26T23:09:21.941 INFO 127.0.0.1 <- 4.946191856619029
+2025-05-26T23:09:21.946 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=232
+2025-05-26T23:09:21.964 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:21.968 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=233
+2025-05-26T23:09:21.987 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:21.992 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=234
+2025-05-26T23:09:22.009 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:22.015 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=235
+2025-05-26T23:09:22.022 INFO 127.0.0.1 <- False
+2025-05-26T23:09:22.028 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=236
+2025-05-26T23:09:22.038 INFO 127.0.0.1 <- False
+2025-05-26T23:09:22.582 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=237
+2025-05-26T23:09:22.583 INFO 127.0.0.1 <- True
+2025-05-26T23:09:22.585 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=238
+2025-05-26T23:09:22.585 INFO 127.0.0.1 <- False
+2025-05-26T23:09:22.942 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=239
+2025-05-26T23:09:22.959 INFO 127.0.0.1 <- 4.946459236923423
+2025-05-26T23:09:22.964 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=240
+2025-05-26T23:09:22.982 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:22.989 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=241
+2025-05-26T23:09:23.006 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:23.012 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=242
+2025-05-26T23:09:23.030 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:23.036 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=243
+2025-05-26T23:09:23.043 INFO 127.0.0.1 <- False
+2025-05-26T23:09:23.048 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=244
+2025-05-26T23:09:23.058 INFO 127.0.0.1 <- False
+2025-05-26T23:09:23.958 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=245
+2025-05-26T23:09:23.976 INFO 127.0.0.1 <- 4.94676481441416
+2025-05-26T23:09:23.980 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=246
+2025-05-26T23:09:23.998 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:24.004 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=247
+2025-05-26T23:09:24.020 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:24.025 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=248
+2025-05-26T23:09:24.044 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:24.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=249
+2025-05-26T23:09:24.056 INFO 127.0.0.1 <- False
+2025-05-26T23:09:24.062 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=250
+2025-05-26T23:09:24.073 INFO 127.0.0.1 <- False
+2025-05-26T23:09:24.565 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=251
+2025-05-26T23:09:24.566 INFO 127.0.0.1 <- True
+2025-05-26T23:09:24.570 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=252
+2025-05-26T23:09:24.571 INFO 127.0.0.1 <- False
+2025-05-26T23:09:24.939 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=253
+2025-05-26T23:09:24.955 INFO 127.0.0.1 <- 4.947070391904896
+2025-05-26T23:09:24.960 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=254
+2025-05-26T23:09:24.977 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:24.982 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=255
+2025-05-26T23:09:25.000 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:25.005 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=256
+2025-05-26T23:09:25.022 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:25.027 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=257
+2025-05-26T23:09:25.035 INFO 127.0.0.1 <- False
+2025-05-26T23:09:25.039 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=258
+2025-05-26T23:09:25.051 INFO 127.0.0.1 <- False
+2025-05-26T23:09:25.945 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=259
+2025-05-26T23:09:25.961 INFO 127.0.0.1 <- 4.947261377836607
+2025-05-26T23:09:25.967 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=260
+2025-05-26T23:09:25.984 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:25.990 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=261
+2025-05-26T23:09:26.008 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:26.012 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=262
+2025-05-26T23:09:26.031 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:26.035 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=263
+2025-05-26T23:09:26.043 INFO 127.0.0.1 <- False
+2025-05-26T23:09:26.048 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=264
+2025-05-26T23:09:26.059 INFO 127.0.0.1 <- False
+2025-05-26T23:09:26.559 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=265
+2025-05-26T23:09:26.560 INFO 127.0.0.1 <- True
+2025-05-26T23:09:26.562 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=266
+2025-05-26T23:09:26.562 INFO 127.0.0.1 <- False
+2025-05-26T23:09:26.946 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=267
+2025-05-26T23:09:26.963 INFO 127.0.0.1 <- 4.947566955327343
+2025-05-26T23:09:26.968 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=268
+2025-05-26T23:09:26.985 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:26.992 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=269
+2025-05-26T23:09:27.011 INFO 127.0.0.1 <- -0.0
+2025-05-26T23:09:27.016 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=270
+2025-05-26T23:09:27.034 INFO 127.0.0.1 <- 180.00500458066048
+2025-05-26T23:09:27.037 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=271
+2025-05-26T23:09:27.044 INFO 127.0.0.1 <- False
+2025-05-26T23:09:27.045 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=272
+2025-05-26T23:09:27.056 INFO 127.0.0.1 <- False
+2025-05-26T23:09:27.934 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=273
+2025-05-26T23:09:27.950 INFO 127.0.0.1 <- 4.94787253281808
+2025-05-26T23:09:27.956 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=274
+2025-05-26T23:09:27.973 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:27.979 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=275
+2025-05-26T23:09:27.998 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:28.002 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=276
+2025-05-26T23:09:28.020 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:28.026 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=277
+2025-05-26T23:09:28.033 INFO 127.0.0.1 <- False
+2025-05-26T23:09:28.039 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=278
+2025-05-26T23:09:28.050 INFO 127.0.0.1 <- False
+2025-05-26T23:09:28.574 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=279
+2025-05-26T23:09:28.575 INFO 127.0.0.1 <- True
+2025-05-26T23:09:28.578 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=280
+2025-05-26T23:09:28.578 INFO 127.0.0.1 <- False
+2025-05-26T23:09:28.934 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=281
+2025-05-26T23:09:28.951 INFO 127.0.0.1 <- 4.948139913122474
+2025-05-26T23:09:28.955 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=282
+2025-05-26T23:09:28.973 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:28.978 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=283
+2025-05-26T23:09:28.996 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:29.001 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=284
+2025-05-26T23:09:29.019 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:29.025 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=285
+2025-05-26T23:09:29.032 INFO 127.0.0.1 <- False
+2025-05-26T23:09:29.036 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=286
+2025-05-26T23:09:29.046 INFO 127.0.0.1 <- False
+2025-05-26T23:09:29.957 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=287
+2025-05-26T23:09:29.973 INFO 127.0.0.1 <- 4.94844549061321
+2025-05-26T23:09:29.981 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=288
+2025-05-26T23:09:29.998 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:30.003 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=289
+2025-05-26T23:09:30.021 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:30.025 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=290
+2025-05-26T23:09:30.044 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:30.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=291
+2025-05-26T23:09:30.056 INFO 127.0.0.1 <- False
+2025-05-26T23:09:30.063 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=292
+2025-05-26T23:09:30.074 INFO 127.0.0.1 <- False
+2025-05-26T23:09:30.599 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=293
+2025-05-26T23:09:30.600 INFO 127.0.0.1 <- True
+2025-05-26T23:09:30.603 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=294
+2025-05-26T23:09:30.605 INFO 127.0.0.1 <- False
+2025-05-26T23:09:30.960 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=295
+2025-05-26T23:09:30.977 INFO 127.0.0.1 <- 4.948712870917604
+2025-05-26T23:09:30.982 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=296
+2025-05-26T23:09:30.998 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:31.003 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=297
+2025-05-26T23:09:31.021 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:31.024 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=298
+2025-05-26T23:09:31.041 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:31.048 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=299
+2025-05-26T23:09:31.055 INFO 127.0.0.1 <- False
+2025-05-26T23:09:31.060 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=300
+2025-05-26T23:09:31.113 INFO 127.0.0.1 <- False
+2025-05-26T23:09:31.964 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=45510&ClientTransactionID=301
+2025-05-26T23:09:32.017 INFO 127.0.0.1 <- 4.948942054035657
+2025-05-26T23:09:32.023 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=45510&ClientTransactionID=302
+2025-05-26T23:09:32.040 INFO 127.0.0.1 <- -68.6529489281655
+2025-05-26T23:09:32.045 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=45510&ClientTransactionID=303
+2025-05-26T23:09:32.063 INFO 127.0.0.1 <- 0.0
+2025-05-26T23:09:32.068 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=45510&ClientTransactionID=304
+2025-05-26T23:09:32.086 INFO 127.0.0.1 <- 180.00443162286533
+2025-05-26T23:09:32.091 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=45510&ClientTransactionID=305
+2025-05-26T23:09:32.098 INFO 127.0.0.1 <- False
+2025-05-26T23:09:32.103 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=45510&ClientTransactionID=306
+2025-05-26T23:09:32.114 INFO 127.0.0.1 <- False
+2025-05-26T23:09:32.612 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=45510&ClientTransactionID=307
+2025-05-26T23:09:32.612 INFO 127.0.0.1 <- True
+2025-05-26T23:09:32.617 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=308
+2025-05-26T23:09:32.617 INFO 127.0.0.1 <- False
+2025-05-26T23:09:32.946 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=45510&ClientTransactionID=309
+2025-05-26T23:09:32.947 INFO 127.0.0.1 <- False
+2025-05-26T23:09:32.951 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-05-26T23:09:32.952 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '45510', 'ClientTransactionID': '310'}
+2025-05-26T23:09:32.958 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-05-26T23:09:32.958 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '45510', 'ClientTransactionID': '311'}
+2025-05-26T23:09:32.963 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/abortslew
+2025-05-26T23:09:32.964 INFO 127.0.0.1 -> {'ClientID': '45510', 'ClientTransactionID': '312'}
+2025-05-26T23:09:32.982 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-05-26T23:09:32.983 INFO 127.0.0.1 -> {'Connected': 'False', 'ClientID': '45510', 'ClientTransactionID': '313'}
+2025-05-26T23:09:32.983 INFO Serial connection count: 1
+2025-05-26T23:09:32.984 INFO TTS160 disconnected
+2025-05-26T23:09:32.988 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-05-26T23:09:32.989 INFO 127.0.0.1 -> {'Connected': 'False', 'ClientID': '36010', 'ClientTransactionID': '314'}

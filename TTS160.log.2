@@ -1,0 +1,206 @@
+2025-05-26T22:11:58.627 INFO Instantiating serial manager
+2025-05-26T22:11:58.639 INFO TTS160 device initialized successfully
+2025-05-26T22:11:58.677 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
+2025-05-26T22:12:07.505 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/connected
+2025-05-26T22:12:07.505 INFO 192.168.8.203 -> {'Connected': 'True', 'ClientID': '9888', 'ClientTransactionID': '2'}
+2025-05-26T22:12:07.505 INFO Serial connection opened on COM5
+2025-05-26T22:12:07.505 INFO Serial connection count: 1
+2025-05-26T22:12:07.597 INFO Connected to: TTS-160 Panther
+2025-05-26T22:12:07.597 INFO Firmware: 356C (Aug 21 2024)
+2025-05-26T22:12:07.640 INFO Site coordinates: 21.347222°, -157.903333°, 0.0m
+2025-05-26T22:12:07.653 INFO Setting mount time to: 2025-05-26 22:12:07.642389+00:00
+2025-05-26T22:12:08.257 INFO TTS160 connected successfully
+2025-05-26T22:12:08.270 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=9888&ClientTransactionID=3
+2025-05-26T22:12:08.270 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.289 INFO 192.168.8.203 -> GET /api/v1/telescope/0/interfaceversion?ClientID=9888&ClientTransactionID=4
+2025-05-26T22:12:08.289 INFO 192.168.8.203 <- 4
+2025-05-26T22:12:08.301 INFO 192.168.8.203 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=9888&ClientTransactionID=5
+2025-05-26T22:12:08.301 INFO Querying current epoch
+2025-05-26T22:12:08.301 INFO Retrieved False, indicating Topocentric Equatorial
+2025-05-26T22:12:08.301 INFO 192.168.8.203 <- 1
+2025-05-26T22:12:08.310 INFO 192.168.8.203 -> GET /api/v1/telescope/0/trackingrates?ClientID=9888&ClientTransactionID=6
+2025-05-26T22:12:08.310 INFO 192.168.8.203 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-05-26T22:12:08.317 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9888&ClientTransactionID=7
+2025-05-26T22:12:08.317 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.317 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=9888&ClientTransactionID=8
+2025-05-26T22:12:08.404 INFO Retrieved date: 2025-05-26T22:12:07+00:00
+2025-05-26T22:12:08.404 INFO 192.168.8.203 <- 2025-05-26T22:12:07+00:00
+2025-05-26T22:12:08.420 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/utcdate
+2025-05-26T22:12:08.420 INFO 192.168.8.203 -> {'UTCDate': '2025-05-26T22:12:08.4202615Z', 'ClientID': '9888', 'ClientTransactionID': '9'}
+2025-05-26T22:12:08.420 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=9888&ClientTransactionID=10
+2025-05-26T22:12:08.466 INFO Retrieved date: 2025-05-26T22:12:07+00:00
+2025-05-26T22:12:08.466 INFO 192.168.8.203 <- 2025-05-26T22:12:07+00:00
+2025-05-26T22:12:08.476 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9888&ClientTransactionID=11
+2025-05-26T22:12:08.482 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:12:08.486 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9888&ClientTransactionID=12
+2025-05-26T22:12:08.486 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:12:08.486 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=9888&ClientTransactionID=13
+2025-05-26T22:12:08.486 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:12:08.486 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=9888&ClientTransactionID=14
+2025-05-26T22:12:08.507 INFO 192.168.8.203 <- -0.0
+2025-05-26T22:12:08.507 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=9888&ClientTransactionID=15
+2025-05-26T22:12:08.507 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.524 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=9888&ClientTransactionID=16
+2025-05-26T22:12:08.524 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.524 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=9888&ClientTransactionID=17
+2025-05-26T22:12:08.539 INFO 192.168.8.203 <- 180.00500458066048
+2025-05-26T22:12:08.539 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=9888&ClientTransactionID=18
+2025-05-26T22:12:08.560 INFO 192.168.8.203 <- 3.989887099359343
+2025-05-26T22:12:08.560 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=9888&ClientTransactionID=19
+2025-05-26T22:12:08.571 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T22:12:08.571 INFO 192.168.8.203 -> GET /api/v1/telescope/0/description?ClientID=9888&ClientTransactionID=20
+2025-05-26T22:12:08.571 INFO 192.168.8.203 <- TTS160 Alpaca Driver
+2025-05-26T22:12:08.588 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverinfo?ClientID=9888&ClientTransactionID=22
+2025-05-26T22:12:08.588 INFO 192.168.8.203 <- Alpaca telescope
+Implements ITelescope
+ASCOM Initiative
+2025-05-26T22:12:08.591 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverversion?ClientID=9888&ClientTransactionID=23
+2025-05-26T22:12:08.591 INFO 192.168.8.203 <- 356.0.0
+2025-05-26T22:12:08.593 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9888&ClientTransactionID=24
+2025-05-26T22:12:08.593 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:12:08.624 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9888&ClientTransactionID=25
+2025-05-26T22:12:08.624 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:12:08.635 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=9888&ClientTransactionID=26
+2025-05-26T22:12:08.635 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:12:08.639 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=9888&ClientTransactionID=27
+2025-05-26T22:12:08.639 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.642 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=28&Axis=0
+2025-05-26T22:12:08.642 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.642 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=29&Axis=0
+2025-05-26T22:12:08.642 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.642 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=9888&ClientTransactionID=30&Axis=0
+2025-05-26T22:12:08.642 INFO Calling for axis rate with argument 0
+2025-05-26T22:12:08.642 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T22:12:08.656 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=31&Axis=1
+2025-05-26T22:12:08.656 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.659 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=32&Axis=1
+2025-05-26T22:12:08.659 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.659 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=9888&ClientTransactionID=33&Axis=1
+2025-05-26T22:12:08.659 INFO Calling for axis rate with argument 1
+2025-05-26T22:12:08.659 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T22:12:08.659 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=34&Axis=0
+2025-05-26T22:12:08.667 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.667 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=35&Axis=1
+2025-05-26T22:12:08.667 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.797 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=9888&ClientTransactionID=36
+2025-05-26T22:12:08.810 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.811 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=9888&ClientTransactionID=37
+2025-05-26T22:12:08.826 INFO 192.168.8.203 <- 3.9899634937320267
+2025-05-26T22:12:08.826 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=9888&ClientTransactionID=38
+2025-05-26T22:12:08.856 INFO 192.168.8.203 <- 3.990611111111109
+2025-05-26T22:12:08.861 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=9888&ClientTransactionID=39
+2025-05-26T22:12:08.861 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:12:08.861 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9888&ClientTransactionID=40
+2025-05-26T22:12:08.869 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:12:08.872 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9888&ClientTransactionID=41
+2025-05-26T22:12:08.872 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:12:08.878 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=9888&ClientTransactionID=42
+2025-05-26T22:12:08.955 INFO 192.168.8.203 <- 0
+2025-05-26T22:12:08.962 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=9888&ClientTransactionID=43
+2025-05-26T22:12:08.973 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.973 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9888&ClientTransactionID=44
+2025-05-26T22:12:08.973 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.979 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9888&ClientTransactionID=45
+2025-05-26T22:12:08.979 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.982 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=9888&ClientTransactionID=46
+2025-05-26T22:12:08.982 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.982 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canfindhome?ClientID=9888&ClientTransactionID=47
+2025-05-26T22:12:08.982 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.982 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpark?ClientID=9888&ClientTransactionID=48
+2025-05-26T22:12:08.982 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.982 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpark?ClientID=9888&ClientTransactionID=49
+2025-05-26T22:12:08.982 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.982 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=9888&ClientTransactionID=50
+2025-05-26T22:12:08.997 INFO 192.168.8.203 <- False
+2025-05-26T22:12:08.997 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9888&ClientTransactionID=51
+2025-05-26T22:12:08.997 INFO 192.168.8.203 <- True
+2025-05-26T22:12:08.997 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9888&ClientTransactionID=52
+2025-05-26T22:12:09.013 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:12:09.013 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9888&ClientTransactionID=53
+2025-05-26T22:12:09.029 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:12:09.032 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=54&Axis=0
+2025-05-26T22:12:09.035 INFO 192.168.8.203 <- True
+2025-05-26T22:12:09.035 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9888&ClientTransactionID=55&Axis=1
+2025-05-26T22:12:09.035 INFO 192.168.8.203 <- True
+2025-05-26T22:12:09.035 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=9888&ClientTransactionID=56&Axis=0
+2025-05-26T22:12:09.035 INFO Calling for axis rate with argument 0
+2025-05-26T22:12:09.035 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T22:12:09.035 INFO 192.168.8.203 -> GET /api/v1/telescope/0/axisrates?ClientID=9888&ClientTransactionID=57&Axis=1
+2025-05-26T22:12:09.045 INFO Calling for axis rate with argument 1
+2025-05-26T22:12:09.045 INFO 192.168.8.203 <- [Rate(0.0, 3.5)]
+2025-05-26T22:12:09.045 INFO 192.168.8.203 -> GET /api/v1/telescope/0/supportedactions?ClientID=9888&ClientTransactionID=58
+2025-05-26T22:12:09.047 INFO 192.168.8.203 <- []
+2025-05-26T22:12:09.055 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9888&ClientTransactionID=59
+2025-05-26T22:12:09.055 INFO 192.168.8.203 <- 0
+2025-05-26T22:12:09.060 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9888&ClientTransactionID=60
+2025-05-26T22:12:09.060 INFO 192.168.8.203 <- True
+2025-05-26T22:12:09.060 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9888&ClientTransactionID=61
+2025-05-26T22:12:09.060 INFO 192.168.8.203 <- False
+2025-05-26T22:12:09.064 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9888&ClientTransactionID=62
+2025-05-26T22:12:09.064 INFO 192.168.8.203 <- False
+2025-05-26T22:12:09.064 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=9888&ClientTransactionID=63
+2025-05-26T22:12:09.064 INFO 192.168.8.203 <- True
+2025-05-26T22:12:09.064 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=9888&ClientTransactionID=64
+2025-05-26T22:12:09.107 INFO Retrieved date: 2025-05-26T22:12:08+00:00
+2025-05-26T22:12:09.107 INFO 192.168.8.203 <- 2025-05-26T22:12:08+00:00
+2025-05-26T22:12:09.119 INFO 192.168.8.203 -> GET /api/v1/telescope/0/driverversion?ClientID=9888&ClientTransactionID=65
+2025-05-26T22:12:09.119 INFO 192.168.8.203 <- 356.0.0
+2025-05-26T22:12:11.129 INFO 192.168.8.203 -> GET /api/v1/telescope/0/connected?ClientID=9888&ClientTransactionID=66
+2025-05-26T22:12:11.129 INFO 192.168.8.203 <- True
+2025-05-26T22:12:11.137 INFO 192.168.8.203 -> GET /api/v1/telescope/0/atpark?ClientID=9888&ClientTransactionID=67
+2025-05-26T22:12:11.137 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.137 INFO 192.168.8.203 -> GET /api/v1/telescope/0/athome?ClientID=9888&ClientTransactionID=68
+2025-05-26T22:12:11.137 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.145 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansettracking?ClientID=9888&ClientTransactionID=69
+2025-05-26T22:12:11.145 INFO 192.168.8.203 <- True
+2025-05-26T22:12:11.145 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9888&ClientTransactionID=70
+2025-05-26T22:12:11.145 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.145 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9888&ClientTransactionID=71
+2025-05-26T22:12:11.145 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.145 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=9888&ClientTransactionID=72
+2025-05-26T22:12:11.160 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.163 INFO 192.168.8.203 -> GET /api/v1/telescope/0/altitude?ClientID=9888&ClientTransactionID=73
+2025-05-26T22:12:11.176 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:12:11.185 INFO 192.168.8.203 -> GET /api/v1/telescope/0/azimuth?ClientID=9888&ClientTransactionID=74
+2025-05-26T22:12:11.192 INFO 192.168.8.203 <- 180.00500458066048
+2025-05-26T22:12:11.205 INFO 192.168.8.203 -> GET /api/v1/telescope/0/declination?ClientID=9888&ClientTransactionID=75
+2025-05-26T22:12:11.224 INFO 192.168.8.203 <- -68.6529489281655
+2025-05-26T22:12:11.224 INFO 192.168.8.203 -> GET /api/v1/telescope/0/rightascension?ClientID=9888&ClientTransactionID=76
+2025-05-26T22:12:11.247 INFO 192.168.8.203 <- 3.9906892402725256
+2025-05-26T22:12:11.256 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siderealtime?ClientID=9888&ClientTransactionID=77
+2025-05-26T22:12:11.273 INFO 192.168.8.203 <- 3.9911666666666648
+2025-05-26T22:12:11.278 INFO 192.168.8.203 -> GET /api/v1/telescope/0/tracking?ClientID=9888&ClientTransactionID=78
+2025-05-26T22:12:11.290 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.290 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9888&ClientTransactionID=79
+2025-05-26T22:12:11.290 INFO 192.168.8.203 <- -157.90333333333336
+2025-05-26T22:12:11.290 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9888&ClientTransactionID=80
+2025-05-26T22:12:11.290 INFO 192.168.8.203 <- 21.347222222222218
+2025-05-26T22:12:11.290 INFO 192.168.8.203 -> GET /api/v1/telescope/0/siteelevation?ClientID=9888&ClientTransactionID=81
+2025-05-26T22:12:11.290 INFO 192.168.8.203 <- 0.0
+2025-05-26T22:12:11.304 INFO 192.168.8.203 -> GET /api/v1/telescope/0/sideofpier?ClientID=9888&ClientTransactionID=82
+2025-05-26T22:12:11.336 INFO 192.168.8.203 <- 0
+2025-05-26T22:12:11.341 INFO 192.168.8.203 -> GET /api/v1/telescope/0/slewing?ClientID=9888&ClientTransactionID=83
+2025-05-26T22:12:11.341 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.353 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9888&ClientTransactionID=84
+2025-05-26T22:12:11.353 INFO 192.168.8.203 <- True
+2025-05-26T22:12:11.354 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9888&ClientTransactionID=85
+2025-05-26T22:12:11.358 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:12:11.368 INFO 192.168.8.203 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9888&ClientTransactionID=86
+2025-05-26T22:12:11.375 INFO 192.168.8.203 <- 0.001388888888888889
+2025-05-26T22:12:11.380 INFO 192.168.8.203 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9888&ClientTransactionID=87
+2025-05-26T22:12:11.380 INFO 192.168.8.203 <- 0
+2025-05-26T22:12:11.380 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9888&ClientTransactionID=88
+2025-05-26T22:12:11.380 INFO 192.168.8.203 <- True
+2025-05-26T22:12:11.380 INFO 192.168.8.203 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9888&ClientTransactionID=89
+2025-05-26T22:12:11.383 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.383 INFO 192.168.8.203 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9888&ClientTransactionID=90
+2025-05-26T22:12:11.383 INFO 192.168.8.203 <- False
+2025-05-26T22:12:11.383 INFO 192.168.8.203 -> GET /api/v1/telescope/0/canslew?ClientID=9888&ClientTransactionID=91
+2025-05-26T22:12:11.383 INFO 192.168.8.203 <- True
+2025-05-26T22:12:11.383 INFO 192.168.8.203 -> GET /api/v1/telescope/0/utcdate?ClientID=9888&ClientTransactionID=92
+2025-05-26T22:12:11.426 INFO Retrieved date: 2025-05-26T22:12:10+00:00
+2025-05-26T22:12:11.426 INFO 192.168.8.203 <- 2025-05-26T22:12:10+00:00
+2025-05-26T22:12:12.432 INFO 192.168.8.203 -> PUT /api/v1/telescope/0/connected
+2025-05-26T22:12:12.435 INFO 192.168.8.203 -> {'Connected': 'False', 'ClientID': '9888', 'ClientTransactionID': '93'}
+2025-05-26T22:12:12.435 INFO Serial connection count: 0
+2025-05-26T22:12:12.437 INFO TTS160 disconnected
