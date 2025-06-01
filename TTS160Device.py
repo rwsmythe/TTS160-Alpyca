@@ -75,12 +75,35 @@ class CapabilitiesMixin:
         """Mount can slew to equatorial coordinates asynchronously."""
         return self._CanSlewAsync
     
-    def CanMoveAxis(self, axis) -> bool:
+    def CanMoveAxis(self, axis: TelescopeAxes) -> bool:
+        """
+        Determine if mount can be moved about the specified axis.
         
-        if axis in [TelescopeAxes.axisPrimary, TelescopeAxes.axisSecondary]:
-            return self._CanMoveAxis
-        else:
-            return False
+        Args:
+            axis: Telescope axis to check (Primary, Secondary, or Tertiary)
+            
+        Returns:
+            bool: True if axis movement supported, False otherwise
+            
+        Raises:
+            InvalidValueException: If invalid axis value specified
+            NotConnectedException: If device not connected
+            DriverException: If axis capability check fails
+        """
+        try:
+            self._logger.debug(f"Checking movement capability for axis: {axis}")
+            
+            if axis in [TelescopeAxes.axisPrimary, TelescopeAxes.axisSecondary]:
+                result = self._CanMoveAxis
+                self._logger.debug(f"Axis {axis} movement capability: {result}")
+                return result
+            else:
+                self._logger.debug(f"Axis {axis} movement not supported (tertiary axis)")
+                return False
+                
+        except Exception as ex:
+            self._logger.error(f"Failed to check axis {axis} capability: {ex}")
+            raise DriverException(0x500, f"Axis capability check failed: {ex}")
     
     @property
     def CanSetDeclinationRate(self) -> bool:
@@ -103,11 +126,37 @@ class CapabilitiesMixin:
         return self._CanSetGuideRates
 
     def AxisRates(self, axis: TelescopeAxes) -> List[Rate]:
-        """Get available rates for specified axis."""
-        if axis in [TelescopeAxes.axisPrimary, TelescopeAxes.axisSecondary]:  # Primary and secondary axes
-            return self._AxisRates
-        else:
-            return []
+        """
+        Get angular rates at which mount may be moved about specified axis.
+        
+        Args:
+            axis: Telescope axis for rate inquiry (Primary, Secondary, or Tertiary)
+            
+        Returns:
+            List[Rate]: Available rate objects with min/max angular rates (deg/sec)
+                    Empty list if axis movement not supported
+            
+        Raises:
+            InvalidValueException: If invalid axis value specified
+            NotConnectedException: If device not connected
+            DriverException: If rate retrieval fails
+        """
+        try:
+            self._logger.debug(f"Retrieving available rates for axis: {axis}")
+            
+            if axis in [TelescopeAxes.axisPrimary, TelescopeAxes.axisSecondary]:
+                rates = self._AxisRates
+                self._logger.debug(f"Axis {axis} available rates: {len(rates)} rate ranges")
+                for i, rate in enumerate(rates):
+                    self._logger.debug(f"  Rate {i}: {rate.Minimum}-{rate.Maximum} deg/sec")
+                return rates
+            else:
+                self._logger.debug(f"Axis {axis} movement not supported, returning empty rate list")
+                return []
+                
+        except Exception as ex:
+            self._logger.error(f"Failed to retrieve rates for axis {axis}: {ex}")
+            raise DriverException(0x500, f"Axis rates retrieval failed: {ex}")
     
     @property
     def CanSync(self) -> bool:
@@ -126,11 +175,27 @@ class CapabilitiesMixin:
 
     @property
     def TrackingRates(self) -> List[DriveRates]:
-        """Get available tracking rates."""
-        return self._DriveRates
+        """
+        Return list of supported tracking rate values.
+        
+        Returns:
+            List[DriveRates]: Available tracking rates (minimum includes sidereal)
+            
+        Raises:
+            NotConnectedException: If device not connected
+            DriverException: If tracking rates retrieval fails
+        """
+        try:
+            self._logger.debug("Retrieving available tracking rates")
+            rates = self._DriveRates
+            self._logger.debug(f"Available tracking rates: {[rate.name for rate in rates]}")
+            return rates
+            
+        except Exception as ex:
+            self._logger.error(f"Failed to retrieve tracking rates: {ex}")
+            raise DriverException(0x500, f"Tracking rates retrieval failed: {ex}")
 
-        # Static Properties  
-    
+    # Static Properties  
     @property
     def Name(self) -> str:
         return self._Name
@@ -144,8 +209,8 @@ class CapabilitiesMixin:
         return self._DriverVersion
 
     @property
-    def DriverInfo(self) -> str:
-        return self._DriverInfo
+    def DriverInfo(self) -> List[str]:
+        return List[ f"{self._DriverInfo}" ]
 
     @property
     def InterfaceVersion(self) -> int:
@@ -160,8 +225,27 @@ class CapabilitiesMixin:
     
     @property
     def AlignmentMode(self) -> AlignmentModes:
-        return AlignmentModes.algAltAz
-
+        """
+        The current mount alignment mode geometry.
+        
+        Returns:
+            AlignmentModes: Mount alignment type (Alt-Az, Polar, German Polar)
+            
+        Raises:
+            NotImplementedException: If mount cannot report alignment mode
+            NotConnectedException: If device not connected
+            DriverException: If alignment mode retrieval fails
+        """
+        try:
+            self._logger.debug("Retrieving mount alignment mode")
+            alignment = AlignmentModes.algAltAz
+            self._logger.debug(f"Mount alignment mode: {alignment}")
+            return alignment
+            
+        except Exception as ex:
+            self._logger.error(f"Failed to retrieve alignment mode: {ex}")
+            raise DriverException(0x500, f"Alignment mode retrieval failed: {ex}")
+            
 class ConfigurationMixin:
     @property
     def SlewSettleTime(self) -> int:
@@ -1754,6 +1838,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         """Invokes the specified device-specific custom action."""
         self._logger.info(f"Action: {action_name}; Parameters: {parameters}")
         
+        if not self.Connected:
+            raise NotConnectedException()
+
         try:
             action_name = action_name.lower()
             
@@ -2111,23 +2198,43 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
 
     @property
     def DeviceState(self) -> List[dict]:
-        device_state: List[dict] = [
-    {"name": "Altitude", "value": self.Altitude},
-    {"name": "AtHome", "value": self.AtHome},
-    {"name": "AtPark", "value": self.AtPark},
-    {"name": "Azimuth", "value": self.Azimuth},
-    {"name": "Declination", "value": self.Declination},
-    {"name": "IsPulseGuiding", "value": self.IsPulseGuiding},
-    {"name": "RightAscension", "value": self.RightAscension},
-    {"name": "SideOfPier", "value": self.SideOfPier},
-    {"name": "SiderealTime", "value": self.SiderealTime},
-    {"name": "Slewing", "value": self.Slewing},
-    {"name": "Tracking", "value": self.Tracking},
-    {"name": "UTCDate", "value": self.UTCDate},
-    {"name": "TimeStamp", "value": datetime.now}
-        ]
+        """
+        List of key-value pairs representing operational properties of the device.
         
-        return device_state
+        Returns comprehensive state information for monitoring and diagnostic purposes.
+        Each dictionary contains 'name' and 'value' keys representing device parameters.
+        
+        Returns:
+            List[dict]: Device state parameters with current values and timestamp
+            
+        Raises:
+            DriverException: If device state retrieval fails
+        """
+        try:
+            self._logger.debug("Assembling device state information")
+            
+            device_state: List[dict] = [
+                {"name": "Altitude", "value": self.Altitude},
+                {"name": "AtHome", "value": self.AtHome},
+                {"name": "AtPark", "value": self.AtPark},
+                {"name": "Azimuth", "value": self.Azimuth},
+                {"name": "Declination", "value": self.Declination},
+                {"name": "IsPulseGuiding", "value": self.IsPulseGuiding},
+                {"name": "RightAscension", "value": self.RightAscension},
+                {"name": "SideOfPier", "value": self.SideOfPier},
+                {"name": "SiderealTime", "value": self.SiderealTime},
+                {"name": "Slewing", "value": self.Slewing},
+                {"name": "Tracking", "value": self.Tracking},
+                {"name": "UTCDate", "value": self.UTCDate},
+                {"name": "TimeStamp", "value": datetime.now}
+            ]
+            
+            self._logger.debug(f"Device state assembled with {len(device_state)} parameters")
+            return device_state
+
+        except Exception as ex:
+                self._logger.error(f"Failed to assemble device state: {ex}")
+                raise DriverException(0x500, f"Device state retrieval failed: {ex}")
 
     @property
     def EquatorialSystem(self) -> EquatorialCoordinateType:
@@ -2142,52 +2249,132 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             return EquatorialCoordinateType.equJ2000
     
     @property
-    def GuideRateDeclination(self) -> float:
-        rate = int(self._send_command(":*gRG#", CommandType.STRING).rstrip('#'))
-        guide_rates = {
-            0: 1.0 / 3600.0,
-            1: 3.0 / 3600.0,
-            2: 5.0 / 3600.0,
-            3: 10.0 / 3600.0,
-            4: 20.0 / 3600.0
-        }
-        return guide_rates.get(rate, 0)
-    
+    def GuideRateDeclination(self) -> float:   
+        """
+        The current declination rate offset (deg/sec) for guiding.
+        
+        Returns:
+            float: Guide rate in degrees per second for declination axis
+            
+        Raises:
+            InvalidValueException: If invalid guide rate retrieved
+            NotImplementedException: If guide rates cannot be read
+            NotConnectedException: If device not connected
+            DriverException: If guide rate retrieval fails
+        """
+        try:
+            self._logger.debug("Retrieving declination guide rate")
+            rate_index = int(self._send_command(":*gRG#", CommandType.STRING).rstrip('#'))
+            
+            guide_rates = {
+                0: 1.0 / 3600.0,
+                1: 3.0 / 3600.0,
+                2: 5.0 / 3600.0,
+                3: 10.0 / 3600.0,
+                4: 20.0 / 3600.0
+            }
+            
+            rate = guide_rates.get(rate_index, 0)
+            self._logger.debug(f"Declination guide rate: {rate:.6f} deg/sec (index {rate_index})")
+            return rate
+            
+        except Exception as ex:
+            self._logger.error(f"Failed to retrieve declination guide rate: {ex}")
+            raise DriverException(0x500, f"Guide rate retrieval failed: {ex}")
+
     @GuideRateDeclination.setter
     def GuideRateDeclination(self, value: float) -> None:
-        value *= 3600
-        #TODO: Determine correct exception to raise
-        #if value < 0:
-        #    raise ValueError(f"{value / 3600} is less than 0")
-
-        thresholds = [1.5, 4.0, 7.5, 15.0]
-        val = bisect.bisect_left(thresholds, value)
-
-        self._send_command(f":*gRS{val}#", CommandType.BLIND)
+        """
+        Set the current declination rate offset (deg/sec) for guiding.
+        
+        Args:
+            value: Guide rate in degrees per second
+            
+        Raises:
+            InvalidValueException: If invalid guide rate specified
+            NotImplementedException: If guide rates cannot be set
+            NotConnectedException: If device not connected
+            DriverException: If guide rate setting fails
+        """
+        try:
+            self._logger.info(f"Setting declination guide rate to: {value:.6f} deg/sec")
+            
+            value_arcsec = value * 3600
+            thresholds = [1.5, 4.0, 7.5, 15.0]
+            rate_index = bisect.bisect_left(thresholds, value_arcsec)
+            
+            self._logger.debug(f"Guide rate {value:.6f} deg/sec maps to index {rate_index}")
+            self._send_command(f":*gRS{rate_index}#", CommandType.BLIND)
+            
+            self._logger.info(f"Declination guide rate successfully set to index {rate_index}")
+            
+        except Exception as ex:
+            self._logger.error(f"Failed to set declination guide rate {value}: {ex}")
+            raise DriverException(0x500, f"Guide rate setting failed: {ex}")
 
     @property
     def GuideRateRightAscension(self) -> float:
-        rate = int(self._send_command(":*gRG#", CommandType.STRING).rstrip('#'))
-        guide_rates = {
-            0: 1.0 / 3600.0,
-            1: 3.0 / 3600.0,
-            2: 5.0 / 3600.0,
-            3: 10.0 / 3600.0,
-            4: 20.0 / 3600.0
-        }
-        return guide_rates.get(rate, 0)
+        """
+        The current right ascension rate offset (deg/sec) for guiding.
+        
+        Returns:
+            float: Guide rate in degrees per second for right ascension axis
+            
+        Raises:
+            InvalidValueException: If invalid guide rate retrieved
+            NotImplementedException: If guide rates cannot be read
+            NotConnectedException: If device not connected
+            DriverException: If guide rate retrieval fails
+        """
+        try:
+            self._logger.debug("Retrieving right ascension guide rate")
+            rate_index = int(self._send_command(":*gRG#", CommandType.STRING).rstrip('#'))
+            
+            guide_rates = {
+                0: 1.0 / 3600.0,
+                1: 3.0 / 3600.0,
+                2: 5.0 / 3600.0,
+                3: 10.0 / 3600.0,
+                4: 20.0 / 3600.0
+            }
+            
+            rate = guide_rates.get(rate_index, 0)
+            self._logger.debug(f"Right ascension guide rate: {rate:.6f} deg/sec (index {rate_index})")
+            return rate
+            
+        except Exception as ex:
+            self._logger.error(f"Failed to retrieve right ascension guide rate: {ex}")
+            raise DriverException(0x500, f"Guide rate retrieval failed: {ex}")
 
     @GuideRateRightAscension.setter
     def GuideRateRightAscension(self, value: float) -> None:
-        value *= 3600
-        #TODO: Determine correct exception to raise
-        #if value < 0:
-        #    raise ValueError(f"{value / 3600} is less than 0")
-
-        thresholds = [1.5, 4.0, 7.5, 15.0]
-        val = bisect.bisect_left(thresholds, value)
-
-        self._send_command(f":*gRS{val}#", CommandType.BLIND)
+        """
+        Set the current right ascension rate offset (deg/sec) for guiding.
+        
+        Args:
+            value: Guide rate in degrees per second
+            
+        Raises:
+            InvalidValueException: If invalid guide rate specified
+            NotImplementedException: If guide rates cannot be set
+            NotConnectedException: If device not connected
+            DriverException: If guide rate setting fails
+        """
+        try:
+            self._logger.info(f"Setting right ascension guide rate to: {value:.6f} deg/sec")
+            
+            value_arcsec = value * 3600
+            thresholds = [1.5, 4.0, 7.5, 15.0]
+            rate_index = bisect.bisect_left(thresholds, value_arcsec)
+            
+            self._logger.debug(f"Guide rate {value:.6f} deg/sec maps to index {rate_index}")
+            self._send_command(f":*gRS{rate_index}#", CommandType.BLIND)
+            
+            self._logger.info(f"Right ascension guide rate successfully set to index {rate_index}")
+            
+        except Exception as ex:
+            self._logger.error(f"Failed to set right ascension guide rate {value}: {ex}")
+            raise DriverException(0x500, f"Guide rate setting failed: {ex}")
 
     def _calculate_side_of_pier(self, right_ascension: float) -> PierSide:
         """
@@ -2198,27 +2385,27 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         (object east of meridian) use West pier side.
         
         Args:
-            right_ascension: RA in hours (0-24)
+            right_ascension: Right ascension in decimal hours (0-24)
             
         Returns:
             PierSide: pierEast if HA > 0, pierWest if HA <= 0
             
         Raises:
             DriverException: If sidereal time calculation fails
-            InvalidValueException: If RA outside valid range
+            InvalidValueException: If RA outside valid range (0-24 hours)
         """
         try:
+            self._logger.debug(f"Calculating pier side for RA {right_ascension:.3f}h")
             self._validate_coordinates(ra = right_ascension)
             
-            self._logger.debug(f"Calculating pier side for RA {right_ascension:.3f}h")
-            
             # Calculate hour angle
-            hour_angle = self._condition_ha(self.SiderealTime - right_ascension)
+            sidereal_time = self.SiderealTime
+            hour_angle = self._condition_ha(sidereal_time - right_ascension)
             
             # Determine pier side based on hour angle
             pier_side = PierSide.pierEast if hour_angle > 0 else PierSide.pierWest
             
-            self._logger.debug(f"Hour angle: {hour_angle:.3f}h, Pier side: {pier_side}")
+            self._logger.debug(f"RA {right_ascension:.3f}h, LST {sidereal_time:.3f}h, HA {hour_angle:.3f}h -> {pier_side.name}")
             return pier_side
             
         except InvalidValueException:
@@ -2238,6 +2425,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         """True if mount is slewing."""
         try:
             
+            #Atomic Snapshot provides protection
             slew_future = self._slew_in_progress
             return slew_future and not slew_future.done()                    
                 
@@ -2272,25 +2460,55 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
     
     @property
     def TrackingRate(self) -> DriveRates:
-
+        """
+        The current sidereal tracking rate of the mount.
+        
+        Returns:
+            DriveRates: Current tracking rate (Sidereal, Lunar, Solar, King)
+            
+        Raises:
+            InvalidValueException: If mount returns unknown tracking rate
+            NotConnectedException: If device not connected
+            DriverException: If tracking rate retrieval fails
+        """
         try:
+            self._logger.debug("Retrieving current tracking rate from mount")
             command = ":*TRG#"
             result = int(self._send_command(command, CommandType.STRING).rstrip("#"))
+            
             if result == 0:
-                return DriveRates.driveSidereal
+                rate = DriveRates.driveSidereal
             elif result == 1:
-                return DriveRates.driveLunar
+                rate = DriveRates.driveLunar
             elif result == 2:
-                return DriveRates.driveSolar
+                rate = DriveRates.driveSolar
             else:
-                raise DriverException(0x500,f"TrackingRate get failed due to unknown value received: {result}")
+                self._logger.error(f"Unknown tracking rate value from mount: {result}")
+                raise DriverException(0x500, f"TrackingRate get failed due to unknown value received: {result}")
+            
+            self._logger.debug(f"Current tracking rate: {rate.name}")
+            return rate
+            
         except Exception as ex:
+            self._logger.error(f"Failed to retrieve tracking rate: {ex}")
             raise DriverException(0x500, f"Unknown error: {ex}")
-        
+
     @TrackingRate.setter
     def TrackingRate(self, rate: DriveRates) -> None:
-
+        """
+        Set the current sidereal tracking rate of the mount.
+        
+        Args:
+            rate: Desired tracking rate (Sidereal, Lunar, Solar)
+            
+        Raises:
+            InvalidValueException: If unsupported tracking rate specified
+            NotConnectedException: If device not connected
+            DriverException: If tracking rate setting fails
+        """
         try:
+            self._logger.info(f"Setting tracking rate to: {rate.name}")
+            
             if rate == DriveRates.driveSidereal:
                 command = ":TQ#"
             elif rate == DriveRates.driveLunar:
@@ -2298,12 +2516,15 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             elif rate == DriveRates.driveSolar:
                 command = ":TS#"
             else:
+                self._logger.error(f"Unsupported tracking rate: {rate}")
                 raise InvalidValueException(f"Unknown rate provided: {rate}.")
             
             self._send_command(command, CommandType.BLIND)
+            self._logger.info(f"Tracking rate successfully set to: {rate.name}")
 
         except Exception as ex:
-            raise DriverException(0x500,f"Set Tracking Rate Failed: {ex}")
+            self._logger.error(f"Failed to set tracking rate to {rate.name}: {ex}")
+            raise DriverException(0x500, f"Set Tracking Rate Failed: {ex}")
 
 
     @property
