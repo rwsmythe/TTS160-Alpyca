@@ -42,9 +42,10 @@ Perform comprehensive compliance analysis of a software implementation against p
 - **Exception handling compliance** (correct exception types per ICD)
 - **Input/output validation** (ranges, types, formats per ICD specifications)
 - **Protocol compliance** (command formats, response handling per secondary ICD)
+- **Logical consistency** (Logic flowpath results in correct outcome for each method/property)
 
 #### Implementation Quality Assessment
-- **Code structure** (class design, Single Responsibility Principle)
+- **Code structure** (class design, Single Responsibility Principle, Pythonic, Best Practices)
 - **Documentation quality** (docstrings, type hints, parameter documentation)
 - **Edge case handling** (boundary conditions, error scenarios, resource limits)
 - **Thread safety** (race conditions, locking consistency, resource cleanup)
@@ -78,24 +79,31 @@ Create comprehensive artifact with:
    - Security/reliability concerns
    - Each item numbered and specifically described
 
-4. **Analysis Verification Summary**
+5. **Medium Priority Issues**
+   - Poor logic flow/redundant conditions
+   - Poor pythonic implementation
+   - Layout/Maintainability issues
+   - Contrary to best practices
+   - Logging/Documentation issues     
+
+5. **Analysis Verification Summary**
    - Forward analysis iteration summary
    - Backward analysis results and false positive identification
    - Final issue count comparison between forward/backward analysis
    - Verification methodology explanation
 
-5. **ICD Ambiguities**
+6. **ICD Ambiguities**
    - Areas where specifications lack clarity
    - Cannot be resolved without ICD clarification
 
-6. **Effort Estimation**
-   - Time estimates by priority category for verified issues only
+7. **Effort Estimation**
    - Implementation assessment (strengths/weaknesses)
 
 ### Quality Requirements
 - **Complete verified issue inventory** - Every identified issue verified through backward analysis
 - **False positive documentation** - Clear explanation why issues were rejected
 - **Specific descriptions** - Avoid vague references like "multiple issues"
+- **Requirement Wording** - Show the wording of the requirement from the applicable ICD
 - **Code examples** - Show problematic code patterns where relevant
 - **Priority justification** - Explain why issues are critical vs medium priority
 - **Actionable recommendations** - Clear guidance for resolution
@@ -105,6 +113,8 @@ Create comprehensive artifact with:
 ### Use ICDs as Gold Standard
 - Primary ICD defines interface requirements
 - Secondary ICD defines protocol/hardware requirements
+- All required capabilities in the primary ICD that are supported by the secondary ICD need to be implemented
+- Not all capabilities allowed for in the secondary ICD need to be implemented
 - Implementation must conform to both specifications
 - Code quality assessed against Python best practices
 
@@ -115,6 +125,7 @@ Create comprehensive artifact with:
 
 ### Backward Analysis Verification Standards
 - Each issue must be provable against actual code and ICD requirements
+- For each issue reverify both the requirements within the ICD documentation and the implementation
 - False positives must be documented with specific reasoning
 - Convergence achieved when consecutive iterations yield same verified issue count
 - Analysis must distinguish between specification violations vs. style preferences
