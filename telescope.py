@@ -129,6 +129,7 @@ class TelescopeAxes(IntEnum):
 class action:
     def on_put(self, req: Request, resp: Response, devnum: int):
         resp.text = MethodResponse(req, NotImplementedException()).json
+        #TODO: Implement
 
 #Commandxxx commands have been are being deprecated
 @before(PreProcessRequest(maxdev))
@@ -273,7 +274,18 @@ class name():
 @before(PreProcessRequest(maxdev))
 class supportedactions:
     def on_get(self, req: Request, resp: Response, devnum: int):
-        resp.text = PropertyResponse([], req).json  # Not PropertyNotImplemented
+        
+        if not TTS160_dev.Connected:
+            resp.text = PropertyResponse(None, req, 
+                            NotConnectedException()).json
+        try:
+            # ----------------------
+            val = TTS160_dev.SupportedActions   ## GET PROPERTY ##
+            # ----------------------
+            resp.text = PropertyResponse(val, req).json  # Not PropertyNotImplemented
+        except Exception as ex:
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.SupportedActions failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class abortslew:
