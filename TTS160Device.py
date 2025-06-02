@@ -16,6 +16,9 @@ from concurrent.futures import ThreadPoolExecutor, Future
 from astropy.coordinates import SkyCoord, AltAz, ICRS, EarthLocation, GCRS
 from astropy.time import Time
 from astropy import units as u
+from astropy.utils.data import download_file
+from astropy.utils import iers
+iers.IERS_Auto.open()  # Force download
 
 # Local imports
 from tts160_types import CommandType
@@ -1094,6 +1097,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         self._is_at_home = False
         self._tracking = False
         self._goto_in_progress = False
+        self._slewing_hold = False
         self._logger.debug("Mount state variables initialized")
 
     def _initialize_target_state(self) -> None:
@@ -1128,7 +1132,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             }
         }
         
-        self._sync_wait_time = 0.2
+        self._sync_wait_time = 0.5
 
         self._logger.debug("Hardware constants and command mappings initialized")
 
@@ -2465,7 +2469,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             
             #Atomic Snapshot provides protection
             slew_future = self._slew_in_progress
-            return slew_future and not slew_future.done()                    
+            return (slew_future and not slew_future.done()) or self._slewing_hold
                 
         except Exception as ex:
             raise DriverException(0x500, f"Error checking slewing status: {ex}")
@@ -2699,11 +2703,15 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         
         try:
             # Send to mount
-            dms_str = self._degrees_to_dms(abs(value))
+            self._logger.debug(f"Set Target Declination - Received: {value}")
+            dms_str = self._degrees_to_dms(value)
+            self._logger.debug(f"Set Target Declination - Conversion: {dms_str}")
             #TODO: Verify that this is what C# driver is doing.  Assuming negative unless a + in front?!
-            sign = "+" if value >= 0 else "-"
-            command = f":Sd{sign}{dms_str}#"
+            #sign = "+" if value >= 0 else "-"
+            #command = f":Sd{sign}{dms_str}#"
             
+            command = f":Sd{dms_str}#"  #_degrees_to_dms returns a signed string already
+
             result = self._send_command(command, CommandType.BOOL)
             if not result:
                 raise InvalidValueException(f"Mount rejected target declination assignment: {value}")
@@ -2725,8 +2733,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         else:
             command = ":*Gr#"
             right_ascension_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
-            right_ascension_deg = right_ascension_rad * 180 / math.pi
-            return right_ascension_deg
+            right_ascension_hr = (right_ascension_rad * 180 / math.pi * 24 / 360) % 24
+            return right_ascension_hr
     
     @TargetRightAscension.setter
     def TargetRightAscension(self, value: float) -> None:
@@ -2785,6 +2793,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             park_az = float(park_status[1:8])
             park_alt = float(park_status[8:14])
 
+            self._logger.debug(f"Park Type: {park_type}; Park Az: {park_az}; Park Alt: {park_alt}")
+
             #TODO: pull park alt and az and use those rather than 180/0    
             #home_az = 180
             current_time = Time.now()
@@ -2799,13 +2809,20 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 
                 # Convert to GCRS with current epoch (JNow)
                 gcrs_coord = altaz_coord.transform_to(GCRS(obstime=current_time))
+
+                self._logger.debug(f"Site Location: {self._site_location}")
+                self._logger.debug(f"Target Dec: {gcrs_coord.dec.deg}; Target Ra: {gcrs_coord.ra.hour}")
+
                 self.TargetDeclination = gcrs_coord.dec.deg
                 self.TargetRightAscension = gcrs_coord.ra.hour
-                
+
                 # Try to slew - returns False if target is reachable (slew does not start)
                 if not bool(int(self._send_command(":MS#", CommandType.STRING))):
-                    self._executor.submit(self._home_arrival_monitor, target_alt)
+                    with self._lock:
+                        self._slewing_hold = True #Allows for immediate return of the slewing property being true
                     self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
+                    self._executor.submit(self._home_arrival_monitor, park_az, park_alt)
+                    self._logger.debug(f"Started home arrival monitor")
                     self._goto_in_progress = True
                     return
             
@@ -2822,13 +2839,20 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                     
                     # Convert to GCRS with current epoch (JNow)
                     gcrs_coord = altaz_coord.transform_to(GCRS(obstime=current_time))
+
+                    self._logger.debug(f"Site Location: {self._site_location.lat}; {self._site_location.lon}")
+                    self._logger.debug(f"Target Dec: {gcrs_coord.dec.deg}; Target Ra: {gcrs_coord.ra.hour}")
+
                     self.TargetDeclination = gcrs_coord.dec.deg
                     self.TargetRightAscension = gcrs_coord.ra.hour
                     
                     # Try to slew - returns False if target is reachable (slew does not start)
                     if not bool(int(self._send_command(":MS#", CommandType.STRING))):
-                        self._executor.submit(self._home_arrival_monitor, target_alt)
+                        with self._lock:
+                            self._slewing_hold = True #Allows for immediate return of the slewing property being true
                         self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
+                        self._executor.submit(self._home_arrival_monitor, park_az, target_alt)
+                        self._logger.debug(f"Started home arrival monitor")
                         self._goto_in_progress = True
                         return
                 
@@ -2850,6 +2874,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         """
         try:
             # Poll hardware until slewing stops
+            with self._lock:
+                self._slewing_hold = False #with the monitor running, slewing will be True, so remove the hold
+
             while True:
                 try:
                     status = self._send_command(":D#", CommandType.STRING)
@@ -2891,9 +2918,17 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         """
         try:
             # Wait for slewing to complete
+        
+            self._logger.debug(f"Home Arrival Monitored - Started")
+
             while self.Slewing:
-                time.sleep(0.5)
+                time.sleep(0.01)
             
+            self._logger.debug(f"Home Arrival Monitor - Slewing Complete, setting slewing override, verifying arrival")
+
+            with self._lock:
+                self._slewing_hold = True #Hold slewing true during slow verification operation
+
             # Verify home position
             current_alt = self.Altitude
             current_az = self.Azimuth
@@ -2904,13 +2939,21 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             if altitude_error < self.HOME_POSITION_TOLERANCE_ALT and azimuth_error < self.HOME_POSITION_TOLERANCE_AZ:
                 self.AtHome = True
                 self._logger.info(f"Arrived at home: Alt={current_alt:.1f}°, Az={current_az:.1f}°")
+                with self._lock:
+                    self._slewing_hold = False
             else:
                 error_msg = f"Home position verification failed - Alt: {current_alt:.1f}°, Az: {current_az:.1f}°"
                 self._logger.error(error_msg)
+                with self._lock:
+                    self._slewing_hold = False
                 raise DriverException(0x500, error_msg)
-                
+            
+            self.Tracking = False
+
         except Exception as ex:
             self._logger.error(f"Home arrival monitoring failed: {ex}")
+            with self._lock:
+                    self._slewing_hold = False
             if not isinstance(ex, DriverException):
                 raise DriverException(0x500, f"Home arrival monitoring error: {ex}")
             raise
@@ -3254,6 +3297,11 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             DriverException: Command execution or conversion failure
         """
         # Input validation
+        try:
+            direction = GuideDirections(direction)
+        except:
+            InvalidValueException(f"Invalid Guide Direction: {direction}")
+        
         if not isinstance(direction, GuideDirections):
             raise InvalidValueException(f"Invalid guide direction: {direction}")
         if not 0 <= duration <= 9999:
@@ -3265,21 +3313,28 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 raise InvalidOperationException("Cannot move axis: mount is parked")
             if self.Slewing:
                 raise InvalidOperationException("Cannot pulse guide while slewing")
-                
-            # Check for axis conflicts
-            self._check_pulse_guide_conflicts(direction)
             
+            self._logger.debug("Pulseguide - Checking for pulseguide conflicts")
+            # Check for axis conflicts
+            if not self._config.pulse_guide_equatorial_frame: #equatorial frame guiding will use both axes for each guide
+                self._check_pulse_guide_conflicts(direction)
+            self._logger.debug("Pulseguide - No conflicts found, initializing monitors as necessary")
+
             # Initialize monitoring infrastructure if needed
             self._initialize_pulse_guide_monitoring()
-            
+            self._logger.debug("Pulse guide monitors initialized")
+
             try:
                 # Determine pulse parameters based on configuration
                 if self._config.pulse_guide_equatorial_frame:
+                    self._logger.info(f"PulseGuide - Converting {direction} for {duration} msec to the equatorial frame.")
                     ns_dir, ns_dur, ew_dir, ew_dur = self._convert_equatorial_pulse(direction, duration)
+                    self._logger.info(f"PulseGuide Equatorial results: {ns_dir} for {ns_dur} msec; {ew_dir} for {ew_dur} msec")
                 else:
                     ns_dir, ns_dur, ew_dir, ew_dur = self._get_standard_pulse_params(direction, duration)
                 
                 # Execute pulse guide commands
+                self._logger.debug("PulseGuide - Commencing")
                 self._execute_pulse_guide(ns_dir, ns_dur, ew_dir, ew_dur, duration)
                 
             except Exception as ex:
@@ -3366,6 +3421,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             duration_sec = duration / 1000.0
             guide_rate = self.GuideRateDeclination  # deg/sec
             
+            self._logger.debug(f"Equatorial PulseGuide Conversion - delta angle = {duration_sec * guide_rate}")
+
             # Calculate RA/Dec deltas based on equatorial direction
             delta_ra = 0.0  # degrees
             delta_dec = 0.0  # degrees
@@ -3378,7 +3435,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 delta_ra = duration_sec * guide_rate
             elif direction == GuideDirections.guideWest:
                 delta_ra = -duration_sec * guide_rate
-                
+            
+            self._logger.debug(f"Equatorial PulseGuide Conversion - delta_dec: {delta_dec}; delta_ra: {delta_ra}")
+
             # Get current telescope position
             current_time = Time.now()
             current_ra = self.RightAscension  # hours
@@ -3388,28 +3447,45 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             final_ra = current_ra + delta_ra / 15.0  # convert degrees to hours
             final_dec = current_dec + delta_dec
             
-            # Transform current position to AltAz
+            self._logger.debug(f"Equatorial PulseGuide Conversion - Current Position Ra: {current_ra}, Dec: {current_dec}")
+            self._logger.debug(f"Equatorial PulseGuide Conversion - Final Position Ra: {final_ra}, Dec: {final_dec}")
+
+            #Transform current position to AltAz
             current_gcrs = GCRS(
                 ra=current_ra * u.hour,
                 dec=current_dec * u.deg,
                 obstime=current_time
             )
+            self._logger.debug("This is a test to see which side of the 5 seconds this message falls under...")
+
+
+            self._logger.debug("Equatorial PulseGuide Conversion - Current GCRS Calculated")
+
+            self._logger.debug("This is a second test to see which side of the 5 seconds this message falls under...")
+
             current_altaz = current_gcrs.transform_to(AltAz(
                 obstime=current_time,
                 location=self._site_location
             ))
-            
+
+            self._logger.debug("Equatorial PulseGuide Conversion - eq to altaz current position calculated")
+
             # Transform final position to AltAz
             final_gcrs = GCRS(
                 ra=final_ra * u.hour,
                 dec=final_dec * u.deg,
                 obstime=current_time
             )
+
+            self._logger.debug("Equatorial PulseGuide Conversion - Final GCRS Calculated")
+
             final_altaz = final_gcrs.transform_to(AltAz(
                 obstime=current_time,
                 location=self._site_location
             ))
             
+            self._logger.debug("Equatorial PulseGuide Conversion - eq to altaz final position calculated")
+
             # Calculate Alt/Az deltas
             delta_alt = final_altaz.alt.deg - current_altaz.alt.deg
             delta_az = final_altaz.az.deg - current_altaz.az.deg
@@ -3424,6 +3500,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             ns_dur = abs(round(delta_alt / guide_rate * 1000))
             ew_dur = abs(round(delta_az / guide_rate * 1000))
             
+            self._logger.debug(f"Equatorial PulseGuide Conversion - NS: {ns_dur} msec; EW: {ew_dur} msec")
+
             # Determine mount directions based on delta signs
             ns_dir = GuideDirections.guideSouth if delta_alt >= 0 else GuideDirections.guideNorth
             ew_dir = GuideDirections.guideEast if delta_az >= 0 else GuideDirections.guideWest

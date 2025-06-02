@@ -1188,8 +1188,16 @@ class pulseguide:
             TTS160_dev.PulseGuide(direction, duration)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Pulseguide failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Pulseguide failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Pulseguide failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class rightascension:
@@ -1558,10 +1566,19 @@ class slewtoaltaz:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SlewToAltAz(azimuth, altitude)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtoaltaz failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Slewtoaltaz failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Slewtoaltaz failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtoaltazasync:
@@ -1592,10 +1609,19 @@ class slewtoaltazasync:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SlewToAltAzAsync(azimuth, altitude)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtoaltazasync failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Slewtoaltazasync failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Slewtoaltazasync failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtocoordinates:
@@ -1626,10 +1652,19 @@ class slewtocoordinates:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SlewToCoordinates(rightascension, declination)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtocoordinates failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Slewtocoordinates failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Slewtocoordinates failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtocoordinatesasync:
@@ -1660,10 +1695,19 @@ class slewtocoordinatesasync:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SlewToCoordinatesAsync(rightascension, declination)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtocoordinatesasync failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Slewtocoordinatesasync failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Slewtocoordinatesasync failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtotarget:
@@ -1678,10 +1722,19 @@ class slewtotarget:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SlewToTarget()
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtotarget failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Slewtotarget failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Slewtotarget failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtotargetasync:
@@ -1696,10 +1749,19 @@ class slewtotargetasync:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SlewToTargetAsync()
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtotargetasync failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Slewtotargetasync failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Slewtotargetasync failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class synctoaltaz:
@@ -1730,10 +1792,19 @@ class synctoaltaz:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SyncToAltAz(azimuth, altitude)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Synctoaltaz failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Synctoaltaz failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Synctoaltaz failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class synctocoordinates:
@@ -1764,11 +1835,19 @@ class synctocoordinates:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            TTS160_dev.SyncToCoordinates()
+            TTS160_dev.SyncToCoordinates(rightascension, declination)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Synctocoordinates failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Synctocoordinates failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Synctocoordinates failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class synctotarget:
@@ -1786,6 +1865,14 @@ class synctotarget:
             TTS160_dev.SyncToTarget()
             resp.text = MethodResponse(req).json
         except Exception as ex:
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Synctotarget failed', ex)).json
+            
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Synctotarget failed', ex)).json
 
@@ -1891,8 +1978,15 @@ class targetrightascension:
             TTS160_dev.TargetRightAscension = targetrightascension
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = PropertyResponse(None, req, alpaca_ex).json
+            else:
+                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class tracking:

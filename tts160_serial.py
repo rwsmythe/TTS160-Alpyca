@@ -19,6 +19,7 @@ class SerialManager:
         self.connection_count = 0
         self._max_retries = 5
         self._retry_timeout = 0.5
+        self._flush_buffer = False
     
     def connect(self, port: str) -> None:
         """Connect to serial port."""
@@ -80,10 +81,19 @@ class SerialManager:
     
     def send_command(self, command: str, command_type: CommandType) -> str:
         """Send command with retry logic."""
+        
+        #If we have had a failure, try to clear out an reponse queues
+        if self._flush_buffer:
+            self._logger.info(f"Failure event detected, flushing receive buffer")
+            self.clear_buffers()
+            self._flush_buffer = False
+        
         for attempt in range(self._max_retries + 1):
             try:
                 return self._send_command_once(command, command_type)
             except Exception as ex:
+                if not self._flush_buffer:
+                    self._flush_buffer = True
                 if attempt == self._max_retries:
                     self._logger.error(f"Command {command} failed after {self._max_retries + 1} attempts")
                     raise
@@ -151,16 +161,19 @@ class SerialManager:
             try:
                 self._serial.reset_input_buffer()
                 self._serial.reset_output_buffer()
-                
+                self._logger.info(f"Input and output buffers reset")
+
                 # Clear any lingering data
                 old_timeout = self._serial.timeout
                 self._serial.timeout = 0.1
                 
+                self._logger.info(f"Commencing pulling any remaining queued responses")
                 for _ in range(100):  # Safety limit
                     data = self._serial.read(1)
+                    self._logger.debug(f"Hung Responses: {data}")
                     if not data:
                         break
-                
+                self._logger.info(f"Response queue cleared")
                 self._serial.timeout = old_timeout
                 
             except Exception as ex:
