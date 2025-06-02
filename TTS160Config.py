@@ -281,7 +281,7 @@ class TTS160Config:
     
     @slew_settle_time.setter
     def slew_settle_time(self, value: int) -> None:
-        self._put_toml(self.DRIVE_SECTION, 'slew_settle_time', value)
+        self._put_toml(self.DRIVER_SECTION, 'slew_settle_time', value)
 
     def __repr__(self) -> str:
         """Return string representation for debugging."""

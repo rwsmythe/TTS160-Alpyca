@@ -1,783 +1,740 @@
-2025-05-26T21:28:23.627 INFO Instantiating serial manager
-2025-05-26T21:28:23.636 INFO TTS160 device initialized successfully
-2025-05-26T21:28:23.685 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
-2025-05-26T21:28:28.996 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
-2025-05-26T21:28:28.996 INFO 127.0.0.1 -> {'Connected': 'True', 'ClientID': '9024', 'ClientTransactionID': '433'}
-2025-05-26T21:28:28.996 INFO Serial connection opened on COM5
-2025-05-26T21:28:28.996 INFO Serial connection count: 1
-2025-05-26T21:28:29.053 INFO Connected to: TTS-160 Panther
-2025-05-26T21:28:29.053 INFO Firmware: 356C (Aug 21 2024)
-2025-05-26T21:28:29.100 INFO Site coordinates: 21.347222°, -157.903333°, 0.0m
-2025-05-26T21:28:29.710 INFO TTS160 connected successfully
-2025-05-26T21:28:29.714 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=434
-2025-05-26T21:28:29.714 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.721 INFO 127.0.0.1 -> GET /api/v1/telescope/0/interfaceversion?ClientID=9024&ClientTransactionID=435
-2025-05-26T21:28:29.721 INFO 127.0.0.1 <- 4
-2025-05-26T21:28:29.721 INFO 127.0.0.1 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=9024&ClientTransactionID=436
-2025-05-26T21:28:29.721 INFO Querying current epoch
-2025-05-26T21:28:29.727 INFO Retrieved False, indicating Topocentric Equatorial
-2025-05-26T21:28:29.727 INFO 127.0.0.1 <- 1
-2025-05-26T21:28:29.737 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=9024&ClientTransactionID=437
-2025-05-26T21:28:29.737 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
-2025-05-26T21:28:29.740 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=438
-2025-05-26T21:28:29.740 INFO 127.0.0.1 <- False
-2025-05-26T21:28:29.740 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=439
-2025-05-26T21:28:29.784 INFO 127.0.0.1 <- 2025-05-26 21:28:29+00:00
-2025-05-26T21:28:29.790 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:29.792 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=440
-2025-05-26T21:28:29.795 INFO 127.0.0.1 <- 21.347222222222218
-2025-05-26T21:28:29.795 INFO 127.0.0.1 -> GET /api/v1/telescope/0/description?ClientID=9024&ClientTransactionID=441
-2025-05-26T21:28:29.797 INFO 127.0.0.1 <- TTS160 Alpaca Driver
-2025-05-26T21:28:29.797 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=442
-2025-05-26T21:28:29.797 INFO 127.0.0.1 <- -157.90333333333336
-2025-05-26T21:28:29.797 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverinfo?ClientID=9024&ClientTransactionID=443
-2025-05-26T21:28:29.800 INFO 127.0.0.1 <- Alpaca telescope
+2025-06-02T02:57:50.714 DEBUG Logging to stdout disabled in settings
+2025-06-02T02:57:51.594 INFO Initializing TTS160Device instance
+2025-06-02T02:57:51.594 DEBUG Thread pool and locking initialized
+2025-06-02T02:57:51.594 INFO Instantiating serial manager
+2025-06-02T02:57:51.594 DEBUG Serial manager instantiated successfully
+2025-06-02T02:57:51.594 DEBUG Connection state initialized to disconnected
+2025-06-02T02:57:51.594 DEBUG Device metadata: TTS-160 v356.0.0
+2025-06-02T02:57:51.594 DEBUG ASCOM capability flags initialized
+2025-06-02T02:57:51.594 DEBUG Mount state variables initialized
+2025-06-02T02:57:51.594 DEBUG Target state variables initialized
+2025-06-02T02:57:51.594 DEBUG Updating site location from configuration
+2025-06-02T02:57:51.605 DEBUG Configuration values - Lat: 21.34722222222222°, Lon: -157.90333333333334°, Elev: 0.0m
+2025-06-02T02:57:51.605 INFO Site location updated: 21.347222°, -157.903333°, 0.0m
+2025-06-02T02:57:51.605 DEBUG Site location initialized from configuration
+2025-06-02T02:57:51.605 DEBUG Hardware constants and command mappings initialized
+2025-06-02T02:57:51.605 INFO TTS160Device initialization completed successfully
+2025-06-02T02:57:51.605 INFO TTS160 device initialized successfully
+2025-06-02T02:57:51.645 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
+2025-06-02T02:57:54.439 INFO 127.0.0.1 -> GET /api/v1/telescope/0/interfaceversion?ClientID=1&ClientTransactionID=6313
+2025-06-02T02:57:54.439 INFO 127.0.0.1 <- 4
+2025-06-02T02:57:54.460 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6314
+2025-06-02T02:57:54.460 DEBUG Reporting Connecting as: False
+2025-06-02T02:57:54.460 INFO 127.0.0.1 <- False
+2025-06-02T02:57:54.472 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6315
+2025-06-02T02:57:54.472 DEBUG Reporting Connecting as: False
+2025-06-02T02:57:54.472 INFO 127.0.0.1 <- False
+2025-06-02T02:57:54.481 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-06-02T02:57:54.483 INFO 127.0.0.1 -> {'Connected': 'True', 'ClientID': '1', 'ClientTransactionID': '6316'}
+2025-06-02T02:57:54.484 DEBUG Set Connected True, deprecated connection method, simulating sync methods
+2025-06-02T02:57:54.484 INFO Starting asynchronous TTS160 mount connection
+2025-06-02T02:57:54.485 DEBUG Configuration reloaded successfully
+2025-06-02T02:57:54.485 DEBUG Connection task submitted to thread pool
+2025-06-02T02:57:54.485 DEBUG Beginning mount connection procedure
+2025-06-02T02:57:54.492 INFO Async connection process initiated successfully
+2025-06-02T02:57:54.559 INFO Serial connection opened on COM5
+2025-06-02T02:57:54.560 INFO Serial connection count: 1
+2025-06-02T02:57:54.560 INFO Serial connection established on COM5
+2025-06-02T02:57:54.560 DEBUG Initializing connected mount
+2025-06-02T02:57:54.560 DEBUG Sending command: ':GVP#' (type: STRING)
+2025-06-02T02:57:54.577 DEBUG Command ':GVP#' response: 'TTS-160 Panther#'
+2025-06-02T02:57:54.577 DEBUG Sending command: ':GVN#' (type: STRING)
+2025-06-02T02:57:54.594 DEBUG Command ':GVN#' response: '356C#'
+2025-06-02T02:57:54.594 DEBUG Sending command: ':GVD#' (type: STRING)
+2025-06-02T02:57:54.619 DEBUG Command ':GVD#' response: 'May 30 2025#'
+2025-06-02T02:57:54.619 INFO Connected to mount: TTS-160 Panther
+2025-06-02T02:57:54.619 INFO Firmware version: 356C (May 30 2025)
+2025-06-02T02:57:54.619 DEBUG Synchronizing site coordinates from mount
+2025-06-02T02:57:54.619 DEBUG Retrieving site latitude from mount
+2025-06-02T02:57:54.619 DEBUG Sending command: ':*Gt#' (type: STRING)
+2025-06-02T02:57:54.642 DEBUG Command ':*Gt#' response: '+21*20'50#'
+2025-06-02T02:57:54.642 DEBUG Converting DMS string: '+21*20'50' -> '+21*20'50'
+2025-06-02T02:57:54.643 DEBUG DMS conversion result: 21.347222°
+2025-06-02T02:57:54.646 INFO Site latitude: 21.347222°
+2025-06-02T02:57:54.647 DEBUG Retrieving site longitude from mount
+2025-06-02T02:57:54.647 DEBUG Sending command: ':*Gg#' (type: STRING)
+2025-06-02T02:57:54.665 DEBUG Command ':*Gg#' response: '+157*54'12#'
+2025-06-02T02:57:54.665 DEBUG Converting DMS string: '+157*54'12' -> '+157*54'12'
+2025-06-02T02:57:54.667 DEBUG DMS conversion result: 157.903333°
+2025-06-02T02:57:54.674 INFO Site longitude: -157.903333°
+2025-06-02T02:57:54.676 DEBUG Site coordinates saved to configuration
+2025-06-02T02:57:54.677 DEBUG AstroPy site location updated
+2025-06-02T02:57:54.677 INFO Site coordinates synchronized: 21.347222°, -157.903333°, 0.0m
+2025-06-02T02:57:54.677 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T02:57:54.688 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T02:57:54.688 INFO Setting mount time to: 2025-06-02 02:57:54.677803+00:00
+2025-06-02T02:57:54.688 DEBUG Sending command: ':SC06/01/25#' (type: STRING)
+2025-06-02T02:57:54.701 DEBUG Command ':SC06/01/25#' response: '1#'
+2025-06-02T02:57:54.701 DEBUG Sending command: ':SL16:57:54#' (type: STRING)
+2025-06-02T02:57:55.261 DEBUG Command ':SL16:57:54#' response: '1'
+2025-06-02T02:57:55.262 DEBUG Retrieving sidereal time from mount
+2025-06-02T02:57:55.262 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T02:57:55.277 DEBUG Command ':GS#' response: '19:41:15#'
+2025-06-02T02:57:55.277 DEBUG Converting HMS string: '19:41:15' -> '19:41:15'
+2025-06-02T02:57:55.283 DEBUG HMS conversion result: 19.687500h
+2025-06-02T02:57:55.285 DEBUG Sidereal time - GMST: 19.688h, LST: 9.161h
+2025-06-02T02:57:55.287 INFO Mount time set successfully
+2025-06-02T02:57:55.287 INFO Mount time synchronized with system clock
+2025-06-02T02:57:55.287 INFO Mount initialization completed successfully
+2025-06-02T02:57:55.287 INFO TTS160 mount connection completed successfully
+2025-06-02T02:57:55.298 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6317
+2025-06-02T02:57:55.298 DEBUG Reporting Connected as: True
+2025-06-02T02:57:55.298 INFO 127.0.0.1 <- True
+2025-06-02T02:57:55.824 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-06-02T02:57:55.824 INFO 127.0.0.1 -> {'Connected': 'False', 'ClientID': '1', 'ClientTransactionID': '6318'}
+2025-06-02T02:57:55.824 DEBUG Set Connected False, deprecated connection method, simulating sync methods
+2025-06-02T02:57:55.824 INFO Beginning physical mount disconnection (last client)
+2025-06-02T02:57:55.824 DEBUG Configuration saved before disconnect
+2025-06-02T02:57:55.824 INFO Serial connection count: 0
+2025-06-02T02:57:55.824 DEBUG Serial manager disconnect completed
+2025-06-02T02:57:55.824 INFO TTS160 mount disconnected successfully
+2025-06-02T02:57:55.824 DEBUG Reporting Connected as: False
+2025-06-02T02:57:55.837 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6319
+2025-06-02T02:57:55.837 DEBUG Reporting Connected as: False
+2025-06-02T02:57:55.837 INFO 127.0.0.1 <- False
+2025-06-02T02:57:55.840 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connect
+2025-06-02T02:57:55.840 INFO 127.0.0.1 -> {'ClientID': '1', 'ClientTransactionID': '6320'}
+2025-06-02T02:57:55.840 INFO Starting asynchronous TTS160 mount connection
+2025-06-02T02:57:55.840 DEBUG Configuration reloaded successfully
+2025-06-02T02:57:55.840 DEBUG Connection task submitted to thread pool
+2025-06-02T02:57:55.840 DEBUG Beginning mount connection procedure
+2025-06-02T02:57:55.840 INFO Async connection process initiated successfully
+2025-06-02T02:57:55.840 INFO Serial connection opened on COM5
+2025-06-02T02:57:55.840 INFO Serial connection count: 1
+2025-06-02T02:57:55.840 INFO Serial connection established on COM5
+2025-06-02T02:57:55.840 DEBUG Initializing connected mount
+2025-06-02T02:57:55.840 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6321
+2025-06-02T02:57:55.840 DEBUG Sending command: ':GVP#' (type: STRING)
+2025-06-02T02:57:55.840 DEBUG Reporting Connecting as: False
+2025-06-02T02:57:55.840 INFO 127.0.0.1 <- True
+2025-06-02T02:57:55.876 DEBUG Command ':GVP#' response: 'TTS-160 Panther#'
+2025-06-02T02:57:55.876 DEBUG Sending command: ':GVN#' (type: STRING)
+2025-06-02T02:57:55.888 DEBUG Command ':GVN#' response: '356C#'
+2025-06-02T02:57:55.888 DEBUG Sending command: ':GVD#' (type: STRING)
+2025-06-02T02:57:55.905 DEBUG Command ':GVD#' response: 'May 30 2025#'
+2025-06-02T02:57:55.905 INFO Connected to mount: TTS-160 Panther
+2025-06-02T02:57:55.905 INFO Firmware version: 356C (May 30 2025)
+2025-06-02T02:57:55.905 DEBUG Synchronizing site coordinates from mount
+2025-06-02T02:57:55.905 DEBUG Retrieving site latitude from mount
+2025-06-02T02:57:55.905 DEBUG Sending command: ':*Gt#' (type: STRING)
+2025-06-02T02:57:55.922 DEBUG Command ':*Gt#' response: '+21*20'50#'
+2025-06-02T02:57:55.922 DEBUG Converting DMS string: '+21*20'50' -> '+21*20'50'
+2025-06-02T02:57:55.922 DEBUG DMS conversion result: 21.347222°
+2025-06-02T02:57:55.934 INFO Site latitude: 21.347222°
+2025-06-02T02:57:55.934 DEBUG Retrieving site longitude from mount
+2025-06-02T02:57:55.934 DEBUG Sending command: ':*Gg#' (type: STRING)
+2025-06-02T02:57:55.952 DEBUG Command ':*Gg#' response: '+157*54'12#'
+2025-06-02T02:57:55.952 DEBUG Converting DMS string: '+157*54'12' -> '+157*54'12'
+2025-06-02T02:57:55.952 DEBUG DMS conversion result: 157.903333°
+2025-06-02T02:57:55.956 INFO Site longitude: -157.903333°
+2025-06-02T02:57:55.958 DEBUG Site coordinates saved to configuration
+2025-06-02T02:57:55.958 DEBUG AstroPy site location updated
+2025-06-02T02:57:55.958 INFO Site coordinates synchronized: 21.347222°, -157.903333°, 0.0m
+2025-06-02T02:57:55.958 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T02:57:55.966 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T02:57:55.966 INFO Setting mount time to: 2025-06-02 02:57:55.958817+00:00
+2025-06-02T02:57:55.966 DEBUG Sending command: ':SC06/01/25#' (type: STRING)
+2025-06-02T02:57:55.983 DEBUG Command ':SC06/01/25#' response: '1#'
+2025-06-02T02:57:55.983 DEBUG Sending command: ':SL16:57:55#' (type: STRING)
+2025-06-02T02:57:56.360 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6322
+2025-06-02T02:57:56.360 DEBUG Reporting Connecting as: False
+2025-06-02T02:57:56.360 INFO 127.0.0.1 <- True
+2025-06-02T02:57:56.544 DEBUG Command ':SL16:57:55#' response: '1'
+2025-06-02T02:57:56.544 DEBUG Retrieving sidereal time from mount
+2025-06-02T02:57:56.546 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T02:57:56.562 DEBUG Command ':GS#' response: '19:41:16#'
+2025-06-02T02:57:56.564 DEBUG Converting HMS string: '19:41:16' -> '19:41:16'
+2025-06-02T02:57:56.564 DEBUG HMS conversion result: 19.687778h
+2025-06-02T02:57:56.567 DEBUG Sidereal time - GMST: 19.688h, LST: 9.161h
+2025-06-02T02:57:56.567 INFO Mount time set successfully
+2025-06-02T02:57:56.567 INFO Mount time synchronized with system clock
+2025-06-02T02:57:56.567 INFO Mount initialization completed successfully
+2025-06-02T02:57:56.567 INFO TTS160 mount connection completed successfully
+2025-06-02T02:57:56.858 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6323
+2025-06-02T02:57:56.862 DEBUG Reporting Connecting as: True
+2025-06-02T02:57:56.862 INFO 127.0.0.1 <- False
+2025-06-02T02:57:56.862 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6324
+2025-06-02T02:57:56.862 DEBUG Reporting Connecting as: True
+2025-06-02T02:57:56.862 INFO 127.0.0.1 <- False
+2025-06-02T02:57:56.875 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6325
+2025-06-02T02:57:56.875 DEBUG Reporting Connected as: True
+2025-06-02T02:57:56.875 INFO 127.0.0.1 <- True
+2025-06-02T02:57:56.888 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6326
+2025-06-02T02:57:56.890 DEBUG Reporting Connected as: True
+2025-06-02T02:57:56.890 INFO 127.0.0.1 <- True
+2025-06-02T02:57:56.897 INFO 127.0.0.1 -> GET /api/v1/telescope/0/description?ClientID=1&ClientTransactionID=6327
+2025-06-02T02:57:56.897 INFO 127.0.0.1 <- TTS160 Alpaca Driver
+2025-06-02T02:57:56.910 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverinfo?ClientID=1&ClientTransactionID=6328
+2025-06-02T02:57:56.910 INFO 127.0.0.1 <- Alpaca telescope
 Implements ITelescope
 ASCOM Initiative
-2025-05-26T21:28:29.800 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=444
-2025-05-26T21:28:29.800 INFO 127.0.0.1 <- 0.0
-2025-05-26T21:28:29.803 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=9024&ClientTransactionID=445
-2025-05-26T21:28:29.816 INFO 127.0.0.1 <- -0.0
-2025-05-26T21:28:29.816 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverversion?ClientID=9024&ClientTransactionID=446
-2025-05-26T21:28:29.816 INFO 127.0.0.1 <- 356.0.0
-2025-05-26T21:28:29.816 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=9024&ClientTransactionID=447
-2025-05-26T21:28:29.816 INFO 127.0.0.1 <- False
-2025-05-26T21:28:29.816 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=9024&ClientTransactionID=448
-2025-05-26T21:28:29.816 INFO 127.0.0.1 <- False
-2025-05-26T21:28:29.825 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=449
-2025-05-26T21:28:29.825 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.825 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=9024&ClientTransactionID=450
-2025-05-26T21:28:29.834 INFO 127.0.0.1 <- 180.00042091829943
-2025-05-26T21:28:29.834 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=451&Axis=0
-2025-05-26T21:28:29.834 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.845 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=9024&ClientTransactionID=452
-2025-05-26T21:28:29.847 INFO 127.0.0.1 <- 3.260473628971462
-2025-05-26T21:28:29.847 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=453&Axis=0
-2025-05-26T21:28:29.863 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.863 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=9024&ClientTransactionID=454
-2025-05-26T21:28:29.880 INFO 127.0.0.1 <- -68.6529489281655
-2025-05-26T21:28:29.880 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=455&Axis=1
-2025-05-26T21:28:29.880 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.880 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=456
-2025-05-26T21:28:29.880 INFO 127.0.0.1 <- False
-2025-05-26T21:28:29.894 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=9024&ClientTransactionID=457
-2025-05-26T21:28:29.913 INFO 127.0.0.1 <- 3.2611666666666643
-2025-05-26T21:28:29.915 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=458&Axis=1
-2025-05-26T21:28:29.915 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.917 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=459
-2025-05-26T21:28:29.917 INFO 127.0.0.1 <- 0.0
-2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=461
-2025-05-26T21:28:29.919 INFO 127.0.0.1 <- 21.347222222222218
-2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=460&Axis=0
-2025-05-26T21:28:29.919 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=462
-2025-05-26T21:28:29.919 INFO 127.0.0.1 <- -157.90333333333336
-2025-05-26T21:28:29.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=463&Axis=1
-2025-05-26T21:28:29.919 INFO 127.0.0.1 <- True
-2025-05-26T21:28:29.926 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=464
-2025-05-26T21:28:29.942 ERROR DriverException: Telescope.Sideofpier failed
+2025-06-02T02:57:56.918 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverversion?ClientID=1&ClientTransactionID=6329
+2025-06-02T02:57:56.920 INFO 127.0.0.1 <- 356.0.0
+2025-06-02T02:57:56.926 INFO 127.0.0.1 -> GET /api/v1/telescope/0/name?ClientID=1&ClientTransactionID=6330
+2025-06-02T02:57:56.929 INFO 127.0.0.1 <- TTS-160
+2025-06-02T02:57:56.929 INFO 127.0.0.1 -> GET /api/v1/telescope/0/supportedactions?ClientID=1&ClientTransactionID=6331
+2025-06-02T02:57:56.929 DEBUG Reporting Connected as: True
+2025-06-02T02:57:56.929 INFO 127.0.0.1 <- ['FieldRotationAngle']
+2025-06-02T02:57:56.943 INFO 127.0.0.1 -> GET /api/v1/telescope/0/devicestate?ClientID=1&ClientTransactionID=6332
+2025-06-02T02:57:56.943 DEBUG Reporting Connected as: True
+2025-06-02T02:57:56.943 DEBUG Retrieving current altitude from mount
+2025-06-02T02:57:56.943 DEBUG Sending command: ':*GA#' (type: STRING)
+2025-06-02T02:57:56.960 DEBUG Command ':*GA#' response: '0.00028#'
+2025-06-02T02:57:56.960 DEBUG Current altitude: 0.016°
+2025-06-02T02:57:56.960 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T02:57:56.967 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T02:57:56.967 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T02:57:56.967 DEBUG Retrieving current azimuth from mount
+2025-06-02T02:57:56.967 DEBUG Sending command: ':*GZ#' (type: STRING)
+2025-06-02T02:57:56.981 DEBUG Command ':*GZ#' response: '3.14297#'
+2025-06-02T02:57:56.981 DEBUG Current azimuth: 180.079°
+2025-06-02T02:57:56.981 DEBUG Retrieving current declination from mount
+2025-06-02T02:57:56.981 DEBUG Sending command: ':*GD#' (type: STRING)
+2025-06-02T02:57:56.997 DEBUG Command ':*GD#' response: '-1.19793#'
+2025-06-02T02:57:56.997 DEBUG Current declination: -68.636°
+2025-06-02T02:57:57.011 DEBUG Retrieving current right ascension from mount
+2025-06-02T02:57:57.012 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T02:57:57.028 DEBUG Command ':*GR#' response: '2.39858#'
+2025-06-02T02:57:57.028 DEBUG Current right ascension: 9.162h
+2025-06-02T02:57:57.030 DEBUG Retrieving current right ascension from mount
+2025-06-02T02:57:57.030 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T02:57:57.045 DEBUG Command ':*GR#' response: '2.39858#'
+2025-06-02T02:57:57.045 DEBUG Current right ascension: 9.162h
+2025-06-02T02:57:57.045 DEBUG Calculating pier side for RA 9.162h
+2025-06-02T02:57:57.045 DEBUG Retrieving sidereal time from mount
+2025-06-02T02:57:57.045 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T02:57:57.062 DEBUG Command ':GS#' response: '19:41:17#'
+2025-06-02T02:57:57.062 DEBUG Converting HMS string: '19:41:17' -> '19:41:17'
+2025-06-02T02:57:57.062 DEBUG HMS conversion result: 19.688056h
+2025-06-02T02:57:57.062 DEBUG Sidereal time - GMST: 19.688h, LST: 9.161h
+2025-06-02T02:57:57.062 DEBUG Conditioned hour angle: -0.000734h
+2025-06-02T02:57:57.062 DEBUG RA 9.162h, LST 9.161h, HA -0.001h -> pierWest
+2025-06-02T02:57:57.062 DEBUG Retrieving sidereal time from mount
+2025-06-02T02:57:57.075 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T02:57:57.092 DEBUG Command ':GS#' response: '19:41:17#'
+2025-06-02T02:57:57.092 DEBUG Converting HMS string: '19:41:17' -> '19:41:17'
+2025-06-02T02:57:57.094 DEBUG HMS conversion result: 19.688056h
+2025-06-02T02:57:57.096 DEBUG Sidereal time - GMST: 19.688h, LST: 9.161h
+2025-06-02T02:57:57.096 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T02:57:57.107 DEBUG Command ':GW#' response: 'PN0#'
+2025-06-02T02:57:57.107 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T02:57:57.123 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T02:57:57.123 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T02:57:57.138 DEBUG Command ':GL#' response: '16:57:56#'
+2025-06-02T02:57:57.138 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T02:57:57.147 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T02:57:57.147 INFO Mount UTC time: 2025-06-02 02:57:56+00:00
+2025-06-02T02:57:57.154 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.154 INFO 127.0.0.1 <- [<shr.StateValue object at 0x00000151A25AB7D0>, <shr.StateValue object at 0x00000151A25AB810>, <shr.StateValue object at 0x00000151A25AB450>, <shr.StateValue object at 0x00000151A25AB490>, <shr.StateValue object at 0x00000151A461CAD0>, <shr.StateValue object at 0x00000151A25AB510>, <shr.StateValue object at 0x00000151A461CCD0>, <shr.StateValue object at 0x00000151A24CCBD0>, <shr.StateValue object at 0x00000151A461CE10>, <shr.StateValue object at 0x00000151A25AB610>, <shr.StateValue object at 0x00000151A461C850>, <shr.StateValue object at 0x00000151A461D410>, <shr.StateValue object at 0x00000151A461C250>]
+2025-06-02T02:57:57.174 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canfindhome?ClientID=1&ClientTransactionID=6333
+2025-06-02T02:57:57.174 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.181 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.183 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpark?ClientID=1&ClientTransactionID=6334
+2025-06-02T02:57:57.183 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.190 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.193 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=1&ClientTransactionID=6335
+2025-06-02T02:57:57.193 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.193 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.203 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=1&ClientTransactionID=6336
+2025-06-02T02:57:57.204 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.204 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.207 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=1&ClientTransactionID=6337
+2025-06-02T02:57:57.210 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.210 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.215 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpark?ClientID=1&ClientTransactionID=6338
+2025-06-02T02:57:57.217 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.217 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.221 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=1&ClientTransactionID=6339
+2025-06-02T02:57:57.221 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.223 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.223 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=1&ClientTransactionID=6340
+2025-06-02T02:57:57.230 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.231 DEBUG Retrieving mount alignment mode
+2025-06-02T02:57:57.232 DEBUG Mount alignment mode: 0
+2025-06-02T02:57:57.232 INFO 127.0.0.1 <- 0
+2025-06-02T02:57:57.237 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=1&ClientTransactionID=6341
+2025-06-02T02:57:57.237 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.237 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.237 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=1&ClientTransactionID=6342
+2025-06-02T02:57:57.237 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.237 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.249 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=1&ClientTransactionID=6343
+2025-06-02T02:57:57.249 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.249 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.252 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewaltaz?ClientID=1&ClientTransactionID=6344
+2025-06-02T02:57:57.252 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.252 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.252 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewaltazasync?ClientID=1&ClientTransactionID=6345
+2025-06-02T02:57:57.252 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.252 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.252 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewasync?ClientID=1&ClientTransactionID=6346
+2025-06-02T02:57:57.252 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.252 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.266 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansync?ClientID=1&ClientTransactionID=6347
+2025-06-02T02:57:57.266 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.266 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.266 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansyncaltaz?ClientID=1&ClientTransactionID=6348
+2025-06-02T02:57:57.266 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.266 INFO 127.0.0.1 <- True
+2025-06-02T02:57:57.266 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canunpark?ClientID=1&ClientTransactionID=6349
+2025-06-02T02:57:57.266 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.266 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.266 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=1&ClientTransactionID=6350
+2025-06-02T02:57:57.266 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.266 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T02:57:57.283 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T02:57:57.283 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T02:57:57.283 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.283 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T02:57:57.283 INFO 127.0.0.1 -> {'Tracking': 'True', 'ClientID': '1', 'ClientTransactionID': '6351'}
+2025-06-02T02:57:57.283 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.283 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T02:57:57.343 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T02:57:57.343 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T02:57:57.343 DEBUG Sending command: ':T1#' (type: BLIND)
+2025-06-02T02:57:57.357 DEBUG Command ':T1#' executed successfully (no response)
+2025-06-02T02:57:57.359 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6352
+2025-06-02T02:57:57.367 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.367 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T02:57:57.384 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T02:57:57.386 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T02:57:57.401 DEBUG Command ':GL#' response: '16:57:56#'
+2025-06-02T02:57:57.401 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T02:57:57.409 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T02:57:57.409 INFO Mount UTC time: 2025-06-02 02:57:56+00:00
+2025-06-02T02:57:57.409 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.409 INFO Retrieved date: 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.409 INFO 127.0.0.1 <- 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.418 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6353
+2025-06-02T02:57:57.418 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.418 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T02:57:57.435 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T02:57:57.435 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T02:57:57.465 DEBUG Command ':GL#' response: '16:57:56#'
+2025-06-02T02:57:57.465 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T02:57:57.469 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T02:57:57.469 INFO Mount UTC time: 2025-06-02 02:57:56+00:00
+2025-06-02T02:57:57.469 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.469 INFO Retrieved date: 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.481 INFO 127.0.0.1 <- 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.486 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6354
+2025-06-02T02:57:57.486 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.486 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T02:57:57.503 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T02:57:57.503 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T02:57:57.520 DEBUG Command ':GL#' response: '16:57:56#'
+2025-06-02T02:57:57.520 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T02:57:57.528 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T02:57:57.528 INFO Mount UTC time: 2025-06-02 02:57:56+00:00
+2025-06-02T02:57:57.528 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.528 INFO Retrieved date: 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.528 INFO 127.0.0.1 <- 2025-06-02T02:57:56+00:00
+2025-06-02T02:57:57.544 INFO 127.0.0.1 -> GET /api/v1/telescope/0/targetdeclination?ClientID=1&ClientTransactionID=6355
+2025-06-02T02:57:57.546 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.546 ERROR InvalidOperationException: Target declination not set
+2025-06-02T02:57:57.547 ERROR InvalidOperationException: Target declination not set
+2025-06-02T02:57:57.554 INFO 127.0.0.1 -> GET /api/v1/telescope/0/targetrightascension?ClientID=1&ClientTransactionID=6356
+2025-06-02T02:57:57.554 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.554 ERROR InvalidOperationException: Target Right Ascension not set
+2025-06-02T02:57:57.554 ERROR InvalidOperationException: Target Right Ascension not set
+2025-06-02T02:57:57.563 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=1&ClientTransactionID=6357
+2025-06-02T02:57:57.563 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.563 DEBUG Retrieving mount alignment mode
+2025-06-02T02:57:57.563 DEBUG Mount alignment mode: 0
+2025-06-02T02:57:57.563 INFO 127.0.0.1 <- 0
+2025-06-02T02:57:57.567 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=1&ClientTransactionID=6358
+2025-06-02T02:57:57.567 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.567 DEBUG Retrieving current altitude from mount
+2025-06-02T02:57:57.567 DEBUG Sending command: ':*GA#' (type: STRING)
+2025-06-02T02:57:57.588 DEBUG Command ':*GA#' response: '0.00028#'
+2025-06-02T02:57:57.588 DEBUG Current altitude: 0.016°
+2025-06-02T02:57:57.588 INFO 127.0.0.1 <- 0.01604281826366305
+2025-06-02T02:57:57.600 INFO 127.0.0.1 -> GET /api/v1/telescope/0/aperturearea?ClientID=1&ClientTransactionID=6359
+2025-06-02T02:57:57.602 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.602 ERROR NotImplementedException: Property or method not implemented.
+2025-06-02T02:57:57.602 ERROR NotImplementedException: Property or method not implemented.
+2025-06-02T02:57:57.612 INFO 127.0.0.1 -> GET /api/v1/telescope/0/aperturediameter?ClientID=1&ClientTransactionID=6360
+2025-06-02T02:57:57.612 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.613 ERROR NotImplementedException: Aperturediameter property not implemented
+2025-06-02T02:57:57.615 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=1&ClientTransactionID=6361
+2025-06-02T02:57:57.615 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.615 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.622 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=1&ClientTransactionID=6362
+2025-06-02T02:57:57.622 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.622 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T02:57:57.628 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T02:57:57.628 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T02:57:57.628 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.628 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=1&ClientTransactionID=6363
+2025-06-02T02:57:57.636 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.636 DEBUG Retrieving current azimuth from mount
+2025-06-02T02:57:57.636 DEBUG Sending command: ':*GZ#' (type: STRING)
+2025-06-02T02:57:57.689 DEBUG Command ':*GZ#' response: '3.14297#'
+2025-06-02T02:57:57.690 DEBUG Current azimuth: 180.079°
+2025-06-02T02:57:57.690 INFO 127.0.0.1 <- 180.07891613623235
+2025-06-02T02:57:57.696 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=1&ClientTransactionID=6364
+2025-06-02T02:57:57.696 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.696 DEBUG Retrieving current declination from mount
+2025-06-02T02:57:57.696 DEBUG Sending command: ':*GD#' (type: STRING)
+2025-06-02T02:57:57.707 DEBUG Command ':*GD#' response: '-1.19793#'
+2025-06-02T02:57:57.707 DEBUG Current declination: -68.636°
+2025-06-02T02:57:57.707 INFO 127.0.0.1 <- -68.6363331521067
+2025-06-02T02:57:57.722 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declinationrate?ClientID=1&ClientTransactionID=6365
+2025-06-02T02:57:57.722 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.722 INFO 127.0.0.1 <- 0.0
+2025-06-02T02:57:57.730 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/declinationrate
+2025-06-02T02:57:57.730 INFO 127.0.0.1 -> {'DeclinationRate': '0', 'ClientID': '1', 'ClientTransactionID': '6366'}
+2025-06-02T02:57:57.732 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.734 ERROR NotImplementedException: DeclinationRate Set property not implemented
+2025-06-02T02:57:57.741 INFO 127.0.0.1 -> GET /api/v1/telescope/0/doesrefraction?ClientID=1&ClientTransactionID=6367
+2025-06-02T02:57:57.745 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.745 ERROR NotImplementedException: Doesrefraction property not implemented
+2025-06-02T02:57:57.745 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/doesrefraction
+2025-06-02T02:57:57.745 INFO 127.0.0.1 -> {'DoesRefraction': 'True', 'ClientID': '1', 'ClientTransactionID': '6368'}
+2025-06-02T02:57:57.745 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.745 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/doesrefraction
+2025-06-02T02:57:57.745 INFO 127.0.0.1 -> {'DoesRefraction': 'False', 'ClientID': '1', 'ClientTransactionID': '6369'}
+2025-06-02T02:57:57.745 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.758 INFO 127.0.0.1 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=1&ClientTransactionID=6370
+2025-06-02T02:57:57.758 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.758 INFO Querying current epoch
+2025-06-02T02:57:57.758 DEBUG Sending command: ':*E#' (type: BOOL)
+2025-06-02T02:57:57.765 DEBUG Command ':*E#' response: 'True'
+2025-06-02T02:57:57.765 INFO Retrieved True, indicating Topocentric Equatorial
+2025-06-02T02:57:57.765 INFO 127.0.0.1 <- 1
+2025-06-02T02:57:57.765 INFO 127.0.0.1 -> GET /api/v1/telescope/0/focallength?ClientID=1&ClientTransactionID=6371
+2025-06-02T02:57:57.765 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.765 ERROR NotImplementedException: ApertureArea property not implemented
+2025-06-02T02:57:57.775 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=1&ClientTransactionID=6372
+2025-06-02T02:57:57.775 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.775 DEBUG Retrieving declination guide rate
+2025-06-02T02:57:57.775 DEBUG Sending command: ':*gRG#' (type: STRING)
+2025-06-02T02:57:57.829 DEBUG Command ':*gRG#' response: '2#'
+2025-06-02T02:57:57.829 DEBUG Declination guide rate: 0.001389 deg/sec (index 2)
+2025-06-02T02:57:57.829 INFO 127.0.0.1 <- 0.001388888888888889
+2025-06-02T02:57:57.829 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/guideratedeclination
+2025-06-02T02:57:57.829 INFO 127.0.0.1 -> {'GuideRateDeclination': '0.001388888888888889', 'ClientID': '1', 'ClientTransactionID': '6373'}
+2025-06-02T02:57:57.829 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.846 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=1&ClientTransactionID=6374
+2025-06-02T02:57:57.846 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.846 DEBUG Retrieving right ascension guide rate
+2025-06-02T02:57:57.846 DEBUG Sending command: ':*gRG#' (type: STRING)
+2025-06-02T02:57:57.859 DEBUG Command ':*gRG#' response: '2#'
+2025-06-02T02:57:57.859 DEBUG Right ascension guide rate: 0.001389 deg/sec (index 2)
+2025-06-02T02:57:57.860 INFO 127.0.0.1 <- 0.001388888888888889
+2025-06-02T02:57:57.866 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/guideraterightascension
+2025-06-02T02:57:57.866 INFO 127.0.0.1 -> {'GuideRateRightAscension': '0.001388888888888889', 'ClientID': '1', 'ClientTransactionID': '6375'}
+2025-06-02T02:57:57.866 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.866 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=1&ClientTransactionID=6376
+2025-06-02T02:57:57.866 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.866 INFO 127.0.0.1 <- False
+2025-06-02T02:57:57.883 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=1&ClientTransactionID=6377
+2025-06-02T02:57:57.883 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.883 DEBUG Retrieving current right ascension from mount
+2025-06-02T02:57:57.883 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T02:57:57.894 DEBUG Command ':*GR#' response: '2.39862#'
+2025-06-02T02:57:57.894 DEBUG Current right ascension: 9.162h
+2025-06-02T02:57:57.894 INFO 127.0.0.1 <- 9.16205351037797
+2025-06-02T02:57:57.894 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascensionrate?ClientID=1&ClientTransactionID=6378
+2025-06-02T02:57:57.908 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.908 INFO 127.0.0.1 <- 0.0
+2025-06-02T02:57:57.911 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/rightascensionrate
+2025-06-02T02:57:57.911 INFO 127.0.0.1 -> {'RightAscensionRate': '0', 'ClientID': '1', 'ClientTransactionID': '6379'}
+2025-06-02T02:57:57.911 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.911 ERROR NotImplementedException: Rightascensionrate set property not implemented
+2025-06-02T02:57:57.918 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=1&ClientTransactionID=6380
+2025-06-02T02:57:57.919 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.921 INFO 127.0.0.1 <- 0.0
+2025-06-02T02:57:57.923 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/siteelevation
+2025-06-02T02:57:57.923 INFO 127.0.0.1 -> {'SiteElevation': '-301', 'ClientID': '1', 'ClientTransactionID': '6381'}
+2025-06-02T02:57:57.923 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.923 ERROR NotImplementedException: Siteelevation set property not implemented
+2025-06-02T02:57:57.928 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/siteelevation
+2025-06-02T02:57:57.928 INFO 127.0.0.1 -> {'SiteElevation': '10001', 'ClientID': '1', 'ClientTransactionID': '6382'}
+2025-06-02T02:57:57.928 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.928 ERROR NotImplementedException: Siteelevation set property not implemented
+2025-06-02T02:57:57.928 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/siteelevation
+2025-06-02T02:57:57.937 INFO 127.0.0.1 -> {'SiteElevation': '0', 'ClientID': '1', 'ClientTransactionID': '6383'}
+2025-06-02T02:57:57.937 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.937 ERROR NotImplementedException: Siteelevation set property not implemented
+2025-06-02T02:57:57.937 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=1&ClientTransactionID=6384
+2025-06-02T02:57:57.937 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.937 DEBUG Retrieving site latitude from mount
+2025-06-02T02:57:57.937 DEBUG Sending command: ':*Gt#' (type: STRING)
+2025-06-02T02:57:57.952 DEBUG Command ':*Gt#' response: '+21*20'50#'
+2025-06-02T02:57:57.952 DEBUG Converting DMS string: '+21*20'50' -> '+21*20'50'
+2025-06-02T02:57:57.952 DEBUG DMS conversion result: 21.347222°
+2025-06-02T02:57:57.962 INFO Site latitude: 21.347222°
+2025-06-02T02:57:57.962 INFO 127.0.0.1 <- 21.34722222222222
+2025-06-02T02:57:57.968 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelatitude
+2025-06-02T02:57:57.968 INFO 127.0.0.1 -> {'SiteLatitude': '-91', 'ClientID': '1', 'ClientTransactionID': '6385'}
+2025-06-02T02:57:57.968 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.968 ERROR NotImplementedException: Sitelatitude set property not implemented
+2025-06-02T02:57:57.968 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelatitude
+2025-06-02T02:57:57.968 INFO 127.0.0.1 -> {'SiteLatitude': '91', 'ClientID': '1', 'ClientTransactionID': '6386'}
+2025-06-02T02:57:57.968 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.968 ERROR NotImplementedException: Sitelatitude set property not implemented
+2025-06-02T02:57:57.980 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelatitude
+2025-06-02T02:57:57.980 INFO 127.0.0.1 -> {'SiteLatitude': '21.34722222222222', 'ClientID': '1', 'ClientTransactionID': '6387'}
+2025-06-02T02:57:57.980 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.981 ERROR NotImplementedException: Sitelatitude set property not implemented
+2025-06-02T02:57:57.984 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=1&ClientTransactionID=6388
+2025-06-02T02:57:57.984 DEBUG Reporting Connected as: True
+2025-06-02T02:57:57.984 DEBUG Retrieving site longitude from mount
+2025-06-02T02:57:57.984 DEBUG Sending command: ':*Gg#' (type: STRING)
+2025-06-02T02:57:57.999 DEBUG Command ':*Gg#' response: '+157*54'12#'
+2025-06-02T02:57:57.999 DEBUG Converting DMS string: '+157*54'12' -> '+157*54'12'
+2025-06-02T02:57:57.999 DEBUG DMS conversion result: 157.903333°
+2025-06-02T02:57:57.999 INFO Site longitude: -157.903333°
+2025-06-02T02:57:58.011 INFO 127.0.0.1 <- -157.90333333333334
+2025-06-02T02:57:58.018 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelongitude
+2025-06-02T02:57:58.019 INFO 127.0.0.1 -> {'SiteLongitude': '-181', 'ClientID': '1', 'ClientTransactionID': '6389'}
+2025-06-02T02:57:58.019 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.019 ERROR NotImplementedException: Sitelongitude set property not implemented
+2025-06-02T02:57:58.019 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelongitude
+2025-06-02T02:57:58.019 INFO 127.0.0.1 -> {'SiteLongitude': '181', 'ClientID': '1', 'ClientTransactionID': '6390'}
+2025-06-02T02:57:58.019 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.019 ERROR NotImplementedException: Sitelongitude set property not implemented
+2025-06-02T02:57:58.030 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelongitude
+2025-06-02T02:57:58.030 INFO 127.0.0.1 -> {'SiteLongitude': '-157.90333333333334', 'ClientID': '1', 'ClientTransactionID': '6391'}
+2025-06-02T02:57:58.030 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.030 ERROR NotImplementedException: Sitelongitude set property not implemented
+2025-06-02T02:57:58.036 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6392
+2025-06-02T02:57:58.036 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.036 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewsettletime?ClientID=1&ClientTransactionID=6393
+2025-06-02T02:57:58.036 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.036 INFO 127.0.0.1 <- 1
+2025-06-02T02:57:58.036 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/slewsettletime
+2025-06-02T02:57:58.042 INFO 127.0.0.1 -> {'SlewSettleTime': '-1', 'ClientID': '1', 'ClientTransactionID': '6394'}
+2025-06-02T02:57:58.043 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.043 ERROR InvalidValueException: Invalid Slew Settle Time: -1, value not saved.
+2025-06-02T02:57:58.044 ERROR InvalidValueException: Invalid Slew Settle Time: -1, value not saved.
+2025-06-02T02:57:58.049 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/slewsettletime
+2025-06-02T02:57:58.049 INFO 127.0.0.1 -> {'SlewSettleTime': '1', 'ClientID': '1', 'ClientTransactionID': '6395'}
+2025-06-02T02:57:58.049 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.051 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=1&ClientTransactionID=6396
+2025-06-02T02:57:58.051 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.051 DEBUG Retrieving current right ascension from mount
+2025-06-02T02:57:58.051 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T02:57:58.064 DEBUG Command ':*GR#' response: '2.39862#'
+2025-06-02T02:57:58.064 DEBUG Current right ascension: 9.162h
+2025-06-02T02:57:58.064 DEBUG Calculating pier side for RA 9.162h
+2025-06-02T02:57:58.064 DEBUG Retrieving sidereal time from mount
+2025-06-02T02:57:58.064 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T02:57:58.081 DEBUG Command ':GS#' response: '19:41:18#'
+2025-06-02T02:57:58.081 DEBUG Converting HMS string: '19:41:18' -> '19:41:18'
+2025-06-02T02:57:58.081 DEBUG HMS conversion result: 19.688333h
+2025-06-02T02:57:58.081 DEBUG Sidereal time - GMST: 19.688h, LST: 9.161h
+2025-06-02T02:57:58.092 DEBUG Conditioned hour angle: -0.000609h
+2025-06-02T02:57:58.092 DEBUG RA 9.162h, LST 9.161h, HA -0.001h -> pierWest
+2025-06-02T02:57:58.092 INFO 127.0.0.1 <- 1
+2025-06-02T02:57:58.098 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=1&ClientTransactionID=6397
+2025-06-02T02:57:58.098 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.098 DEBUG Retrieving sidereal time from mount
+2025-06-02T02:57:58.098 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T02:57:58.115 DEBUG Command ':GS#' response: '19:41:18#'
+2025-06-02T02:57:58.115 DEBUG Converting HMS string: '19:41:18' -> '19:41:18'
+2025-06-02T02:57:58.115 DEBUG HMS conversion result: 19.688333h
+2025-06-02T02:57:58.115 DEBUG Sidereal time - GMST: 19.688h, LST: 9.161h
+2025-06-02T02:57:58.115 INFO 127.0.0.1 <- 9.161444444444442
+2025-06-02T02:57:58.124 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6398
+2025-06-02T02:57:58.124 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.124 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T02:57:58.136 DEBUG Command ':GW#' response: 'PT0#'
+2025-06-02T02:57:58.139 INFO 127.0.0.1 <- True
+2025-06-02T02:57:58.141 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T02:57:58.141 INFO 127.0.0.1 -> {'Tracking': 'False', 'ClientID': '1', 'ClientTransactionID': '6399'}
+2025-06-02T02:57:58.143 DEBUG Reporting Connected as: True
+2025-06-02T02:57:58.143 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T02:57:58.149 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T02:57:58.149 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T02:57:58.149 DEBUG Sending command: ':T0#' (type: BLIND)
+2025-06-02T02:57:58.164 DEBUG Command ':T0#' executed successfully (no response)
+2025-06-02T02:57:59.171 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6400
+2025-06-02T02:57:59.171 DEBUG Reporting Connected as: True
+2025-06-02T02:57:59.171 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T02:57:59.186 DEBUG Command ':GW#' response: 'PN0#'
+2025-06-02T02:57:59.186 INFO 127.0.0.1 <- False
+2025-06-02T02:57:59.198 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T02:57:59.199 INFO 127.0.0.1 -> {'Tracking': 'True', 'ClientID': '1', 'ClientTransactionID': '6401'}
+2025-06-02T02:57:59.201 DEBUG Reporting Connected as: True
+2025-06-02T02:57:59.202 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T02:57:59.205 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T02:57:59.205 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T02:57:59.205 DEBUG Sending command: ':T1#' (type: BLIND)
+2025-06-02T02:57:59.278 DEBUG Command ':T1#' executed successfully (no response)
+2025-06-02T02:58:00.295 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6402
+2025-06-02T02:58:00.295 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.303 DEBUG Retrieving available tracking rates
+2025-06-02T02:58:00.303 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T02:58:00.303 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T02:58:00.309 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6403
+2025-06-02T02:58:00.309 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.309 DEBUG Retrieving available tracking rates
+2025-06-02T02:58:00.309 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T02:58:00.309 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T02:58:00.331 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6404
+2025-06-02T02:58:00.334 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.336 DEBUG Retrieving available tracking rates
+2025-06-02T02:58:00.338 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T02:58:00.338 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T02:58:00.343 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6405
+2025-06-02T02:58:00.347 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.348 DEBUG Retrieving available tracking rates
+2025-06-02T02:58:00.348 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T02:58:00.348 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T02:58:00.348 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6406
+2025-06-02T02:58:00.356 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.358 DEBUG Retrieving current tracking rate from mount
+2025-06-02T02:58:00.360 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T02:58:00.363 DEBUG Command ':*TRG#' response: '0#'
+2025-06-02T02:58:00.363 DEBUG Current tracking rate: driveSidereal
+2025-06-02T02:58:00.363 INFO 127.0.0.1 <- 0
+2025-06-02T02:58:00.378 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.378 INFO 127.0.0.1 -> {'TrackingRate': '0', 'ClientID': '1', 'ClientTransactionID': '6407'}
+2025-06-02T02:58:00.378 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.387 INFO Setting tracking rate to: driveSidereal
+2025-06-02T02:58:00.388 DEBUG Sending command: ':TQ#' (type: BLIND)
+2025-06-02T02:58:00.401 DEBUG Command ':TQ#' executed successfully (no response)
+2025-06-02T02:58:00.401 INFO Tracking rate successfully set to: driveSidereal
+2025-06-02T02:58:00.409 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.409 INFO 127.0.0.1 -> {'TrackingRate': '0', 'ClientID': '1', 'ClientTransactionID': '6408'}
+2025-06-02T02:58:00.409 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.409 INFO Setting tracking rate to: driveSidereal
+2025-06-02T02:58:00.409 DEBUG Sending command: ':TQ#' (type: BLIND)
+2025-06-02T02:58:00.429 DEBUG Command ':TQ#' executed successfully (no response)
+2025-06-02T02:58:00.429 INFO Tracking rate successfully set to: driveSidereal
+2025-06-02T02:58:00.429 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6409
+2025-06-02T02:58:00.439 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.439 DEBUG Retrieving current tracking rate from mount
+2025-06-02T02:58:00.439 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T02:58:00.453 DEBUG Command ':*TRG#' response: '0#'
+2025-06-02T02:58:00.454 DEBUG Current tracking rate: driveSidereal
+2025-06-02T02:58:00.456 INFO 127.0.0.1 <- 0
+2025-06-02T02:58:00.460 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.460 INFO 127.0.0.1 -> {'TrackingRate': '1', 'ClientID': '1', 'ClientTransactionID': '6410'}
+2025-06-02T02:58:00.460 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.460 INFO Setting tracking rate to: driveLunar
+2025-06-02T02:58:00.460 DEBUG Sending command: ':TL#' (type: BLIND)
+2025-06-02T02:58:00.482 DEBUG Command ':TL#' executed successfully (no response)
+2025-06-02T02:58:00.483 INFO Tracking rate successfully set to: driveLunar
+2025-06-02T02:58:00.491 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6411
+2025-06-02T02:58:00.494 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.494 DEBUG Retrieving current tracking rate from mount
+2025-06-02T02:58:00.494 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T02:58:00.500 DEBUG Command ':*TRG#' response: '1#'
+2025-06-02T02:58:00.511 DEBUG Current tracking rate: driveLunar
+2025-06-02T02:58:00.512 INFO 127.0.0.1 <- 1
+2025-06-02T02:58:00.521 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declinationrate?ClientID=1&ClientTransactionID=6412
+2025-06-02T02:58:00.521 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.521 INFO 127.0.0.1 <- 0.0
+2025-06-02T02:58:00.532 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascensionrate?ClientID=1&ClientTransactionID=6413
+2025-06-02T02:58:00.532 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.532 INFO 127.0.0.1 <- 0.0
+2025-06-02T02:58:00.543 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.547 INFO 127.0.0.1 -> {'TrackingRate': '2', 'ClientID': '1', 'ClientTransactionID': '6414'}
+2025-06-02T02:58:00.548 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.549 INFO Setting tracking rate to: driveSolar
+2025-06-02T02:58:00.550 DEBUG Sending command: ':TS#' (type: BLIND)
+2025-06-02T02:58:00.563 DEBUG Command ':TS#' executed successfully (no response)
+2025-06-02T02:58:00.563 INFO Tracking rate successfully set to: driveSolar
+2025-06-02T02:58:00.571 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6415
+2025-06-02T02:58:00.574 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.576 DEBUG Retrieving current tracking rate from mount
+2025-06-02T02:58:00.578 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T02:58:00.582 DEBUG Command ':*TRG#' response: '2#'
+2025-06-02T02:58:00.582 DEBUG Current tracking rate: driveSolar
+2025-06-02T02:58:00.582 INFO 127.0.0.1 <- 2
+2025-06-02T02:58:00.600 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declinationrate?ClientID=1&ClientTransactionID=6416
+2025-06-02T02:58:00.600 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.600 INFO 127.0.0.1 <- 0.0
+2025-06-02T02:58:00.613 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascensionrate?ClientID=1&ClientTransactionID=6417
+2025-06-02T02:58:00.614 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.617 INFO 127.0.0.1 <- 0.0
+2025-06-02T02:58:00.619 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.619 INFO 127.0.0.1 -> {'TrackingRate': '3', 'ClientID': '1', 'ClientTransactionID': '6418'}
+2025-06-02T02:58:00.619 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.619 INFO Setting tracking rate to: driveKing
+2025-06-02T02:58:00.630 ERROR Unsupported tracking rate: 3
+2025-06-02T02:58:00.630 ERROR InvalidValueException: Unknown rate provided: 3.
+2025-06-02T02:58:00.630 ERROR Failed to set tracking rate to driveKing: Unknown rate provided: 3.
+2025-06-02T02:58:00.630 ERROR DriverException: Set Tracking Rate Failed: Unknown rate provided: 3.
+2025-06-02T02:58:00.647 ERROR DriverException: Telescope.Trackingrate failed
 Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 2565, in TrackingRate
+    raise InvalidValueException(f"Unknown rate provided: {rate}.")
+exceptions.InvalidValueException: Unknown rate provided: 3.
 
-2025-05-26T21:28:30.149 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=465
-2025-05-26T21:28:30.165 ERROR DriverException: Telescope.Sideofpier failed
+During handling of the above exception, another exception occurred:
+
 Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
+  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1965, in on_put
+    TTS160_dev.TrackingRate = trackingrate
+    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 2572, in TrackingRate
+    raise DriverException(0x500, f"Set Tracking Rate Failed: {ex}")
+exceptions.DriverException: (1280, 'Set Tracking Rate Failed: Unknown rate provided: 3.')
 
-2025-05-26T21:28:30.373 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=466
-2025-05-26T21:28:30.396 ERROR DriverException: Telescope.Sideofpier failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
-
-2025-05-26T21:28:30.404 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=467
-2025-05-26T21:28:30.407 INFO 127.0.0.1 <- False
-2025-05-26T21:28:30.420 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9024&ClientTransactionID=468
-2025-05-26T21:28:30.420 INFO 127.0.0.1 <- False
-2025-05-26T21:28:30.420 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=469
-2025-05-26T21:28:30.420 INFO 127.0.0.1 <- False
-2025-05-26T21:28:30.424 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=9024&ClientTransactionID=470
-2025-05-26T21:28:30.424 INFO 127.0.0.1 <- True
-2025-05-26T21:28:30.427 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canfindhome?ClientID=9024&ClientTransactionID=471
-2025-05-26T21:28:30.427 INFO 127.0.0.1 <- False
-2025-05-26T21:28:30.427 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpark?ClientID=9024&ClientTransactionID=472
-2025-05-26T21:28:30.433 INFO 127.0.0.1 <- True
-2025-05-26T21:28:30.433 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpark?ClientID=9024&ClientTransactionID=473
-2025-05-26T21:28:30.433 INFO 127.0.0.1 <- False
-2025-05-26T21:28:30.436 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=9024&ClientTransactionID=474
-2025-05-26T21:28:30.441 INFO 127.0.0.1 <- False
-2025-05-26T21:28:30.441 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=475
-2025-05-26T21:28:30.441 INFO 127.0.0.1 <- True
-2025-05-26T21:28:30.441 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=476
-2025-05-26T21:28:30.452 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:30.678 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=477
-2025-05-26T21:28:30.680 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:30.901 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=478
-2025-05-26T21:28:30.955 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:30.962 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=479
-2025-05-26T21:28:30.962 INFO 127.0.0.1 <- True
-2025-05-26T21:28:30.962 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=480
-2025-05-26T21:28:30.978 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:31.184 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=481
-2025-05-26T21:28:31.237 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:31.443 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=482
-2025-05-26T21:28:31.455 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:31.459 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=483
-2025-05-26T21:28:31.460 INFO 127.0.0.1 <- True
-2025-05-26T21:28:31.463 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=484&Axis=0
-2025-05-26T21:28:31.463 INFO 127.0.0.1 <- True
-2025-05-26T21:28:31.466 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=9024&ClientTransactionID=485&Axis=1
-2025-05-26T21:28:31.467 INFO 127.0.0.1 <- True
-2025-05-26T21:28:31.469 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=9024&ClientTransactionID=486&Axis=0
-2025-05-26T21:28:31.469 INFO Calling for axis rate with argument 0
-2025-05-26T21:28:31.470 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
-2025-05-26T21:28:31.472 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=9024&ClientTransactionID=487&Axis=1
-2025-05-26T21:28:31.472 INFO Calling for axis rate with argument 1
-2025-05-26T21:28:31.472 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
-2025-05-26T21:28:31.474 INFO 127.0.0.1 -> GET /api/v1/telescope/0/supportedactions?ClientID=9024&ClientTransactionID=488
-2025-05-26T21:28:31.475 INFO 127.0.0.1 <- []
-2025-05-26T21:28:31.476 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9024&ClientTransactionID=489
-2025-05-26T21:28:31.476 INFO 127.0.0.1 <- 0
-2025-05-26T21:28:31.477 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9024&ClientTransactionID=490
-2025-05-26T21:28:31.477 INFO 127.0.0.1 <- True
-2025-05-26T21:28:31.478 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9024&ClientTransactionID=491
-2025-05-26T21:28:31.478 INFO 127.0.0.1 <- False
-2025-05-26T21:28:31.479 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9024&ClientTransactionID=492
-2025-05-26T21:28:31.479 INFO 127.0.0.1 <- False
-2025-05-26T21:28:31.481 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=493
-2025-05-26T21:28:31.481 INFO 127.0.0.1 <- True
-2025-05-26T21:28:31.482 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=494
-2025-05-26T21:28:31.523 INFO 127.0.0.1 <- 2025-05-26 21:28:30+00:00
-2025-05-26T21:28:31.527 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:31.732 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=495
-2025-05-26T21:28:31.775 INFO 127.0.0.1 <- 2025-05-26 21:28:30+00:00
-2025-05-26T21:28:31.777 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:31.981 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=496
-2025-05-26T21:28:32.024 INFO 127.0.0.1 <- 2025-05-26 21:28:31+00:00
-2025-05-26T21:28:32.026 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:32.030 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverversion?ClientID=9024&ClientTransactionID=497
-2025-05-26T21:28:32.030 INFO 127.0.0.1 <- 356.0.0
-2025-05-26T21:28:34.047 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=498
-2025-05-26T21:28:34.047 INFO 127.0.0.1 <- True
-2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=9024&ClientTransactionID=499
-2025-05-26T21:28:34.049 INFO 127.0.0.1 <- False
-2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=9024&ClientTransactionID=500
-2025-05-26T21:28:34.049 INFO 127.0.0.1 <- False
-2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=9024&ClientTransactionID=501
-2025-05-26T21:28:34.049 INFO 127.0.0.1 <- True
-2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9024&ClientTransactionID=502
-2025-05-26T21:28:34.049 INFO 127.0.0.1 <- False
-2025-05-26T21:28:34.049 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=503
-2025-05-26T21:28:34.056 INFO 127.0.0.1 <- False
-2025-05-26T21:28:34.056 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=504
-2025-05-26T21:28:34.060 INFO 127.0.0.1 <- False
-2025-05-26T21:28:34.070 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=9024&ClientTransactionID=505
-2025-05-26T21:28:34.122 INFO 127.0.0.1 <- 0.0
-2025-05-26T21:28:34.128 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=9024&ClientTransactionID=506
-2025-05-26T21:28:34.145 INFO 127.0.0.1 <- 179.9998479605043
-2025-05-26T21:28:34.147 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=9024&ClientTransactionID=507
-2025-05-26T21:28:34.162 INFO 127.0.0.1 <- -68.6529489281655
-2025-05-26T21:28:34.170 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=9024&ClientTransactionID=508
-2025-05-26T21:28:34.186 INFO 127.0.0.1 <- 3.2617341361207504
-2025-05-26T21:28:34.192 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=9024&ClientTransactionID=509
-2025-05-26T21:28:34.212 INFO 127.0.0.1 <- 3.2625555555555525
-2025-05-26T21:28:34.213 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=510
-2025-05-26T21:28:34.219 INFO 127.0.0.1 <- False
-2025-05-26T21:28:34.228 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=511
-2025-05-26T21:28:34.230 INFO 127.0.0.1 <- -157.90333333333336
-2025-05-26T21:28:34.234 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=512
-2025-05-26T21:28:34.234 INFO 127.0.0.1 <- 21.347222222222218
-2025-05-26T21:28:34.236 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=513
-2025-05-26T21:28:34.236 INFO 127.0.0.1 <- 0.0
-2025-05-26T21:28:34.236 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=514
-2025-05-26T21:28:34.250 ERROR DriverException: Telescope.Sideofpier failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
-
-2025-05-26T21:28:34.475 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=515
-2025-05-26T21:28:34.488 ERROR DriverException: Telescope.Sideofpier failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
-
-2025-05-26T21:28:34.710 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=516
-2025-05-26T21:28:34.763 ERROR DriverException: Telescope.Sideofpier failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
-
-2025-05-26T21:28:34.767 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=9024&ClientTransactionID=517
-2025-05-26T21:28:34.775 INFO 127.0.0.1 <- False
-2025-05-26T21:28:34.775 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=518
-2025-05-26T21:28:34.775 INFO 127.0.0.1 <- True
-2025-05-26T21:28:34.775 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=519
-2025-05-26T21:28:34.792 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:34.999 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=520
-2025-05-26T21:28:34.999 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:35.226 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=521
-2025-05-26T21:28:35.235 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:35.241 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=522
-2025-05-26T21:28:35.241 INFO 127.0.0.1 <- True
-2025-05-26T21:28:35.241 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=523
-2025-05-26T21:28:35.250 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:35.473 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=524
-2025-05-26T21:28:35.478 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:35.696 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=525
-2025-05-26T21:28:35.709 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:35.711 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9024&ClientTransactionID=526
-2025-05-26T21:28:35.716 INFO 127.0.0.1 <- 0
-2025-05-26T21:28:35.716 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9024&ClientTransactionID=527
-2025-05-26T21:28:35.716 INFO 127.0.0.1 <- True
-2025-05-26T21:28:35.716 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9024&ClientTransactionID=528
-2025-05-26T21:28:35.716 INFO 127.0.0.1 <- False
-2025-05-26T21:28:35.716 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9024&ClientTransactionID=529
-2025-05-26T21:28:35.716 INFO 127.0.0.1 <- False
-2025-05-26T21:28:35.725 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=530
-2025-05-26T21:28:35.725 INFO 127.0.0.1 <- True
-2025-05-26T21:28:35.727 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=531
-2025-05-26T21:28:35.760 INFO 127.0.0.1 <- 2025-05-26 21:28:35+00:00
-2025-05-26T21:28:35.771 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:35.982 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=532
-2025-05-26T21:28:36.021 INFO 127.0.0.1 <- 2025-05-26 21:28:35+00:00
-2025-05-26T21:28:36.021 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:36.234 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=533
-2025-05-26T21:28:36.271 INFO 127.0.0.1 <- 2025-05-26 21:28:36+00:00
-2025-05-26T21:28:36.282 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:36.285 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=9024&ClientTransactionID=534
-2025-05-26T21:28:36.285 INFO 127.0.0.1 <- True
-2025-05-26T21:28:36.285 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=9024&ClientTransactionID=535
-2025-05-26T21:28:36.285 INFO 127.0.0.1 <- False
-2025-05-26T21:28:36.298 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=9024&ClientTransactionID=536
-2025-05-26T21:28:36.298 INFO 127.0.0.1 <- False
-2025-05-26T21:28:36.298 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=9024&ClientTransactionID=537
-2025-05-26T21:28:36.298 INFO 127.0.0.1 <- True
-2025-05-26T21:28:36.303 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=9024&ClientTransactionID=538
-2025-05-26T21:28:36.303 INFO 127.0.0.1 <- False
-2025-05-26T21:28:36.305 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=9024&ClientTransactionID=539
-2025-05-26T21:28:36.305 INFO 127.0.0.1 <- False
-2025-05-26T21:28:36.305 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=540
-2025-05-26T21:28:36.314 INFO 127.0.0.1 <- False
-2025-05-26T21:28:36.319 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=9024&ClientTransactionID=541
-2025-05-26T21:28:36.336 INFO 127.0.0.1 <- -0.0
-2025-05-26T21:28:36.336 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=9024&ClientTransactionID=542
-2025-05-26T21:28:36.353 INFO 127.0.0.1 <- 180.00042091829943
-2025-05-26T21:28:36.362 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=9024&ClientTransactionID=543
-2025-05-26T21:28:36.378 INFO 127.0.0.1 <- -68.6529489281655
-2025-05-26T21:28:36.378 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=9024&ClientTransactionID=544
-2025-05-26T21:28:36.396 INFO 127.0.0.1 <- 3.262307093915881
-2025-05-26T21:28:36.404 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=9024&ClientTransactionID=545
-2025-05-26T21:28:36.420 INFO 127.0.0.1 <- 3.263111111111108
-2025-05-26T21:28:36.428 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=9024&ClientTransactionID=546
-2025-05-26T21:28:36.437 INFO 127.0.0.1 <- False
-2025-05-26T21:28:36.441 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=9024&ClientTransactionID=547
-2025-05-26T21:28:36.442 INFO 127.0.0.1 <- -157.90333333333336
-2025-05-26T21:28:36.442 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=9024&ClientTransactionID=548
-2025-05-26T21:28:36.447 INFO 127.0.0.1 <- 21.347222222222218
-2025-05-26T21:28:36.447 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=9024&ClientTransactionID=549
-2025-05-26T21:28:36.447 INFO 127.0.0.1 <- 0.0
-2025-05-26T21:28:36.447 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=550
-2025-05-26T21:28:36.459 ERROR DriverException: Telescope.Sideofpier failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
-
-2025-05-26T21:28:36.680 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=551
-2025-05-26T21:28:36.697 ERROR DriverException: Telescope.Sideofpier failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
-
-2025-05-26T21:28:36.919 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=9024&ClientTransactionID=552
-2025-05-26T21:28:36.935 ERROR DriverException: Telescope.Sideofpier failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1229, in on_get
-    val = TTS160_dev.SideOfPier ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 640, in SideOfPier
-    return self._calculate_side_of_pier(self.RightAscension)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 633, in _calculate_side_of_pier
-    hour_angle = self.condition_ha(self.SiderealTime - right_ascension)
-                 ^^^^^^^^^^^^^^^^^
-AttributeError: 'TTS160Device' object has no attribute 'condition_ha'
-
-2025-05-26T21:28:36.942 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=9024&ClientTransactionID=553
-2025-05-26T21:28:36.950 INFO 127.0.0.1 <- False
-2025-05-26T21:28:36.950 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=554
-2025-05-26T21:28:36.950 INFO 127.0.0.1 <- True
-2025-05-26T21:28:36.950 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=555
-2025-05-26T21:28:36.968 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:37.177 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=556
-2025-05-26T21:28:37.188 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:37.396 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=9024&ClientTransactionID=557
-2025-05-26T21:28:37.409 ERROR DriverException: Telescope.Guideraterightascension failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 999, in on_get
-    val = TTS160_dev.GuideRateRightAscension    ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 602, in GuideRateRightAscension
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:37.412 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=9024&ClientTransactionID=558
-2025-05-26T21:28:37.412 INFO 127.0.0.1 <- True
-2025-05-26T21:28:37.416 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=559
-2025-05-26T21:28:37.428 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:37.635 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=560
-2025-05-26T21:28:37.651 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:37.876 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=9024&ClientTransactionID=561
-2025-05-26T21:28:37.931 ERROR DriverException: Telescope.Guideratedeclination failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 958, in on_get
-    val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\TTS160Device.py", line 578, in GuideRateDeclination
-    rate = int(self._send_command(":*gRG#", CommandType.STRING))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: invalid literal for int() with base 10: '2#'
-
-2025-05-26T21:28:37.936 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=9024&ClientTransactionID=562
-2025-05-26T21:28:37.936 INFO 127.0.0.1 <- 0
-2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=9024&ClientTransactionID=563
-2025-05-26T21:28:37.938 INFO 127.0.0.1 <- True
-2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=9024&ClientTransactionID=564
-2025-05-26T21:28:37.938 INFO 127.0.0.1 <- False
-2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=9024&ClientTransactionID=565
-2025-05-26T21:28:37.938 INFO 127.0.0.1 <- False
-2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=9024&ClientTransactionID=566
-2025-05-26T21:28:37.938 INFO 127.0.0.1 <- True
-2025-05-26T21:28:37.938 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=567
-2025-05-26T21:28:37.990 INFO 127.0.0.1 <- 2025-05-26 21:28:37+00:00
-2025-05-26T21:28:37.990 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:38.212 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=568
-2025-05-26T21:28:38.258 INFO 127.0.0.1 <- 2025-05-26 21:28:37+00:00
-2025-05-26T21:28:38.260 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:38.466 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=9024&ClientTransactionID=569
-2025-05-26T21:28:38.500 INFO 127.0.0.1 <- 2025-05-26 21:28:38+00:00
-2025-05-26T21:28:38.500 ERROR DriverException: Telescope.Utcdate failed
-Traceback (most recent call last):
-  File "C:\Users\astronomy\TTS160 Alpyca\telescope.py", line 1917, in on_get
-    resp.text = PropertyResponse(val, req).json
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in json
-    return json.dumps(self, default=lambda o: o.__dict__)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\AppData\Local\Programs\Python\Python311\Lib\json\encoder.py", line 258, in iterencode
-    return _iterencode(o, 0)
-           ^^^^^^^^^^^^^^^^^
-  File "C:\Users\astronomy\TTS160 Alpyca\shr.py", line 248, in <lambda>
-    return json.dumps(self, default=lambda o: o.__dict__)
-                                              ^^^^^^^^^^
-AttributeError: 'datetime.datetime' object has no attribute '__dict__'
-
-2025-05-26T21:28:38.577 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
-2025-05-26T21:28:38.581 INFO 127.0.0.1 -> {'Connected': 'False', 'ClientID': '9024', 'ClientTransactionID': '570'}
-2025-05-26T21:28:38.581 INFO Serial connection count: 0
-2025-05-26T21:28:38.585 ERROR Disconnect error: 'NoneType' object has no attribute 'is_connected'
+2025-06-02T02:58:00.666 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.668 INFO 127.0.0.1 -> {'TrackingRate': '5', 'ClientID': '1', 'ClientTransactionID': '6419'}
+2025-06-02T02:58:00.670 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.672 ERROR InvalidValueException: Invalid tracking rate: 5
+2025-06-02T02:58:00.674 ERROR InvalidValueException: Invalid tracking rate: 5
+2025-06-02T02:58:00.681 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.681 INFO 127.0.0.1 -> {'TrackingRate': '-1', 'ClientID': '1', 'ClientTransactionID': '6420'}
+2025-06-02T02:58:00.681 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.681 ERROR InvalidValueException: Invalid tracking rate: -1
+2025-06-02T02:58:00.681 ERROR InvalidValueException: Invalid tracking rate: -1
+2025-06-02T02:58:00.698 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T02:58:00.699 INFO 127.0.0.1 -> {'TrackingRate': '0', 'ClientID': '1', 'ClientTransactionID': '6421'}
+2025-06-02T02:58:00.700 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.702 INFO Setting tracking rate to: driveSidereal
+2025-06-02T02:58:00.703 DEBUG Sending command: ':TQ#' (type: BLIND)
+2025-06-02T02:58:00.715 DEBUG Command ':TQ#' executed successfully (no response)
+2025-06-02T02:58:00.715 INFO Tracking rate successfully set to: driveSidereal
+2025-06-02T02:58:00.722 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6422
+2025-06-02T02:58:00.722 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.722 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T02:58:00.737 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T02:58:00.737 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T02:58:00.763 DEBUG Command ':GL#' response: '16:57:59#'
+2025-06-02T02:58:00.766 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T02:58:00.766 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T02:58:00.778 INFO Mount UTC time: 2025-06-02 02:57:59+00:00
+2025-06-02T02:58:00.778 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T02:57:59+00:00
+2025-06-02T02:58:00.783 INFO Retrieved date: 2025-06-02T02:57:59+00:00
+2025-06-02T02:58:00.785 INFO 127.0.0.1 <- 2025-06-02T02:57:59+00:00
+2025-06-02T02:58:00.796 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/utcdate
+2025-06-02T02:58:00.798 INFO 127.0.0.1 -> {'UTCDate': '2025-06-01T17:57:59.0000000Z', 'ClientID': '1', 'ClientTransactionID': '6423'}
+2025-06-02T02:58:00.799 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.810 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/utcdate
+2025-06-02T02:58:00.810 INFO 127.0.0.1 -> {'UTCDate': '2025-06-01T16:57:59.0000000Z', 'ClientID': '1', 'ClientTransactionID': '6424'}
+2025-06-02T02:58:00.810 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.832 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=1&ClientTransactionID=6425
+2025-06-02T02:58:00.836 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.838 INFO 127.0.0.1 <- True
+2025-06-02T02:58:00.843 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T02:58:00.844 INFO 127.0.0.1 -> {'Tracking': 'False', 'ClientID': '1', 'ClientTransactionID': '6426'}
+2025-06-02T02:58:00.845 DEBUG Reporting Connected as: True
+2025-06-02T02:58:00.845 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T02:58:00.861 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T02:58:00.862 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T02:58:00.862 DEBUG Sending command: ':T0#' (type: BLIND)
+2025-06-02T02:58:00.874 DEBUG Command ':T0#' executed successfully (no response)
+2025-06-02T02:58:00.882 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6427
+2025-06-02T02:58:00.884 DEBUG Reporting Connecting as: True
+2025-06-02T02:58:00.884 INFO 127.0.0.1 <- False
+2025-06-02T02:58:00.894 INFO Beginning physical mount disconnection (last client)
+2025-06-02T02:58:00.896 DEBUG Configuration saved before disconnect
+2025-06-02T02:58:00.900 INFO Serial connection count: 0
+2025-06-02T02:58:00.901 DEBUG Serial manager disconnect completed
+2025-06-02T02:58:00.904 INFO TTS160 mount disconnected successfully
+2025-06-02T02:58:00.912 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6429
+2025-06-02T02:58:00.912 DEBUG Reporting Connecting as: False
+2025-06-02T02:58:00.918 INFO 127.0.0.1 <- False
+2025-06-02T02:58:00.925 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6430
+2025-06-02T02:58:00.927 DEBUG Reporting Connecting as: False
+2025-06-02T02:58:00.928 INFO 127.0.0.1 <- False
+2025-06-02T02:58:00.935 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6431
+2025-06-02T02:58:00.935 DEBUG Reporting Connected as: False
+2025-06-02T02:58:00.935 INFO 127.0.0.1 <- False

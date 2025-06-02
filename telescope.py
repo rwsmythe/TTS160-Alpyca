@@ -17,14 +17,21 @@ from logging import Logger
 from shr import PropertyResponse, MethodResponse, PreProcessRequest, \
                 StateValue, get_request_field, to_bool
 from exceptions import *        # Nothing but exception classes
+from datetime import datetime
 from config import Config
-#import TTS160Device
-#import TTS160Config
 import TTS160Global
 
 logger: Logger = None
 TTS160_dev = None
 TTS160_cfg = None
+
+ALPACA_EXCEPTIONS = {
+    'NotImplementedException': NotImplementedException,
+    'InvalidValueException': InvalidValueException,
+    'InvalidOperationException': InvalidOperationException,
+    'ParkedException': ParkedException,
+    'NotConnectedException': NotConnectedException,
+}
 
 # ----------------------
 # MULTI-INSTANCE SUPPORT
@@ -74,9 +81,9 @@ def start_TTS160_dev(logger: Logger):
 # ------------
 class Rate:
     """Represents a rate range for telescope movement."""
-    def __init__(self, minimum: float, maximum: float):
-        self.Minimum = float(minimum)
-        self.Maximum = float(maximum)
+    def __init__(self, Minimum: float = 0.0, Maximum: float = 0.0):
+        self.Minimum = float(Minimum)
+        self.Maximum = float(Maximum)
     
     def __repr__(self):
         return f"Rate({self.Minimum}, {self.Maximum})"
@@ -180,10 +187,7 @@ class connected:
             ### CONNECT OR DISCONNECT THE DEVICE ###
             # --------------------------------------
            
-            if conn:
-                TTS160_dev.Connect()
-            else:
-                TTS160_dev.Disconnect()
+            TTS160_dev.Connected = conn
 
             resp.text = MethodResponse(req).json
         except Exception as ex:
@@ -195,7 +199,7 @@ class connecting:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
             # ------------------------------
-            val = TTS160_dev.Connecting() ## GET CONNECTING STATE ##
+            val = TTS160_dev.Connecting ## GET CONNECTING STATE ##
             # ------------------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -220,8 +224,9 @@ class devicestate:
             val = []
             val.append(StateValue('Altitude', TTS160_dev.Altitude))
             val.append(StateValue('AtHome', TTS160_dev.AtHome))
+            val.append(StateValue('AtPark', TTS160_dev.AtPark))
             val.append(StateValue('Azimuth', TTS160_dev.Azimuth))
-            val.append(StateValue('Declination', TTS160_dev.Declincation))
+            val.append(StateValue('Declination', TTS160_dev.Declination))
             val.append(StateValue('IsPulseGuiding', TTS160_dev.IsPulseGuiding))
             val.append(StateValue('RightAscension', TTS160_dev.RightAscension))
             val.append(StateValue('SideOfPier', TTS160_dev.SideOfPier))
@@ -229,7 +234,7 @@ class devicestate:
             val.append(StateValue('Slewing', TTS160_dev.Slewing))
             val.append(StateValue('Tracking', TTS160_dev.Tracking))
             val.append(StateValue('UTCDate', TTS160_dev.UTCDate))
-            val.append(StateValue('TimeStamp', TTS160_dev.TimeStamp))  #System or telescope??
+            val.append(StateValue('TimeStamp', datetime.now().isoformat()))  #System or telescope??
             # val.append(StateValue('## NAME ##', ## GET VAL ##))
             # Repeat for each of the operational states per the device spec
             # ----------------------
@@ -356,9 +361,16 @@ class aperturearea:
             val = TTS160_dev.ApertureArea   ## GET PROPERTY ##
             # ----------------------
             resp.text = PropertyResponse(val, req).json
+            #resp.text = PropertyResponse(None, req, NotImplementedException("Aperturearea property not implemented")).json
         except Exception as ex:
-            resp.text = PropertyResponse(None, req,
-                            DriverException(0x500, 'Telescope.Aperturearea failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = PropertyResponse(None, req, alpaca_ex).json
+            else:
+                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Apertureare failed', ex)).json
+            #resp.text = PropertyResponse(None, req,
+            #                DriverException(0x500, 'Telescope.Aperturearea failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class aperturediameter:
@@ -371,9 +383,10 @@ class aperturediameter:
         
         try:
             # ----------------------
-            val = TTS160_dev.ApertureDiameter   ## GET PROPERTY ##
+            #val = TTS160_dev.ApertureDiameter   ## GET PROPERTY ##
             # ----------------------
-            resp.text = PropertyResponse(val, req).json
+            #resp.text = PropertyResponse(val, req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("Aperturediameter property not implemented")).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
                             DriverException(0x500, 'Telescope.Aperturediameter failed', ex)).json
@@ -835,7 +848,9 @@ class declinationrate:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            resp.text = MethodResponse(req).json
+            #TTS160_dev.DeclinationRate = declinationrate
+            #resp.text = MethodResponse(req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("DeclinationRate Set property not implemented")).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Declinationrate failed', ex)).json
@@ -885,9 +900,10 @@ class doesrefraction:
         
         try:
             # ----------------------
-            val = TTS160_dev.DoesRefraction ## GET PROPERTY ##
+            #val = TTS160_dev.DoesRefraction ## GET PROPERTY ##
             # ----------------------
-            resp.text = PropertyResponse(val, req).json
+            #resp.text = PropertyResponse(val, req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("Doesrefraction property not implemented")).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
                             DriverException(0x500, 'Telescope.Doesrefraction failed', ex)).json
@@ -946,6 +962,7 @@ class findhome:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.FindHome()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -962,9 +979,10 @@ class focallength:
         
         try:
             # ----------------------
-            val = TTS160_dev.FocalLength    ## GET PROPERTY ##
+            #val = TTS160_dev.FocalLength    ## GET PROPERTY ##
             # ----------------------
-            resp.text = PropertyResponse(val, req).json
+            #resp.text = PropertyResponse(val, req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("ApertureArea property not implemented")).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
                             DriverException(0x500, 'Telescope.Focallength failed', ex)).json
@@ -1102,10 +1120,19 @@ class moveaxis:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.MoveAxis(axis, rate)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Moveaxis failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Moveaxis failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Moveaxis failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class park:
@@ -1218,7 +1245,9 @@ class rightascensionrate:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            resp.text = MethodResponse(req).json
+            #TTS160_dev.RightAscensionRate = rightascensionrate
+            #resp.text = MethodResponse(req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("Rightascensionrate set property not implemented")).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Rightascensionrate failed', ex)).json
@@ -1341,7 +1370,9 @@ class siteelevation:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            resp.text = MethodResponse(req).json
+            #TTS160_dev.SiteElevation = siteelevation
+            #resp.text = MethodResponse(req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("Siteelevation set property not implemented")).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Siteelevation failed', ex)).json
@@ -1382,7 +1413,8 @@ class sitelatitude:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            resp.text = MethodResponse(req).json
+            #resp.text = MethodResponse(req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("Sitelatitude set property not implemented")).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Sitelatitude failed', ex)).json
@@ -1423,7 +1455,8 @@ class sitelongitude:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            resp.text = MethodResponse(req).json
+            #resp.text = MethodResponse(req).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("Sitelongitude set property not implemented")).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Sitelongitude failed', ex)).json
@@ -1482,10 +1515,19 @@ class slewsettletime:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SlewSettleTime = slewsettletime
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewsettletime failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Slewsettletime failed', ex)).json
+
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Slewsettletime failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtoaltaz:
@@ -1722,6 +1764,7 @@ class synctocoordinates:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SyncToCoordinates()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1740,6 +1783,7 @@ class synctotarget:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SyncToTarget()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1760,8 +1804,15 @@ class targetdeclination:
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
-            resp.text = PropertyResponse(None, req,
-                            DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = PropertyResponse(None, req, alpaca_ex).json
+            else:
+                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
+
+            #resp.text = PropertyResponse(None, req,
+            #                DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
         if not TTS160_dev.Connected: ##IS DEV CONNECTED##:
@@ -1781,10 +1832,18 @@ class targetdeclination:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.TargetDeclination = targetdeclination
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class targetrightascension:
@@ -1801,8 +1860,15 @@ class targetrightascension:
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
-            resp.text = PropertyResponse(None, req,
-                            DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = PropertyResponse(None, req, alpaca_ex).json
+            else:
+                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
+            
+            #resp.text = PropertyResponse(None, req,
+            #                DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
         if not TTS160_dev.Connected: ##IS DEV CONNECTED##:
@@ -1822,6 +1888,7 @@ class targetrightascension:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.TargetRightAscension = targetrightascension
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1863,6 +1930,7 @@ class tracking:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.Tracking = tracking
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1904,10 +1972,19 @@ class trackingrate:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.TrackingRate = trackingrate
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Trackingrate failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Trackingrate failed', ex)).json
+            
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Trackingrate failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class trackingrates:

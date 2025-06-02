@@ -260,8 +260,10 @@ class ConfigurationMixin:
             
             with self._lock:
                 self._config.slew_settle_time = value
+        except InvalidValueException:
+            raise
         except Exception as ex:
-            raise DriverException(0x500,ex)
+            raise DriverException(0x500, "SlewSettleTime assignment failed", ex)
     
     def _update_site_location(self) -> None:
         """
@@ -1114,7 +1116,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         }
         self._TICKS_PER_PULSE = 7.0
         self._CLOCK_FREQ = 57600
-        self._MAX_RATE = max(rate.maximum for rate in self._AxisRates)
+        self._MAX_RATE = max(rate.Maximum for rate in self._AxisRates)
         
         # LX200 command mappings for axis control
         self._AXIS_COMMANDS = {
@@ -1156,6 +1158,11 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 height=self._config.site_elevation * u.m
             )
         return self._site_location_cache
+    
+    @_site_location.setter
+    def _site_location(self, value):
+        with self._lock:
+            self._site_location_cache = value
 
     def __del__(self) -> None:
         """
@@ -1240,7 +1247,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             raise DriverException(0x500, "Configuration not available for connection")
         
         if not hasattr(self, '_serial_manager') or self._serial_manager is None:
-            self._logger.error("Connect failed: Serial manager not initialized") 
+            self._logger.error("Connect failed: Serial manager not initialized, trying to reinitialize.") 
             raise DriverException(0x500, "Serial manager not available for connection")
         
         if not hasattr(self, '_executor') or self._executor is None:
@@ -1257,11 +1264,13 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             # Handle connection in progress
             if self._Connecting:
                 self._serial_manager.connection_count += 1
-                self._logger.info(f"Connection in progress, reference count: {self._serial_manager.connection_count}")
+                self._logger.info(f"Connection already in progress, reference count: {self._serial_manager.connection_count}")
                 return
 
             # Start new connection
-            self._Connecting = True
+            with self._lock:
+                self._Connecting = True
+                self._Connected = False
             self._logger.info("Starting asynchronous TTS160 mount connection")
             
         try:
@@ -1340,6 +1349,18 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 self._logger.error(f"Serial connection failed on {self._config.dev_port}: {ex}")
                 raise DriverException(0x500, f"Serial connection failed: {ex}", ex)
             
+            # No longer required to check, firmware keeps mount safe
+            # Check if mount is parked.  If it is, it is not safe to connect to the mount, disconnect and clean up.
+            #try:
+            #    if self.AtPark:
+            #        self._logger.info(f"Mount detected as parked, it is not safe to connect.  Disconnecting.")
+            #        self.Disconnect()
+            #        raise DriverException(0xFFF,f"Could not connect mount due to Parked condition.  Connect cancelled.")
+            #except Exception as ex:
+            #    self._logger.error(f"Mount connection failed with unexpected error: {ex}")
+            #    raise DriverException(0x500, "Mount connectiong failed", ex)
+
+
             # Initialize mount hardware and settings
             self._initialize_connected_mount()
             
@@ -1563,12 +1584,12 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 self._logger.error(f"Serial manager disconnect failed: {ex}")
                 # Continue with cleanup despite serial disconnect failure
             
-            # Clear serial manager reference
-            try:
-                self._serial_manager = None
-                self._logger.debug("Serial manager reference cleared")
-            except Exception as ex:
-                self._logger.warning(f"Error clearing serial manager reference: {ex}")
+            ## Clear serial manager reference -> Handled in the __del__ method
+            #try:
+            #    self._serial_manager = None
+            #    self._logger.debug("Serial manager reference cleared")
+            #except Exception as ex:
+            #    self._logger.warning(f"Error clearing serial manager reference: {ex}")
             
             # Update connection state
             with self._lock:
@@ -1701,8 +1722,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         safe_command = command.replace('\r', '\\r').replace('\n', '\\n')
         self._logger.debug(f"Sending command: '{safe_command}' (type: {command_type.name})")
         
-        # Connection state validation
-        if not self._Connected:
+        # Connection state validation - Include checking for connecting to allow for commands at connectiong
+        # before setting Connected to True
+        if not self._Connected and not self._Connecting:
             self._logger.error(f"Command '{safe_command}' attempted while disconnected")
             raise NotConnectedException("Device not connected - cannot send command")
         
@@ -1817,20 +1839,29 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
     def Connected(self) -> bool:
         """ASCOM Connected property."""
         with self._lock:
+            self._logger.debug(f"Reporting Connected as: {self._Connected}")
             return self._Connected
     
     @Connected.setter  
     def Connected(self, value: bool) -> None:
         """ASCOM Connected property setter."""
+        self._logger.debug(f"Set Connected {value}, deprecated connection method, simulating sync methods")
         if value:
             self.Connect()
+            #simulate synchronous execution
+            while not self._Connected:
+                time.sleep(0.1)
         else:
             self.Disconnect()
+            #simulate synchronous execution
+            while self.Connected:
+                time.sleep(0.1)
     
     @property
     def Connecting(self) -> bool:
         """ASCOM Connecting property."""
         with self._lock:
+            self._logger.debug(f"Reporting Connecting as: {self._Connected}")
             return self._Connecting
     
     # Mount Actions
@@ -1991,7 +2022,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             NotConnectedException: If device not connected
             DriverException: If command fails or mount communication error
         """
-        if not self._Connected:
+        if not self._Connected and not self._Connecting:
             raise NotConnectedException("Device not connected")
         
         try:
@@ -2090,7 +2121,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             NotConnectedException: If device not connected
             DriverException: If retrieval or parsing fails
         """
-        if not self._Connected:
+        if not self._Connected and not self._Connecting:
             raise NotConnectedException("Device not connected")
         
         try:
@@ -2133,7 +2164,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             NotConnectedException: If device not connected
             DriverException: If retrieval or parsing fails  
         """
-        if not self._Connected:
+        if not self._Connected and not self._Connecting:
             raise NotConnectedException("Device not connected")
         
         try:
@@ -2187,14 +2218,21 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
     @property
     def AtPark(self) -> bool:
         """True if mount is parked."""
+
+        if not self._Connected:
+            raise NotConnectedException()
+    
         with self._lock:
+            self._is_parked = self._send_command(":*Pq#", CommandType.BOOL)
+            self._logger.debug(f"Returning self._is_parked as: {self._is_parked}.  It is a {type(self._is_parked)}")
             return self._is_parked
     
-    @AtPark.setter
-    def AtPark(self, value: bool) -> None:
-        """Set parked state."""
-        with self._lock:
-            self._is_parked = value
+    # AtPark is a read-only property
+    #@AtPark.setter
+    #def AtPark(self, value: bool) -> None:
+    #    """Set parked state."""
+    #    with self._lock:
+    #        self._is_parked = value
 
     @property
     def DeviceState(self) -> List[dict]:
@@ -2506,9 +2544,19 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             NotConnectedException: If device not connected
             DriverException: If tracking rate setting fails
         """
+        
+        try:
+            rate = DriveRates(rate)
+        except ValueError:
+            raise InvalidValueException(f"Invalid tracking rate: {rate}")
+        
+
+        # Check if supported
+        if rate not in [DriveRates.driveSidereal, DriveRates.driveLunar, DriveRates.driveSolar]:
+            raise InvalidValueException(f"Unsupported tracking rate: {rate}")
+        
         try:
             self._logger.info(f"Setting tracking rate to: {rate.name}")
-            
             if rate == DriveRates.driveSidereal:
                 command = ":TQ#"
             elif rate == DriveRates.driveLunar:
@@ -2516,8 +2564,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             elif rate == DriveRates.driveSolar:
                 command = ":TS#"
             else:
-                self._logger.error(f"Unsupported tracking rate: {rate}")
-                raise InvalidValueException(f"Unknown rate provided: {rate}.")
+                raise InvalidValueException(f"Unsupported tracking rate: {rate}")
             
             self._send_command(command, CommandType.BLIND)
             self._logger.info(f"Tracking rate successfully set to: {rate.name}")
@@ -2529,7 +2576,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
 
     @property
     def RightAscensionRate(self) -> float:
-        raise NotImplementedException()
+        #Not Implemented
+        return 0.0
     
     @RightAscensionRate.setter
     def RightAscensionRate(self, value: float) -> None:
@@ -2537,7 +2585,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
     
     @property
     def DeclinationRate(self) -> float:
-        raise NotImplementedException()
+        #Not Implemented
+        return 0.0
     
     @DeclinationRate.setter
     def DeclinationRate(self, value: float) -> None:
@@ -2919,7 +2968,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 if self._slew_in_progress is None or self._slew_in_progress.done():
                     self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
                 self._is_at_home = False
-                
+        
+        except InvalidValueException or InvalidOperationException:
+            raise
         except Exception as ex:
             raise DriverException(0x503, f"MoveAxis Error: {ex}")
 
@@ -3560,8 +3611,13 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             while self.Slewing:
                 time.sleep(0.5)
             
+            #Once the slew is stopped, query the mount until the parked flag is set
+            #This prevents a gap after the slew while the mount is completeing 
+            #its park routine
             with self._lock:
-                self._is_parked = True
+                while not self._is_parked:
+                    self.AtPark
+                    time.sleep(0.5)
                 
         except Exception as ex:
             self._logger.error(f"Park monitoring failed: {ex}")
@@ -3647,7 +3703,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             NotConnectedException: If device not connected
             DriverException: If date/time retrieval fails
         """
-        if not self._Connected:
+        if not self._Connected and not self._Connecting:
             raise NotConnectedException("Device not connected")
         
         try:
@@ -3670,7 +3726,11 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             local_dt = datetime(year, month, day, hour, minute, second)
             utc_dt = local_dt + timedelta(hours=offset_hours)
             
-            return utc_dt.replace(tzinfo=timezone.utc)
+            utc = utc_dt.replace(tzinfo=timezone.utc)
+            self._logger.info(f"Mount UTC time: {utc}")
+            self._logger.debug(f"Mount UTC time as ISO 8601 string: {utc.isoformat()}")
+
+            return utc.isoformat()
             
         except Exception as ex:
             self._logger.error(f"Failed to get UTC date: {ex}")
@@ -3690,7 +3750,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             InvalidValueException: If invalid datetime provided
             DriverException: If date/time setting fails
         """
-        if not self._Connected:
+        if not self._Connected and not self._Connecting:
             raise NotConnectedException("Device not connected")
         
         if not isinstance(value, datetime):

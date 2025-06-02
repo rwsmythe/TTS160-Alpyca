@@ -10,3 +10,4 @@ site_longitude = -157.90333333333334
 
 [driver]
 sync_time_on_connect = true
+slew_settle_time = 1

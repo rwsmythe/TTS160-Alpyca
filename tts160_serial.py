@@ -128,7 +128,7 @@ class SerialManager:
                         except Exception:
                             pass
                     
-                    return str(ret_bool)
+                    return ret_bool
                 
                 elif command_type == CommandType.STRING:
                     response = self._serial.read_until(b'#').decode('ascii')

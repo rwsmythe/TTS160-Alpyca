@@ -1,1 +1,1001 @@
-2025-05-26T22:07:44.411 ERROR Failed to initialize TTS160 device: name 'Union' is not defined
+2025-06-02T03:11:56.576 DEBUG Logging to stdout disabled in settings
+2025-06-02T03:11:57.403 INFO Initializing TTS160Device instance
+2025-06-02T03:11:57.403 DEBUG Thread pool and locking initialized
+2025-06-02T03:11:57.416 INFO Instantiating serial manager
+2025-06-02T03:11:57.416 DEBUG Serial manager instantiated successfully
+2025-06-02T03:11:57.416 DEBUG Connection state initialized to disconnected
+2025-06-02T03:11:57.418 DEBUG Device metadata: TTS-160 v356.0.0
+2025-06-02T03:11:57.418 DEBUG ASCOM capability flags initialized
+2025-06-02T03:11:57.418 DEBUG Mount state variables initialized
+2025-06-02T03:11:57.418 DEBUG Target state variables initialized
+2025-06-02T03:11:57.418 DEBUG Updating site location from configuration
+2025-06-02T03:11:57.418 DEBUG Configuration values - Lat: 21.34722222222222°, Lon: -157.90333333333334°, Elev: 0.0m
+2025-06-02T03:11:57.418 INFO Site location updated: 21.347222°, -157.903333°, 0.0m
+2025-06-02T03:11:57.418 DEBUG Site location initialized from configuration
+2025-06-02T03:11:57.418 DEBUG Hardware constants and command mappings initialized
+2025-06-02T03:11:57.418 INFO TTS160Device initialization completed successfully
+2025-06-02T03:11:57.418 INFO TTS160 device initialized successfully
+2025-06-02T03:11:57.463 INFO ==STARTUP== Serving on :5555. Time stamps are UTC.
+2025-06-02T03:12:06.354 INFO 127.0.0.1 -> GET /api/v1/telescope/0/interfaceversion?ClientID=1&ClientTransactionID=6809
+2025-06-02T03:12:06.354 INFO 127.0.0.1 <- 4
+2025-06-02T03:12:06.367 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6810
+2025-06-02T03:12:06.367 DEBUG Reporting Connecting as: False
+2025-06-02T03:12:06.369 INFO 127.0.0.1 <- False
+2025-06-02T03:12:06.371 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6811
+2025-06-02T03:12:06.371 DEBUG Reporting Connecting as: False
+2025-06-02T03:12:06.371 INFO 127.0.0.1 <- False
+2025-06-02T03:12:06.384 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-06-02T03:12:06.384 INFO 127.0.0.1 -> {'Connected': 'True', 'ClientID': '1', 'ClientTransactionID': '6812'}
+2025-06-02T03:12:06.384 DEBUG Set Connected True, deprecated connection method, simulating sync methods
+2025-06-02T03:12:06.387 INFO Starting asynchronous TTS160 mount connection
+2025-06-02T03:12:06.389 DEBUG Configuration reloaded successfully
+2025-06-02T03:12:06.389 DEBUG Connection task submitted to thread pool
+2025-06-02T03:12:06.389 DEBUG Beginning mount connection procedure
+2025-06-02T03:12:06.389 INFO Async connection process initiated successfully
+2025-06-02T03:12:06.462 INFO Serial connection opened on COM5
+2025-06-02T03:12:06.465 INFO Serial connection count: 1
+2025-06-02T03:12:06.465 INFO Serial connection established on COM5
+2025-06-02T03:12:06.465 DEBUG Initializing connected mount
+2025-06-02T03:12:06.468 DEBUG Sending command: ':GVP#' (type: STRING)
+2025-06-02T03:12:06.492 DEBUG Command ':GVP#' response: 'TTS-160 Panther#'
+2025-06-02T03:12:06.493 DEBUG Sending command: ':GVN#' (type: STRING)
+2025-06-02T03:12:06.507 DEBUG Command ':GVN#' response: '356C#'
+2025-06-02T03:12:06.507 DEBUG Sending command: ':GVD#' (type: STRING)
+2025-06-02T03:12:06.528 DEBUG Command ':GVD#' response: 'May 30 2025#'
+2025-06-02T03:12:06.528 INFO Connected to mount: TTS-160 Panther
+2025-06-02T03:12:06.529 INFO Firmware version: 356C (May 30 2025)
+2025-06-02T03:12:06.529 DEBUG Synchronizing site coordinates from mount
+2025-06-02T03:12:06.531 DEBUG Retrieving site latitude from mount
+2025-06-02T03:12:06.531 DEBUG Sending command: ':*Gt#' (type: STRING)
+2025-06-02T03:12:06.548 DEBUG Command ':*Gt#' response: '+21*20'50#'
+2025-06-02T03:12:06.549 DEBUG Converting DMS string: '+21*20'50' -> '+21*20'50'
+2025-06-02T03:12:06.549 DEBUG DMS conversion result: 21.347222°
+2025-06-02T03:12:06.553 INFO Site latitude: 21.347222°
+2025-06-02T03:12:06.553 DEBUG Retrieving site longitude from mount
+2025-06-02T03:12:06.555 DEBUG Sending command: ':*Gg#' (type: STRING)
+2025-06-02T03:12:06.572 DEBUG Command ':*Gg#' response: '+157*54'12#'
+2025-06-02T03:12:06.574 DEBUG Converting DMS string: '+157*54'12' -> '+157*54'12'
+2025-06-02T03:12:06.575 DEBUG DMS conversion result: 157.903333°
+2025-06-02T03:12:06.578 INFO Site longitude: -157.903333°
+2025-06-02T03:12:06.579 DEBUG Site coordinates saved to configuration
+2025-06-02T03:12:06.580 DEBUG AstroPy site location updated
+2025-06-02T03:12:06.580 INFO Site coordinates synchronized: 21.347222°, -157.903333°, 0.0m
+2025-06-02T03:12:06.580 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T03:12:06.587 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T03:12:06.587 INFO Setting mount time to: 2025-06-02 03:12:06.580176+00:00
+2025-06-02T03:12:06.587 DEBUG Sending command: ':SC06/01/25#' (type: STRING)
+2025-06-02T03:12:06.604 DEBUG Command ':SC06/01/25#' response: '1#'
+2025-06-02T03:12:06.604 DEBUG Sending command: ':SL17:12:06#' (type: STRING)
+2025-06-02T03:12:07.166 DEBUG Command ':SL17:12:06#' response: '1'
+2025-06-02T03:12:07.166 DEBUG Retrieving sidereal time from mount
+2025-06-02T03:12:07.166 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T03:12:07.183 DEBUG Command ':GS#' response: '19:55:30#'
+2025-06-02T03:12:07.183 DEBUG Converting HMS string: '19:55:30' -> '19:55:30'
+2025-06-02T03:12:07.183 DEBUG HMS conversion result: 19.925000h
+2025-06-02T03:12:07.183 DEBUG Sidereal time - GMST: 19.925h, LST: 9.398h
+2025-06-02T03:12:07.183 INFO Mount time set successfully
+2025-06-02T03:12:07.183 INFO Mount time synchronized with system clock
+2025-06-02T03:12:07.183 INFO Mount initialization completed successfully
+2025-06-02T03:12:07.197 INFO TTS160 mount connection completed successfully
+2025-06-02T03:12:07.200 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6813
+2025-06-02T03:12:07.200 DEBUG Reporting Connected as: True
+2025-06-02T03:12:07.200 INFO 127.0.0.1 <- True
+2025-06-02T03:12:07.726 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connected
+2025-06-02T03:12:07.726 INFO 127.0.0.1 -> {'Connected': 'False', 'ClientID': '1', 'ClientTransactionID': '6814'}
+2025-06-02T03:12:07.726 DEBUG Set Connected False, deprecated connection method, simulating sync methods
+2025-06-02T03:12:07.726 INFO Beginning physical mount disconnection (last client)
+2025-06-02T03:12:07.726 DEBUG Configuration saved before disconnect
+2025-06-02T03:12:07.743 INFO Serial connection count: 0
+2025-06-02T03:12:07.747 DEBUG Serial manager disconnect completed
+2025-06-02T03:12:07.747 INFO TTS160 mount disconnected successfully
+2025-06-02T03:12:07.747 DEBUG Reporting Connected as: False
+2025-06-02T03:12:07.752 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6815
+2025-06-02T03:12:07.752 DEBUG Reporting Connected as: False
+2025-06-02T03:12:07.761 INFO 127.0.0.1 <- False
+2025-06-02T03:12:07.770 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/connect
+2025-06-02T03:12:07.774 INFO 127.0.0.1 -> {'ClientID': '1', 'ClientTransactionID': '6816'}
+2025-06-02T03:12:07.775 INFO Starting asynchronous TTS160 mount connection
+2025-06-02T03:12:07.794 DEBUG Configuration reloaded successfully
+2025-06-02T03:12:07.794 DEBUG Connection task submitted to thread pool
+2025-06-02T03:12:07.794 DEBUG Beginning mount connection procedure
+2025-06-02T03:12:07.794 INFO Async connection process initiated successfully
+2025-06-02T03:12:07.806 INFO Serial connection opened on COM5
+2025-06-02T03:12:07.810 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6817
+2025-06-02T03:12:07.811 INFO Serial connection count: 1
+2025-06-02T03:12:07.811 DEBUG Reporting Connecting as: False
+2025-06-02T03:12:07.811 INFO Serial connection established on COM5
+2025-06-02T03:12:07.811 INFO 127.0.0.1 <- True
+2025-06-02T03:12:07.811 DEBUG Initializing connected mount
+2025-06-02T03:12:07.823 DEBUG Sending command: ':GVP#' (type: STRING)
+2025-06-02T03:12:07.845 DEBUG Command ':GVP#' response: 'TTS-160 Panther#'
+2025-06-02T03:12:07.849 DEBUG Sending command: ':GVN#' (type: STRING)
+2025-06-02T03:12:07.862 DEBUG Command ':GVN#' response: '356C#'
+2025-06-02T03:12:07.862 DEBUG Sending command: ':GVD#' (type: STRING)
+2025-06-02T03:12:07.886 DEBUG Command ':GVD#' response: 'May 30 2025#'
+2025-06-02T03:12:07.886 INFO Connected to mount: TTS-160 Panther
+2025-06-02T03:12:07.886 INFO Firmware version: 356C (May 30 2025)
+2025-06-02T03:12:07.888 DEBUG Synchronizing site coordinates from mount
+2025-06-02T03:12:07.888 DEBUG Retrieving site latitude from mount
+2025-06-02T03:12:07.890 DEBUG Sending command: ':*Gt#' (type: STRING)
+2025-06-02T03:12:07.902 DEBUG Command ':*Gt#' response: '+21*20'50#'
+2025-06-02T03:12:07.902 DEBUG Converting DMS string: '+21*20'50' -> '+21*20'50'
+2025-06-02T03:12:07.912 DEBUG DMS conversion result: 21.347222°
+2025-06-02T03:12:07.916 INFO Site latitude: 21.347222°
+2025-06-02T03:12:07.916 DEBUG Retrieving site longitude from mount
+2025-06-02T03:12:07.916 DEBUG Sending command: ':*Gg#' (type: STRING)
+2025-06-02T03:12:07.933 DEBUG Command ':*Gg#' response: '+157*54'12#'
+2025-06-02T03:12:07.947 DEBUG Converting DMS string: '+157*54'12' -> '+157*54'12'
+2025-06-02T03:12:07.947 DEBUG DMS conversion result: 157.903333°
+2025-06-02T03:12:07.962 INFO Site longitude: -157.903333°
+2025-06-02T03:12:07.964 DEBUG Site coordinates saved to configuration
+2025-06-02T03:12:07.969 DEBUG AstroPy site location updated
+2025-06-02T03:12:07.969 INFO Site coordinates synchronized: 21.347222°, -157.903333°, 0.0m
+2025-06-02T03:12:07.969 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T03:12:07.981 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T03:12:07.981 INFO Setting mount time to: 2025-06-02 03:12:07.969532+00:00
+2025-06-02T03:12:07.981 DEBUG Sending command: ':SC06/01/25#' (type: STRING)
+2025-06-02T03:12:08.040 DEBUG Command ':SC06/01/25#' response: '1#'
+2025-06-02T03:12:08.041 DEBUG Sending command: ':SL17:12:07#' (type: STRING)
+2025-06-02T03:12:08.327 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6818
+2025-06-02T03:12:08.329 DEBUG Reporting Connecting as: False
+2025-06-02T03:12:08.331 INFO 127.0.0.1 <- True
+2025-06-02T03:12:08.556 DEBUG Command ':SL17:12:07#' response: '1'
+2025-06-02T03:12:08.556 DEBUG Retrieving sidereal time from mount
+2025-06-02T03:12:08.556 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T03:12:08.612 DEBUG Command ':GS#' response: '19:55:30#'
+2025-06-02T03:12:08.612 DEBUG Converting HMS string: '19:55:30' -> '19:55:30'
+2025-06-02T03:12:08.612 DEBUG HMS conversion result: 19.925000h
+2025-06-02T03:12:08.619 DEBUG Sidereal time - GMST: 19.925h, LST: 9.398h
+2025-06-02T03:12:08.625 INFO Mount time set successfully
+2025-06-02T03:12:08.625 INFO Mount time synchronized with system clock
+2025-06-02T03:12:08.627 INFO Mount initialization completed successfully
+2025-06-02T03:12:08.627 INFO TTS160 mount connection completed successfully
+2025-06-02T03:12:08.821 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6819
+2025-06-02T03:12:08.821 DEBUG Reporting Connecting as: True
+2025-06-02T03:12:08.821 INFO 127.0.0.1 <- False
+2025-06-02T03:12:08.832 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=6820
+2025-06-02T03:12:08.832 DEBUG Reporting Connecting as: True
+2025-06-02T03:12:08.832 INFO 127.0.0.1 <- False
+2025-06-02T03:12:08.842 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6821
+2025-06-02T03:12:08.842 DEBUG Reporting Connected as: True
+2025-06-02T03:12:08.842 INFO 127.0.0.1 <- True
+2025-06-02T03:12:08.854 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=6822
+2025-06-02T03:12:08.857 DEBUG Reporting Connected as: True
+2025-06-02T03:12:08.858 INFO 127.0.0.1 <- True
+2025-06-02T03:12:08.867 INFO 127.0.0.1 -> GET /api/v1/telescope/0/description?ClientID=1&ClientTransactionID=6823
+2025-06-02T03:12:08.869 INFO 127.0.0.1 <- TTS160 Alpaca Driver
+2025-06-02T03:12:08.882 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverinfo?ClientID=1&ClientTransactionID=6824
+2025-06-02T03:12:08.882 INFO 127.0.0.1 <- Alpaca telescope
+Implements ITelescope
+ASCOM Initiative
+2025-06-02T03:12:08.887 INFO 127.0.0.1 -> GET /api/v1/telescope/0/driverversion?ClientID=1&ClientTransactionID=6825
+2025-06-02T03:12:08.887 INFO 127.0.0.1 <- 356.0.0
+2025-06-02T03:12:08.905 INFO 127.0.0.1 -> GET /api/v1/telescope/0/name?ClientID=1&ClientTransactionID=6826
+2025-06-02T03:12:08.905 INFO 127.0.0.1 <- TTS-160
+2025-06-02T03:12:08.916 INFO 127.0.0.1 -> GET /api/v1/telescope/0/supportedactions?ClientID=1&ClientTransactionID=6827
+2025-06-02T03:12:08.918 DEBUG Reporting Connected as: True
+2025-06-02T03:12:08.920 INFO 127.0.0.1 <- ['FieldRotationAngle']
+2025-06-02T03:12:08.931 INFO 127.0.0.1 -> GET /api/v1/telescope/0/devicestate?ClientID=1&ClientTransactionID=6828
+2025-06-02T03:12:08.933 DEBUG Reporting Connected as: True
+2025-06-02T03:12:08.935 DEBUG Retrieving current altitude from mount
+2025-06-02T03:12:08.937 DEBUG Sending command: ':*GA#' (type: STRING)
+2025-06-02T03:12:08.952 DEBUG Command ':*GA#' response: '0.00028#'
+2025-06-02T03:12:08.958 DEBUG Current altitude: 0.016°
+2025-06-02T03:12:08.958 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:08.967 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:08.967 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:08.967 DEBUG Retrieving current azimuth from mount
+2025-06-02T03:12:08.967 DEBUG Sending command: ':*GZ#' (type: STRING)
+2025-06-02T03:12:09.025 DEBUG Command ':*GZ#' response: '3.14323#'
+2025-06-02T03:12:09.028 DEBUG Current azimuth: 180.094°
+2025-06-02T03:12:09.028 DEBUG Retrieving current declination from mount
+2025-06-02T03:12:09.028 DEBUG Sending command: ':*GD#' (type: STRING)
+2025-06-02T03:12:09.052 DEBUG Command ':*GD#' response: '-1.19793#'
+2025-06-02T03:12:09.052 DEBUG Current declination: -68.636°
+2025-06-02T03:12:09.055 DEBUG Retrieving current right ascension from mount
+2025-06-02T03:12:09.056 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T03:12:09.071 DEBUG Command ':*GR#' response: '2.45999#'
+2025-06-02T03:12:09.071 DEBUG Current right ascension: 9.396h
+2025-06-02T03:12:09.076 DEBUG Retrieving current right ascension from mount
+2025-06-02T03:12:09.079 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T03:12:09.087 DEBUG Command ':*GR#' response: '2.46001#'
+2025-06-02T03:12:09.087 DEBUG Current right ascension: 9.397h
+2025-06-02T03:12:09.102 DEBUG Calculating pier side for RA 9.397h
+2025-06-02T03:12:09.103 DEBUG Retrieving sidereal time from mount
+2025-06-02T03:12:09.105 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T03:12:09.120 DEBUG Command ':GS#' response: '19:55:31#'
+2025-06-02T03:12:09.120 DEBUG Converting HMS string: '19:55:31' -> '19:55:31'
+2025-06-02T03:12:09.120 DEBUG HMS conversion result: 19.925278h
+2025-06-02T03:12:09.120 DEBUG Sidereal time - GMST: 19.925h, LST: 9.398h
+2025-06-02T03:12:09.134 DEBUG Conditioned hour angle: 0.001843h
+2025-06-02T03:12:09.134 DEBUG RA 9.397h, LST 9.398h, HA 0.002h -> pierEast
+2025-06-02T03:12:09.137 DEBUG Retrieving sidereal time from mount
+2025-06-02T03:12:09.137 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T03:12:09.154 DEBUG Command ':GS#' response: '19:55:31#'
+2025-06-02T03:12:09.154 DEBUG Converting HMS string: '19:55:31' -> '19:55:31'
+2025-06-02T03:12:09.154 DEBUG HMS conversion result: 19.925278h
+2025-06-02T03:12:09.165 DEBUG Sidereal time - GMST: 19.925h, LST: 9.398h
+2025-06-02T03:12:09.165 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:09.171 DEBUG Command ':GW#' response: 'PN0#'
+2025-06-02T03:12:09.180 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T03:12:09.197 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T03:12:09.200 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T03:12:09.216 DEBUG Command ':GL#' response: '17:12:08#'
+2025-06-02T03:12:09.216 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T03:12:09.227 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T03:12:09.227 INFO Mount UTC time: 2025-06-02 03:12:08+00:00
+2025-06-02T03:12:09.231 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.233 INFO 127.0.0.1 <- [<shr.StateValue object at 0x0000013EEC1DADD0>, <shr.StateValue object at 0x0000013E847EC090>, <shr.StateValue object at 0x0000013E86847050>, <shr.StateValue object at 0x0000013E86847290>, <shr.StateValue object at 0x0000013E86847390>, <shr.StateValue object at 0x0000013E86846910>, <shr.StateValue object at 0x0000013E86847490>, <shr.StateValue object at 0x0000013E847EE150>, <shr.StateValue object at 0x0000013E868476D0>, <shr.StateValue object at 0x0000013E868100D0>, <shr.StateValue object at 0x0000013E86847090>, <shr.StateValue object at 0x0000013E86847C10>, <shr.StateValue object at 0x0000013E86847A90>]
+2025-06-02T03:12:09.251 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canfindhome?ClientID=1&ClientTransactionID=6829
+2025-06-02T03:12:09.256 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.256 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.264 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpark?ClientID=1&ClientTransactionID=6830
+2025-06-02T03:12:09.264 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.264 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.275 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canpulseguide?ClientID=1&ClientTransactionID=6831
+2025-06-02T03:12:09.277 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.278 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.280 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetdeclinationrate?ClientID=1&ClientTransactionID=6832
+2025-06-02T03:12:09.280 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.280 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.293 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetguiderates?ClientID=1&ClientTransactionID=6833
+2025-06-02T03:12:09.296 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.297 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.297 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpark?ClientID=1&ClientTransactionID=6834
+2025-06-02T03:12:09.305 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.305 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.314 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetpierside?ClientID=1&ClientTransactionID=6835
+2025-06-02T03:12:09.314 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.314 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.314 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=1&ClientTransactionID=6836
+2025-06-02T03:12:09.314 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.314 DEBUG Retrieving mount alignment mode
+2025-06-02T03:12:09.314 DEBUG Mount alignment mode: 0
+2025-06-02T03:12:09.324 INFO 127.0.0.1 <- 0
+2025-06-02T03:12:09.326 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansetrightascensionrate?ClientID=1&ClientTransactionID=6837
+2025-06-02T03:12:09.326 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.326 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.337 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=1&ClientTransactionID=6838
+2025-06-02T03:12:09.339 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.339 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.341 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslew?ClientID=1&ClientTransactionID=6839
+2025-06-02T03:12:09.341 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.341 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.341 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewaltaz?ClientID=1&ClientTransactionID=6840
+2025-06-02T03:12:09.341 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.341 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.358 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewaltazasync?ClientID=1&ClientTransactionID=6841
+2025-06-02T03:12:09.358 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.358 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.365 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canslewasync?ClientID=1&ClientTransactionID=6842
+2025-06-02T03:12:09.365 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.368 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.376 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansync?ClientID=1&ClientTransactionID=6843
+2025-06-02T03:12:09.376 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.376 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.376 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansyncaltaz?ClientID=1&ClientTransactionID=6844
+2025-06-02T03:12:09.376 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.376 INFO 127.0.0.1 <- True
+2025-06-02T03:12:09.376 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canunpark?ClientID=1&ClientTransactionID=6845
+2025-06-02T03:12:09.376 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.376 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.389 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=1&ClientTransactionID=6846
+2025-06-02T03:12:09.391 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.391 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:09.400 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:09.401 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:09.402 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.406 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T03:12:09.406 INFO 127.0.0.1 -> {'Tracking': 'True', 'ClientID': '1', 'ClientTransactionID': '6847'}
+2025-06-02T03:12:09.406 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.408 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:09.417 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:09.417 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:09.417 DEBUG Sending command: ':T1#' (type: BLIND)
+2025-06-02T03:12:09.429 DEBUG Command ':T1#' executed successfully (no response)
+2025-06-02T03:12:09.437 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6848
+2025-06-02T03:12:09.437 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.437 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T03:12:09.454 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T03:12:09.460 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T03:12:09.477 DEBUG Command ':GL#' response: '17:12:08#'
+2025-06-02T03:12:09.477 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T03:12:09.481 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T03:12:09.481 INFO Mount UTC time: 2025-06-02 03:12:08+00:00
+2025-06-02T03:12:09.492 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.493 INFO Retrieved date: 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.494 INFO 127.0.0.1 <- 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.494 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6849
+2025-06-02T03:12:09.494 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.508 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T03:12:09.525 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T03:12:09.525 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T03:12:09.540 DEBUG Command ':GL#' response: '17:12:08#'
+2025-06-02T03:12:09.544 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T03:12:09.556 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T03:12:09.556 INFO Mount UTC time: 2025-06-02 03:12:08+00:00
+2025-06-02T03:12:09.556 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.556 INFO Retrieved date: 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.561 INFO 127.0.0.1 <- 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.561 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6850
+2025-06-02T03:12:09.571 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.571 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T03:12:09.587 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T03:12:09.587 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T03:12:09.602 DEBUG Command ':GL#' response: '17:12:08#'
+2025-06-02T03:12:09.602 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T03:12:09.619 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T03:12:09.619 INFO Mount UTC time: 2025-06-02 03:12:08+00:00
+2025-06-02T03:12:09.619 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.619 INFO Retrieved date: 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.619 INFO 127.0.0.1 <- 2025-06-02T03:12:08+00:00
+2025-06-02T03:12:09.634 INFO 127.0.0.1 -> GET /api/v1/telescope/0/targetdeclination?ClientID=1&ClientTransactionID=6851
+2025-06-02T03:12:09.634 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.634 ERROR InvalidOperationException: Target declination not set
+2025-06-02T03:12:09.634 ERROR InvalidOperationException: Target declination not set
+2025-06-02T03:12:09.651 INFO 127.0.0.1 -> GET /api/v1/telescope/0/targetrightascension?ClientID=1&ClientTransactionID=6852
+2025-06-02T03:12:09.653 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.655 ERROR InvalidOperationException: Target Right Ascension not set
+2025-06-02T03:12:09.655 ERROR InvalidOperationException: Target Right Ascension not set
+2025-06-02T03:12:09.655 INFO 127.0.0.1 -> GET /api/v1/telescope/0/alignmentmode?ClientID=1&ClientTransactionID=6853
+2025-06-02T03:12:09.655 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.664 DEBUG Retrieving mount alignment mode
+2025-06-02T03:12:09.664 DEBUG Mount alignment mode: 0
+2025-06-02T03:12:09.664 INFO 127.0.0.1 <- 0
+2025-06-02T03:12:09.670 INFO 127.0.0.1 -> GET /api/v1/telescope/0/altitude?ClientID=1&ClientTransactionID=6854
+2025-06-02T03:12:09.670 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.670 DEBUG Retrieving current altitude from mount
+2025-06-02T03:12:09.681 DEBUG Sending command: ':*GA#' (type: STRING)
+2025-06-02T03:12:09.698 DEBUG Command ':*GA#' response: '0.00028#'
+2025-06-02T03:12:09.701 DEBUG Current altitude: 0.016°
+2025-06-02T03:12:09.701 INFO 127.0.0.1 <- 0.01604281826366305
+2025-06-02T03:12:09.714 INFO 127.0.0.1 -> GET /api/v1/telescope/0/aperturearea?ClientID=1&ClientTransactionID=6855
+2025-06-02T03:12:09.716 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.717 ERROR NotImplementedException: Property or method not implemented.
+2025-06-02T03:12:09.719 ERROR NotImplementedException: Property or method not implemented.
+2025-06-02T03:12:09.725 INFO 127.0.0.1 -> GET /api/v1/telescope/0/aperturediameter?ClientID=1&ClientTransactionID=6856
+2025-06-02T03:12:09.725 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.725 ERROR NotImplementedException: Aperturediameter property not implemented
+2025-06-02T03:12:09.734 INFO 127.0.0.1 -> GET /api/v1/telescope/0/athome?ClientID=1&ClientTransactionID=6857
+2025-06-02T03:12:09.742 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.744 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.749 INFO 127.0.0.1 -> GET /api/v1/telescope/0/atpark?ClientID=1&ClientTransactionID=6858
+2025-06-02T03:12:09.749 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.749 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:09.764 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:09.766 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:09.766 INFO 127.0.0.1 <- False
+2025-06-02T03:12:09.776 INFO 127.0.0.1 -> GET /api/v1/telescope/0/azimuth?ClientID=1&ClientTransactionID=6859
+2025-06-02T03:12:09.778 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.779 DEBUG Retrieving current azimuth from mount
+2025-06-02T03:12:09.781 DEBUG Sending command: ':*GZ#' (type: STRING)
+2025-06-02T03:12:09.796 DEBUG Command ':*GZ#' response: '3.14323#'
+2025-06-02T03:12:09.800 DEBUG Current azimuth: 180.094°
+2025-06-02T03:12:09.800 INFO 127.0.0.1 <- 180.09381303890575
+2025-06-02T03:12:09.811 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declination?ClientID=1&ClientTransactionID=6860
+2025-06-02T03:12:09.812 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.812 DEBUG Retrieving current declination from mount
+2025-06-02T03:12:09.812 DEBUG Sending command: ':*GD#' (type: STRING)
+2025-06-02T03:12:09.834 DEBUG Command ':*GD#' response: '-1.19793#'
+2025-06-02T03:12:09.836 DEBUG Current declination: -68.636°
+2025-06-02T03:12:09.837 INFO 127.0.0.1 <- -68.6363331521067
+2025-06-02T03:12:09.844 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declinationrate?ClientID=1&ClientTransactionID=6861
+2025-06-02T03:12:09.844 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.844 INFO 127.0.0.1 <- 0.0
+2025-06-02T03:12:09.859 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/declinationrate
+2025-06-02T03:12:09.859 INFO 127.0.0.1 -> {'DeclinationRate': '0', 'ClientID': '1', 'ClientTransactionID': '6862'}
+2025-06-02T03:12:09.859 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.859 ERROR NotImplementedException: DeclinationRate Set property not implemented
+2025-06-02T03:12:09.875 INFO 127.0.0.1 -> GET /api/v1/telescope/0/doesrefraction?ClientID=1&ClientTransactionID=6863
+2025-06-02T03:12:09.876 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.878 ERROR NotImplementedException: Doesrefraction property not implemented
+2025-06-02T03:12:09.887 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/doesrefraction
+2025-06-02T03:12:09.887 INFO 127.0.0.1 -> {'DoesRefraction': 'True', 'ClientID': '1', 'ClientTransactionID': '6864'}
+2025-06-02T03:12:09.890 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.898 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/doesrefraction
+2025-06-02T03:12:09.900 INFO 127.0.0.1 -> {'DoesRefraction': 'False', 'ClientID': '1', 'ClientTransactionID': '6865'}
+2025-06-02T03:12:09.901 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.905 INFO 127.0.0.1 -> GET /api/v1/telescope/0/equatorialsystem?ClientID=1&ClientTransactionID=6866
+2025-06-02T03:12:09.905 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.905 INFO Querying current epoch
+2025-06-02T03:12:09.905 DEBUG Sending command: ':*E#' (type: BOOL)
+2025-06-02T03:12:09.965 DEBUG Command ':*E#' response: 'True'
+2025-06-02T03:12:09.967 INFO Retrieved True, indicating Topocentric Equatorial
+2025-06-02T03:12:09.969 INFO 127.0.0.1 <- 1
+2025-06-02T03:12:09.975 INFO 127.0.0.1 -> GET /api/v1/telescope/0/focallength?ClientID=1&ClientTransactionID=6867
+2025-06-02T03:12:09.979 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.979 ERROR NotImplementedException: ApertureArea property not implemented
+2025-06-02T03:12:09.992 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideratedeclination?ClientID=1&ClientTransactionID=6868
+2025-06-02T03:12:09.994 DEBUG Reporting Connected as: True
+2025-06-02T03:12:09.996 DEBUG Retrieving declination guide rate
+2025-06-02T03:12:09.998 DEBUG Sending command: ':*gRG#' (type: STRING)
+2025-06-02T03:12:10.003 DEBUG Command ':*gRG#' response: '2#'
+2025-06-02T03:12:10.003 DEBUG Declination guide rate: 0.001389 deg/sec (index 2)
+2025-06-02T03:12:10.003 INFO 127.0.0.1 <- 0.001388888888888889
+2025-06-02T03:12:10.020 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/guideratedeclination
+2025-06-02T03:12:10.022 INFO 127.0.0.1 -> {'GuideRateDeclination': '0.001388888888888889', 'ClientID': '1', 'ClientTransactionID': '6869'}
+2025-06-02T03:12:10.025 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.033 INFO 127.0.0.1 -> GET /api/v1/telescope/0/guideraterightascension?ClientID=1&ClientTransactionID=6870
+2025-06-02T03:12:10.033 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.037 DEBUG Retrieving right ascension guide rate
+2025-06-02T03:12:10.041 DEBUG Sending command: ':*gRG#' (type: STRING)
+2025-06-02T03:12:10.052 DEBUG Command ':*gRG#' response: '2#'
+2025-06-02T03:12:10.052 DEBUG Right ascension guide rate: 0.001389 deg/sec (index 2)
+2025-06-02T03:12:10.054 INFO 127.0.0.1 <- 0.001388888888888889
+2025-06-02T03:12:10.065 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/guideraterightascension
+2025-06-02T03:12:10.067 INFO 127.0.0.1 -> {'GuideRateRightAscension': '0.001388888888888889', 'ClientID': '1', 'ClientTransactionID': '6871'}
+2025-06-02T03:12:10.069 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.075 INFO 127.0.0.1 -> GET /api/v1/telescope/0/ispulseguiding?ClientID=1&ClientTransactionID=6872
+2025-06-02T03:12:10.077 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.077 INFO 127.0.0.1 <- False
+2025-06-02T03:12:10.078 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascension?ClientID=1&ClientTransactionID=6873
+2025-06-02T03:12:10.078 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.078 DEBUG Retrieving current right ascension from mount
+2025-06-02T03:12:10.078 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T03:12:10.090 DEBUG Command ':*GR#' response: '2.46004#'
+2025-06-02T03:12:10.090 DEBUG Current right ascension: 9.397h
+2025-06-02T03:12:10.090 INFO 127.0.0.1 <- 9.396660628890867
+2025-06-02T03:12:10.105 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascensionrate?ClientID=1&ClientTransactionID=6874
+2025-06-02T03:12:10.105 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.117 INFO 127.0.0.1 <- 0.0
+2025-06-02T03:12:10.125 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/rightascensionrate
+2025-06-02T03:12:10.125 INFO 127.0.0.1 -> {'RightAscensionRate': '0', 'ClientID': '1', 'ClientTransactionID': '6875'}
+2025-06-02T03:12:10.125 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.125 ERROR NotImplementedException: Rightascensionrate set property not implemented
+2025-06-02T03:12:10.140 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siteelevation?ClientID=1&ClientTransactionID=6876
+2025-06-02T03:12:10.140 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.140 INFO 127.0.0.1 <- 0.0
+2025-06-02T03:12:10.156 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/siteelevation
+2025-06-02T03:12:10.156 INFO 127.0.0.1 -> {'SiteElevation': '-301', 'ClientID': '1', 'ClientTransactionID': '6877'}
+2025-06-02T03:12:10.156 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.156 ERROR NotImplementedException: Siteelevation set property not implemented
+2025-06-02T03:12:10.172 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/siteelevation
+2025-06-02T03:12:10.173 INFO 127.0.0.1 -> {'SiteElevation': '10001', 'ClientID': '1', 'ClientTransactionID': '6878'}
+2025-06-02T03:12:10.173 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.173 ERROR NotImplementedException: Siteelevation set property not implemented
+2025-06-02T03:12:10.187 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/siteelevation
+2025-06-02T03:12:10.187 INFO 127.0.0.1 -> {'SiteElevation': '0', 'ClientID': '1', 'ClientTransactionID': '6879'}
+2025-06-02T03:12:10.190 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.190 ERROR NotImplementedException: Siteelevation set property not implemented
+2025-06-02T03:12:10.190 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelatitude?ClientID=1&ClientTransactionID=6880
+2025-06-02T03:12:10.203 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.203 DEBUG Retrieving site latitude from mount
+2025-06-02T03:12:10.203 DEBUG Sending command: ':*Gt#' (type: STRING)
+2025-06-02T03:12:10.224 DEBUG Command ':*Gt#' response: '+21*20'50#'
+2025-06-02T03:12:10.224 DEBUG Converting DMS string: '+21*20'50' -> '+21*20'50'
+2025-06-02T03:12:10.224 DEBUG DMS conversion result: 21.347222°
+2025-06-02T03:12:10.241 INFO Site latitude: 21.347222°
+2025-06-02T03:12:10.241 INFO 127.0.0.1 <- 21.34722222222222
+2025-06-02T03:12:10.244 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelatitude
+2025-06-02T03:12:10.244 INFO 127.0.0.1 -> {'SiteLatitude': '-91', 'ClientID': '1', 'ClientTransactionID': '6881'}
+2025-06-02T03:12:10.244 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.244 ERROR NotImplementedException: Sitelatitude set property not implemented
+2025-06-02T03:12:10.260 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelatitude
+2025-06-02T03:12:10.260 INFO 127.0.0.1 -> {'SiteLatitude': '91', 'ClientID': '1', 'ClientTransactionID': '6882'}
+2025-06-02T03:12:10.260 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.260 ERROR NotImplementedException: Sitelatitude set property not implemented
+2025-06-02T03:12:10.278 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelatitude
+2025-06-02T03:12:10.279 INFO 127.0.0.1 -> {'SiteLatitude': '21.34722222222222', 'ClientID': '1', 'ClientTransactionID': '6883'}
+2025-06-02T03:12:10.279 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.281 ERROR NotImplementedException: Sitelatitude set property not implemented
+2025-06-02T03:12:10.281 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sitelongitude?ClientID=1&ClientTransactionID=6884
+2025-06-02T03:12:10.281 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.281 DEBUG Retrieving site longitude from mount
+2025-06-02T03:12:10.292 DEBUG Sending command: ':*Gg#' (type: STRING)
+2025-06-02T03:12:10.310 DEBUG Command ':*Gg#' response: '+157*54'12#'
+2025-06-02T03:12:10.310 DEBUG Converting DMS string: '+157*54'12' -> '+157*54'12'
+2025-06-02T03:12:10.310 DEBUG DMS conversion result: 157.903333°
+2025-06-02T03:12:10.326 INFO Site longitude: -157.903333°
+2025-06-02T03:12:10.326 INFO 127.0.0.1 <- -157.90333333333334
+2025-06-02T03:12:10.337 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelongitude
+2025-06-02T03:12:10.338 INFO 127.0.0.1 -> {'SiteLongitude': '-181', 'ClientID': '1', 'ClientTransactionID': '6885'}
+2025-06-02T03:12:10.340 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.342 ERROR NotImplementedException: Sitelongitude set property not implemented
+2025-06-02T03:12:10.346 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelongitude
+2025-06-02T03:12:10.346 INFO 127.0.0.1 -> {'SiteLongitude': '181', 'ClientID': '1', 'ClientTransactionID': '6886'}
+2025-06-02T03:12:10.346 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.346 ERROR NotImplementedException: Sitelongitude set property not implemented
+2025-06-02T03:12:10.346 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/sitelongitude
+2025-06-02T03:12:10.346 INFO 127.0.0.1 -> {'SiteLongitude': '-157.90333333333334', 'ClientID': '1', 'ClientTransactionID': '6887'}
+2025-06-02T03:12:10.346 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.360 ERROR NotImplementedException: Sitelongitude set property not implemented
+2025-06-02T03:12:10.362 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6888
+2025-06-02T03:12:10.367 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.376 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewsettletime?ClientID=1&ClientTransactionID=6889
+2025-06-02T03:12:10.378 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.378 INFO 127.0.0.1 <- 1
+2025-06-02T03:12:10.378 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/slewsettletime
+2025-06-02T03:12:10.378 INFO 127.0.0.1 -> {'SlewSettleTime': '-1', 'ClientID': '1', 'ClientTransactionID': '6890'}
+2025-06-02T03:12:10.378 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.378 ERROR InvalidValueException: Invalid Slew Settle Time: -1, value not saved.
+2025-06-02T03:12:10.378 ERROR InvalidValueException: Invalid Slew Settle Time: -1, value not saved.
+2025-06-02T03:12:10.389 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/slewsettletime
+2025-06-02T03:12:10.389 INFO 127.0.0.1 -> {'SlewSettleTime': '1', 'ClientID': '1', 'ClientTransactionID': '6891'}
+2025-06-02T03:12:10.389 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.394 INFO 127.0.0.1 -> GET /api/v1/telescope/0/sideofpier?ClientID=1&ClientTransactionID=6892
+2025-06-02T03:12:10.394 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.394 DEBUG Retrieving current right ascension from mount
+2025-06-02T03:12:10.398 DEBUG Sending command: ':*GR#' (type: STRING)
+2025-06-02T03:12:10.411 DEBUG Command ':*GR#' response: '2.46004#'
+2025-06-02T03:12:10.411 DEBUG Current right ascension: 9.397h
+2025-06-02T03:12:10.411 DEBUG Calculating pier side for RA 9.397h
+2025-06-02T03:12:10.418 DEBUG Retrieving sidereal time from mount
+2025-06-02T03:12:10.418 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T03:12:10.434 DEBUG Command ':GS#' response: '19:55:32#'
+2025-06-02T03:12:10.434 DEBUG Converting HMS string: '19:55:32' -> '19:55:32'
+2025-06-02T03:12:10.434 DEBUG HMS conversion result: 19.925556h
+2025-06-02T03:12:10.445 DEBUG Sidereal time - GMST: 19.926h, LST: 9.399h
+2025-06-02T03:12:10.447 DEBUG Conditioned hour angle: 0.002006h
+2025-06-02T03:12:10.447 DEBUG RA 9.397h, LST 9.399h, HA 0.002h -> pierEast
+2025-06-02T03:12:10.447 INFO 127.0.0.1 <- 0
+2025-06-02T03:12:10.447 INFO 127.0.0.1 -> GET /api/v1/telescope/0/siderealtime?ClientID=1&ClientTransactionID=6893
+2025-06-02T03:12:10.447 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.462 DEBUG Retrieving sidereal time from mount
+2025-06-02T03:12:10.464 DEBUG Sending command: ':GS#' (type: STRING)
+2025-06-02T03:12:10.480 DEBUG Command ':GS#' response: '19:55:32#'
+2025-06-02T03:12:10.480 DEBUG Converting HMS string: '19:55:32' -> '19:55:32'
+2025-06-02T03:12:10.480 DEBUG HMS conversion result: 19.925556h
+2025-06-02T03:12:10.486 DEBUG Sidereal time - GMST: 19.926h, LST: 9.399h
+2025-06-02T03:12:10.493 INFO 127.0.0.1 <- 9.398666666666667
+2025-06-02T03:12:10.497 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6894
+2025-06-02T03:12:10.508 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.508 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:10.519 DEBUG Command ':GW#' response: 'PT0#'
+2025-06-02T03:12:10.524 INFO 127.0.0.1 <- True
+2025-06-02T03:12:10.531 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T03:12:10.531 INFO 127.0.0.1 -> {'Tracking': 'False', 'ClientID': '1', 'ClientTransactionID': '6895'}
+2025-06-02T03:12:10.531 DEBUG Reporting Connected as: True
+2025-06-02T03:12:10.531 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:10.546 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:10.547 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:10.547 DEBUG Sending command: ':T0#' (type: BLIND)
+2025-06-02T03:12:10.562 DEBUG Command ':T0#' executed successfully (no response)
+2025-06-02T03:12:11.573 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6896
+2025-06-02T03:12:11.573 DEBUG Reporting Connected as: True
+2025-06-02T03:12:11.573 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:11.591 DEBUG Command ':GW#' response: 'PN0#'
+2025-06-02T03:12:11.592 INFO 127.0.0.1 <- False
+2025-06-02T03:12:11.598 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T03:12:11.598 INFO 127.0.0.1 -> {'Tracking': 'True', 'ClientID': '1', 'ClientTransactionID': '6897'}
+2025-06-02T03:12:11.598 DEBUG Reporting Connected as: True
+2025-06-02T03:12:11.598 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:11.617 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:11.619 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:11.620 DEBUG Sending command: ':T1#' (type: BLIND)
+2025-06-02T03:12:11.689 DEBUG Command ':T1#' executed successfully (no response)
+2025-06-02T03:12:12.713 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6898
+2025-06-02T03:12:12.721 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.721 DEBUG Retrieving available tracking rates
+2025-06-02T03:12:12.721 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T03:12:12.721 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T03:12:12.727 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6899
+2025-06-02T03:12:12.738 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.738 DEBUG Retrieving available tracking rates
+2025-06-02T03:12:12.738 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T03:12:12.744 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T03:12:12.755 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6900
+2025-06-02T03:12:12.755 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.755 DEBUG Retrieving available tracking rates
+2025-06-02T03:12:12.755 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T03:12:12.755 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T03:12:12.765 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrates?ClientID=1&ClientTransactionID=6901
+2025-06-02T03:12:12.765 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.771 DEBUG Retrieving available tracking rates
+2025-06-02T03:12:12.773 DEBUG Available tracking rates: ['driveSidereal', 'driveLunar', 'driveSolar']
+2025-06-02T03:12:12.775 INFO 127.0.0.1 <- [<DriveRates.driveSidereal: 0>, <DriveRates.driveLunar: 1>, <DriveRates.driveSolar: 2>]
+2025-06-02T03:12:12.784 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6902
+2025-06-02T03:12:12.784 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.784 DEBUG Retrieving current tracking rate from mount
+2025-06-02T03:12:12.784 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T03:12:12.797 DEBUG Command ':*TRG#' response: '0#'
+2025-06-02T03:12:12.797 DEBUG Current tracking rate: driveSidereal
+2025-06-02T03:12:12.797 INFO 127.0.0.1 <- 0
+2025-06-02T03:12:12.808 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:12.810 INFO 127.0.0.1 -> {'TrackingRate': '0', 'ClientID': '1', 'ClientTransactionID': '6903'}
+2025-06-02T03:12:12.812 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.813 INFO Setting tracking rate to: driveSidereal
+2025-06-02T03:12:12.813 DEBUG Sending command: ':TQ#' (type: BLIND)
+2025-06-02T03:12:12.828 DEBUG Command ':TQ#' executed successfully (no response)
+2025-06-02T03:12:12.828 INFO Tracking rate successfully set to: driveSidereal
+2025-06-02T03:12:12.838 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:12.841 INFO 127.0.0.1 -> {'TrackingRate': '0', 'ClientID': '1', 'ClientTransactionID': '6904'}
+2025-06-02T03:12:12.842 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.843 INFO Setting tracking rate to: driveSidereal
+2025-06-02T03:12:12.844 DEBUG Sending command: ':TQ#' (type: BLIND)
+2025-06-02T03:12:12.857 DEBUG Command ':TQ#' executed successfully (no response)
+2025-06-02T03:12:12.857 INFO Tracking rate successfully set to: driveSidereal
+2025-06-02T03:12:12.863 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6905
+2025-06-02T03:12:12.868 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.869 DEBUG Retrieving current tracking rate from mount
+2025-06-02T03:12:12.871 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T03:12:12.882 DEBUG Command ':*TRG#' response: '0#'
+2025-06-02T03:12:12.884 DEBUG Current tracking rate: driveSidereal
+2025-06-02T03:12:12.886 INFO 127.0.0.1 <- 0
+2025-06-02T03:12:12.899 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:12.901 INFO 127.0.0.1 -> {'TrackingRate': '1', 'ClientID': '1', 'ClientTransactionID': '6906'}
+2025-06-02T03:12:12.903 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.905 INFO Setting tracking rate to: driveLunar
+2025-06-02T03:12:12.907 DEBUG Sending command: ':TL#' (type: BLIND)
+2025-06-02T03:12:12.920 DEBUG Command ':TL#' executed successfully (no response)
+2025-06-02T03:12:12.925 INFO Tracking rate successfully set to: driveLunar
+2025-06-02T03:12:12.942 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6907
+2025-06-02T03:12:12.942 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.942 DEBUG Retrieving current tracking rate from mount
+2025-06-02T03:12:12.942 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T03:12:12.946 DEBUG Command ':*TRG#' response: '1#'
+2025-06-02T03:12:12.946 DEBUG Current tracking rate: driveLunar
+2025-06-02T03:12:12.946 INFO 127.0.0.1 <- 1
+2025-06-02T03:12:12.965 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declinationrate?ClientID=1&ClientTransactionID=6908
+2025-06-02T03:12:12.967 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.967 INFO 127.0.0.1 <- 0.0
+2025-06-02T03:12:12.970 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascensionrate?ClientID=1&ClientTransactionID=6909
+2025-06-02T03:12:12.970 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.976 INFO 127.0.0.1 <- 0.0
+2025-06-02T03:12:12.985 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:12.985 INFO 127.0.0.1 -> {'TrackingRate': '2', 'ClientID': '1', 'ClientTransactionID': '6910'}
+2025-06-02T03:12:12.985 DEBUG Reporting Connected as: True
+2025-06-02T03:12:12.985 INFO Setting tracking rate to: driveSolar
+2025-06-02T03:12:12.985 DEBUG Sending command: ':TS#' (type: BLIND)
+2025-06-02T03:12:13.003 DEBUG Command ':TS#' executed successfully (no response)
+2025-06-02T03:12:13.003 INFO Tracking rate successfully set to: driveSolar
+2025-06-02T03:12:13.011 INFO 127.0.0.1 -> GET /api/v1/telescope/0/trackingrate?ClientID=1&ClientTransactionID=6911
+2025-06-02T03:12:13.013 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.013 DEBUG Retrieving current tracking rate from mount
+2025-06-02T03:12:13.013 DEBUG Sending command: ':*TRG#' (type: STRING)
+2025-06-02T03:12:13.028 DEBUG Command ':*TRG#' response: '2#'
+2025-06-02T03:12:13.029 DEBUG Current tracking rate: driveSolar
+2025-06-02T03:12:13.029 INFO 127.0.0.1 <- 2
+2025-06-02T03:12:13.040 INFO 127.0.0.1 -> GET /api/v1/telescope/0/declinationrate?ClientID=1&ClientTransactionID=6912
+2025-06-02T03:12:13.042 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.042 INFO 127.0.0.1 <- 0.0
+2025-06-02T03:12:13.048 INFO 127.0.0.1 -> GET /api/v1/telescope/0/rightascensionrate?ClientID=1&ClientTransactionID=6913
+2025-06-02T03:12:13.048 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.048 INFO 127.0.0.1 <- 0.0
+2025-06-02T03:12:13.062 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:13.062 INFO 127.0.0.1 -> {'TrackingRate': '3', 'ClientID': '1', 'ClientTransactionID': '6914'}
+2025-06-02T03:12:13.062 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.062 ERROR InvalidValueException: Unsupported tracking rate: 3
+2025-06-02T03:12:13.062 ERROR InvalidValueException: Unsupported tracking rate: 3
+2025-06-02T03:12:13.078 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:13.079 INFO 127.0.0.1 -> {'TrackingRate': '5', 'ClientID': '1', 'ClientTransactionID': '6915'}
+2025-06-02T03:12:13.079 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.079 ERROR InvalidValueException: Invalid tracking rate: 5
+2025-06-02T03:12:13.079 ERROR InvalidValueException: Invalid tracking rate: 5
+2025-06-02T03:12:13.093 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:13.095 INFO 127.0.0.1 -> {'TrackingRate': '-1', 'ClientID': '1', 'ClientTransactionID': '6916'}
+2025-06-02T03:12:13.097 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.097 ERROR InvalidValueException: Invalid tracking rate: -1
+2025-06-02T03:12:13.100 ERROR InvalidValueException: Invalid tracking rate: -1
+2025-06-02T03:12:13.112 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/trackingrate
+2025-06-02T03:12:13.112 INFO 127.0.0.1 -> {'TrackingRate': '0', 'ClientID': '1', 'ClientTransactionID': '6917'}
+2025-06-02T03:12:13.112 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.112 INFO Setting tracking rate to: driveSidereal
+2025-06-02T03:12:13.117 DEBUG Sending command: ':TQ#' (type: BLIND)
+2025-06-02T03:12:13.129 DEBUG Command ':TQ#' executed successfully (no response)
+2025-06-02T03:12:13.130 INFO Tracking rate successfully set to: driveSidereal
+2025-06-02T03:12:13.138 INFO 127.0.0.1 -> GET /api/v1/telescope/0/utcdate?ClientID=1&ClientTransactionID=6918
+2025-06-02T03:12:13.138 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.138 DEBUG Sending command: ':GC#' (type: STRING)
+2025-06-02T03:12:13.155 DEBUG Command ':GC#' response: '06/01/25#'
+2025-06-02T03:12:13.155 DEBUG Sending command: ':GL#' (type: STRING)
+2025-06-02T03:12:13.171 DEBUG Command ':GL#' response: '17:12:11#'
+2025-06-02T03:12:13.171 DEBUG Sending command: ':GG#' (type: STRING)
+2025-06-02T03:12:13.181 DEBUG Command ':GG#' response: '+10#'
+2025-06-02T03:12:13.181 INFO Mount UTC time: 2025-06-02 03:12:11+00:00
+2025-06-02T03:12:13.181 DEBUG Mount UTC time as ISO 8601 string: 2025-06-02T03:12:11+00:00
+2025-06-02T03:12:13.181 INFO Retrieved date: 2025-06-02T03:12:11+00:00
+2025-06-02T03:12:13.181 INFO 127.0.0.1 <- 2025-06-02T03:12:11+00:00
+2025-06-02T03:12:13.197 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/utcdate
+2025-06-02T03:12:13.197 INFO 127.0.0.1 -> {'UTCDate': '2025-06-01T18:12:11.0000000Z', 'ClientID': '1', 'ClientTransactionID': '6919'}
+2025-06-02T03:12:13.197 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.215 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/utcdate
+2025-06-02T03:12:13.218 INFO 127.0.0.1 -> {'UTCDate': '2025-06-01T17:12:11.0000000Z', 'ClientID': '1', 'ClientTransactionID': '6920'}
+2025-06-02T03:12:13.219 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.229 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=1&ClientTransactionID=6921&Axis=0
+2025-06-02T03:12:13.229 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.231 DEBUG Checking movement capability for axis: 0
+2025-06-02T03:12:13.233 DEBUG Axis 0 movement capability: True
+2025-06-02T03:12:13.235 INFO 127.0.0.1 <- True
+2025-06-02T03:12:13.244 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=1&ClientTransactionID=6922&Axis=1
+2025-06-02T03:12:13.245 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.246 DEBUG Checking movement capability for axis: 1
+2025-06-02T03:12:13.247 DEBUG Axis 1 movement capability: True
+2025-06-02T03:12:13.248 INFO 127.0.0.1 <- True
+2025-06-02T03:12:13.251 INFO 127.0.0.1 -> GET /api/v1/telescope/0/canmoveaxis?ClientID=1&ClientTransactionID=6923&Axis=2
+2025-06-02T03:12:13.251 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.251 DEBUG Checking movement capability for axis: 2
+2025-06-02T03:12:13.251 DEBUG Axis 2 movement not supported (tertiary axis)
+2025-06-02T03:12:13.251 INFO 127.0.0.1 <- False
+2025-06-02T03:12:13.265 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6924&Axis=0
+2025-06-02T03:12:13.265 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.265 INFO Calling for axis rate with argument 0
+2025-06-02T03:12:13.274 DEBUG Retrieving available rates for axis: 0
+2025-06-02T03:12:13.275 DEBUG Axis 0 available rates: 1 rate ranges
+2025-06-02T03:12:13.276 DEBUG   Rate 0: 0.0-3.5 deg/sec
+2025-06-02T03:12:13.278 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-06-02T03:12:13.283 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6925&Axis=0
+2025-06-02T03:12:13.283 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.283 INFO Calling for axis rate with argument 0
+2025-06-02T03:12:13.283 DEBUG Retrieving available rates for axis: 0
+2025-06-02T03:12:13.283 DEBUG Axis 0 available rates: 1 rate ranges
+2025-06-02T03:12:13.283 DEBUG   Rate 0: 0.0-3.5 deg/sec
+2025-06-02T03:12:13.283 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-06-02T03:12:13.300 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6926&Axis=1
+2025-06-02T03:12:13.305 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.305 INFO Calling for axis rate with argument 1
+2025-06-02T03:12:13.307 DEBUG Retrieving available rates for axis: 1
+2025-06-02T03:12:13.308 DEBUG Axis 1 available rates: 1 rate ranges
+2025-06-02T03:12:13.310 DEBUG   Rate 0: 0.0-3.5 deg/sec
+2025-06-02T03:12:13.311 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-06-02T03:12:13.316 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6927&Axis=1
+2025-06-02T03:12:13.316 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.316 INFO Calling for axis rate with argument 1
+2025-06-02T03:12:13.316 DEBUG Retrieving available rates for axis: 1
+2025-06-02T03:12:13.316 DEBUG Axis 1 available rates: 1 rate ranges
+2025-06-02T03:12:13.327 DEBUG   Rate 0: 0.0-3.5 deg/sec
+2025-06-02T03:12:13.327 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-06-02T03:12:13.337 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6928&Axis=2
+2025-06-02T03:12:13.338 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.340 INFO Calling for axis rate with argument 2
+2025-06-02T03:12:13.342 DEBUG Retrieving available rates for axis: 2
+2025-06-02T03:12:13.343 DEBUG Axis 2 movement not supported, returning empty rate list
+2025-06-02T03:12:13.343 INFO 127.0.0.1 <- []
+2025-06-02T03:12:13.347 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6929&Axis=2
+2025-06-02T03:12:13.347 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.347 INFO Calling for axis rate with argument 2
+2025-06-02T03:12:13.347 DEBUG Retrieving available rates for axis: 2
+2025-06-02T03:12:13.347 DEBUG Axis 2 movement not supported, returning empty rate list
+2025-06-02T03:12:13.351 INFO 127.0.0.1 <- []
+2025-06-02T03:12:13.385 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6930&Axis=0
+2025-06-02T03:12:13.387 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.387 INFO Calling for axis rate with argument 0
+2025-06-02T03:12:13.389 DEBUG Retrieving available rates for axis: 0
+2025-06-02T03:12:13.391 DEBUG Axis 0 available rates: 1 rate ranges
+2025-06-02T03:12:13.391 DEBUG   Rate 0: 0.0-3.5 deg/sec
+2025-06-02T03:12:13.391 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-06-02T03:12:13.419 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:13.421 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6931'}
+2025-06-02T03:12:13.423 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.433 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6932
+2025-06-02T03:12:13.434 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.440 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6933
+2025-06-02T03:12:13.442 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.448 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:13.448 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '-4.5', 'ClientID': '1', 'ClientTransactionID': '6934'}
+2025-06-02T03:12:13.448 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.457 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:13.457 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '4.5', 'ClientID': '1', 'ClientTransactionID': '6935'}
+2025-06-02T03:12:13.457 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.469 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:13.469 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6936'}
+2025-06-02T03:12:13.469 DEBUG Reporting Connected as: True
+2025-06-02T03:12:13.476 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6937
+2025-06-02T03:12:13.476 DEBUG Reporting Connected as: True
+2025-06-02T03:12:15.502 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:15.502 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6938'}
+2025-06-02T03:12:15.504 DEBUG Reporting Connected as: True
+2025-06-02T03:12:15.509 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6939
+2025-06-02T03:12:15.511 DEBUG Reporting Connected as: True
+2025-06-02T03:12:15.511 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6940
+2025-06-02T03:12:15.511 DEBUG Reporting Connected as: True
+2025-06-02T03:12:15.534 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:15.536 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '-0', 'ClientID': '1', 'ClientTransactionID': '6941'}
+2025-06-02T03:12:15.536 DEBUG Reporting Connected as: True
+2025-06-02T03:12:15.545 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6942
+2025-06-02T03:12:15.545 DEBUG Reporting Connected as: True
+2025-06-02T03:12:17.558 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:17.558 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6943'}
+2025-06-02T03:12:17.558 DEBUG Reporting Connected as: True
+2025-06-02T03:12:17.566 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6944
+2025-06-02T03:12:17.566 DEBUG Reporting Connected as: True
+2025-06-02T03:12:17.571 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6945
+2025-06-02T03:12:17.571 DEBUG Reporting Connected as: True
+2025-06-02T03:12:17.571 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:17.583 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '3.5', 'ClientID': '1', 'ClientTransactionID': '6946'}
+2025-06-02T03:12:17.583 DEBUG Reporting Connected as: True
+2025-06-02T03:12:17.591 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6947
+2025-06-02T03:12:17.591 DEBUG Reporting Connected as: True
+2025-06-02T03:12:19.608 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:19.608 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6948'}
+2025-06-02T03:12:19.608 DEBUG Reporting Connected as: True
+2025-06-02T03:12:19.624 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6949
+2025-06-02T03:12:19.626 DEBUG Reporting Connected as: True
+2025-06-02T03:12:19.628 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6950
+2025-06-02T03:12:19.628 DEBUG Reporting Connected as: True
+2025-06-02T03:12:19.646 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:19.649 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '-3.5', 'ClientID': '1', 'ClientTransactionID': '6951'}
+2025-06-02T03:12:19.651 DEBUG Reporting Connected as: True
+2025-06-02T03:12:19.658 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6952
+2025-06-02T03:12:19.659 DEBUG Reporting Connected as: True
+2025-06-02T03:12:21.685 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:21.685 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6953'}
+2025-06-02T03:12:21.685 DEBUG Reporting Connected as: True
+2025-06-02T03:12:21.696 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6954
+2025-06-02T03:12:21.702 DEBUG Reporting Connected as: True
+2025-06-02T03:12:21.702 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6955
+2025-06-02T03:12:21.702 DEBUG Reporting Connected as: True
+2025-06-02T03:12:21.722 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6956
+2025-06-02T03:12:21.723 DEBUG Reporting Connected as: True
+2025-06-02T03:12:21.723 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:21.736 DEBUG Command ':GW#' response: 'PT0#'
+2025-06-02T03:12:21.738 INFO 127.0.0.1 <- True
+2025-06-02T03:12:21.747 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:21.749 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '3.5', 'ClientID': '1', 'ClientTransactionID': '6957'}
+2025-06-02T03:12:21.750 DEBUG Reporting Connected as: True
+2025-06-02T03:12:23.761 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:23.761 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6958'}
+2025-06-02T03:12:23.761 DEBUG Reporting Connected as: True
+2025-06-02T03:12:23.761 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6959
+2025-06-02T03:12:23.761 DEBUG Reporting Connected as: True
+2025-06-02T03:12:23.781 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6960
+2025-06-02T03:12:23.782 DEBUG Reporting Connected as: True
+2025-06-02T03:12:23.782 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6961
+2025-06-02T03:12:23.782 DEBUG Reporting Connected as: True
+2025-06-02T03:12:23.782 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:23.797 DEBUG Command ':GW#' response: 'PT0#'
+2025-06-02T03:12:23.797 INFO 127.0.0.1 <- True
+2025-06-02T03:12:23.813 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T03:12:23.814 INFO 127.0.0.1 -> {'Tracking': 'False', 'ClientID': '1', 'ClientTransactionID': '6962'}
+2025-06-02T03:12:23.814 DEBUG Reporting Connected as: True
+2025-06-02T03:12:23.816 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:23.816 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:23.816 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:23.816 DEBUG Sending command: ':T0#' (type: BLIND)
+2025-06-02T03:12:23.841 DEBUG Command ':T0#' executed successfully (no response)
+2025-06-02T03:12:23.847 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:23.847 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '-3.5', 'ClientID': '1', 'ClientTransactionID': '6963'}
+2025-06-02T03:12:23.847 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.870 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:25.870 INFO 127.0.0.1 -> {'Axis': '0', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6964'}
+2025-06-02T03:12:25.870 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.870 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6965
+2025-06-02T03:12:25.870 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.887 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6966
+2025-06-02T03:12:25.887 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.887 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6967
+2025-06-02T03:12:25.887 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.899 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:25.907 DEBUG Command ':GW#' response: 'PN0#'
+2025-06-02T03:12:25.907 INFO 127.0.0.1 <- False
+2025-06-02T03:12:25.922 INFO 127.0.0.1 -> GET /api/v1/telescope/0/axisrates?ClientID=1&ClientTransactionID=6968&Axis=1
+2025-06-02T03:12:25.922 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.922 INFO Calling for axis rate with argument 1
+2025-06-02T03:12:25.922 DEBUG Retrieving available rates for axis: 1
+2025-06-02T03:12:25.922 DEBUG Axis 1 available rates: 1 rate ranges
+2025-06-02T03:12:25.922 DEBUG   Rate 0: 0.0-3.5 deg/sec
+2025-06-02T03:12:25.930 INFO 127.0.0.1 <- [Rate(0.0, 3.5)]
+2025-06-02T03:12:25.939 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:25.939 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6969'}
+2025-06-02T03:12:25.939 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.943 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6970
+2025-06-02T03:12:25.943 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.955 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6971
+2025-06-02T03:12:25.962 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.969 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:25.972 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '-4.5', 'ClientID': '1', 'ClientTransactionID': '6972'}
+2025-06-02T03:12:25.972 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.984 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:25.984 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '4.5', 'ClientID': '1', 'ClientTransactionID': '6973'}
+2025-06-02T03:12:25.984 DEBUG Reporting Connected as: True
+2025-06-02T03:12:25.995 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:25.996 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6974'}
+2025-06-02T03:12:25.997 DEBUG Reporting Connected as: True
+2025-06-02T03:12:26.000 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6975
+2025-06-02T03:12:26.002 DEBUG Reporting Connected as: True
+2025-06-02T03:12:28.010 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:28.010 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6976'}
+2025-06-02T03:12:28.010 DEBUG Reporting Connected as: True
+2025-06-02T03:12:28.030 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6977
+2025-06-02T03:12:28.032 DEBUG Reporting Connected as: True
+2025-06-02T03:12:28.033 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6978
+2025-06-02T03:12:28.033 DEBUG Reporting Connected as: True
+2025-06-02T03:12:28.050 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:28.052 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '-0', 'ClientID': '1', 'ClientTransactionID': '6979'}
+2025-06-02T03:12:28.052 DEBUG Reporting Connected as: True
+2025-06-02T03:12:28.062 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6980
+2025-06-02T03:12:28.064 DEBUG Reporting Connected as: True
+2025-06-02T03:12:30.072 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:30.072 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6981'}
+2025-06-02T03:12:30.082 DEBUG Reporting Connected as: True
+2025-06-02T03:12:30.093 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6982
+2025-06-02T03:12:30.096 DEBUG Reporting Connected as: True
+2025-06-02T03:12:30.099 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6983
+2025-06-02T03:12:30.099 DEBUG Reporting Connected as: True
+2025-06-02T03:12:30.116 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:30.119 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '3.5', 'ClientID': '1', 'ClientTransactionID': '6984'}
+2025-06-02T03:12:30.120 DEBUG Reporting Connected as: True
+2025-06-02T03:12:30.127 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6985
+2025-06-02T03:12:30.128 DEBUG Reporting Connected as: True
+2025-06-02T03:12:32.155 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:32.155 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6986'}
+2025-06-02T03:12:32.155 DEBUG Reporting Connected as: True
+2025-06-02T03:12:32.155 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6987
+2025-06-02T03:12:32.155 DEBUG Reporting Connected as: True
+2025-06-02T03:12:32.163 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6988
+2025-06-02T03:12:32.165 DEBUG Reporting Connected as: True
+2025-06-02T03:12:32.165 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:32.165 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '-3.5', 'ClientID': '1', 'ClientTransactionID': '6989'}
+2025-06-02T03:12:32.165 DEBUG Reporting Connected as: True
+2025-06-02T03:12:32.171 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6990
+2025-06-02T03:12:32.171 DEBUG Reporting Connected as: True
+2025-06-02T03:12:34.182 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:34.182 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6991'}
+2025-06-02T03:12:34.182 DEBUG Reporting Connected as: True
+2025-06-02T03:12:34.182 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6992
+2025-06-02T03:12:34.193 DEBUG Reporting Connected as: True
+2025-06-02T03:12:34.196 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6993
+2025-06-02T03:12:34.199 DEBUG Reporting Connected as: True
+2025-06-02T03:12:34.206 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6994
+2025-06-02T03:12:34.206 DEBUG Reporting Connected as: True
+2025-06-02T03:12:34.208 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:34.216 DEBUG Command ':GW#' response: 'PN0#'
+2025-06-02T03:12:34.216 INFO 127.0.0.1 <- False
+2025-06-02T03:12:34.216 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:34.233 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '3.5', 'ClientID': '1', 'ClientTransactionID': '6995'}
+2025-06-02T03:12:34.233 DEBUG Reporting Connected as: True
+2025-06-02T03:12:36.244 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:36.254 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '6996'}
+2025-06-02T03:12:36.254 DEBUG Reporting Connected as: True
+2025-06-02T03:12:36.259 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6997
+2025-06-02T03:12:36.259 DEBUG Reporting Connected as: True
+2025-06-02T03:12:36.271 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=6998
+2025-06-02T03:12:36.276 DEBUG Reporting Connected as: True
+2025-06-02T03:12:36.281 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=6999
+2025-06-02T03:12:36.281 DEBUG Reporting Connected as: True
+2025-06-02T03:12:36.281 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:36.296 DEBUG Command ':GW#' response: 'PN0#'
+2025-06-02T03:12:36.296 INFO 127.0.0.1 <- False
+2025-06-02T03:12:36.296 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T03:12:36.296 INFO 127.0.0.1 -> {'Tracking': 'True', 'ClientID': '1', 'ClientTransactionID': '7000'}
+2025-06-02T03:12:36.296 DEBUG Reporting Connected as: True
+2025-06-02T03:12:36.305 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:36.311 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:36.311 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:36.311 DEBUG Sending command: ':T1#' (type: BLIND)
+2025-06-02T03:12:36.380 DEBUG Command ':T1#' executed successfully (no response)
+2025-06-02T03:12:36.389 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:36.389 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '-3.5', 'ClientID': '1', 'ClientTransactionID': '7001'}
+2025-06-02T03:12:36.391 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.403 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:38.403 INFO 127.0.0.1 -> {'Axis': '1', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '7002'}
+2025-06-02T03:12:38.412 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.427 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=7003
+2025-06-02T03:12:38.427 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.433 INFO 127.0.0.1 -> GET /api/v1/telescope/0/slewing?ClientID=1&ClientTransactionID=7004
+2025-06-02T03:12:38.434 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.436 INFO 127.0.0.1 -> GET /api/v1/telescope/0/tracking?ClientID=1&ClientTransactionID=7005
+2025-06-02T03:12:38.436 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.436 DEBUG Sending command: ':GW#' (type: STRING)
+2025-06-02T03:12:38.451 DEBUG Command ':GW#' response: 'PT0#'
+2025-06-02T03:12:38.451 INFO 127.0.0.1 <- True
+2025-06-02T03:12:38.451 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/moveaxis
+2025-06-02T03:12:38.461 INFO 127.0.0.1 -> {'Axis': '2', 'Rate': '0', 'ClientID': '1', 'ClientTransactionID': '7006'}
+2025-06-02T03:12:38.463 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.473 INFO 127.0.0.1 -> GET /api/v1/telescope/0/cansettracking?ClientID=1&ClientTransactionID=7007
+2025-06-02T03:12:38.474 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.475 INFO 127.0.0.1 <- True
+2025-06-02T03:12:38.480 INFO 127.0.0.1 -> PUT /api/v1/telescope/0/tracking
+2025-06-02T03:12:38.480 INFO 127.0.0.1 -> {'Tracking': 'False', 'ClientID': '1', 'ClientTransactionID': '7008'}
+2025-06-02T03:12:38.480 DEBUG Reporting Connected as: True
+2025-06-02T03:12:38.484 DEBUG Sending command: ':*Pq#' (type: BOOL)
+2025-06-02T03:12:38.493 DEBUG Command ':*Pq#' response: 'False'
+2025-06-02T03:12:38.494 DEBUG Returning self._is_parked as: False.  It is a <class 'bool'>
+2025-06-02T03:12:38.495 DEBUG Sending command: ':T0#' (type: BLIND)
+2025-06-02T03:12:38.507 DEBUG Command ':T0#' executed successfully (no response)
+2025-06-02T03:12:38.514 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=7009
+2025-06-02T03:12:38.514 DEBUG Reporting Connecting as: True
+2025-06-02T03:12:38.514 INFO 127.0.0.1 <- False
+2025-06-02T03:12:38.524 INFO Beginning physical mount disconnection (last client)
+2025-06-02T03:12:38.527 DEBUG Configuration saved before disconnect
+2025-06-02T03:12:38.527 INFO Serial connection count: 0
+2025-06-02T03:12:38.529 DEBUG Serial manager disconnect completed
+2025-06-02T03:12:38.531 INFO TTS160 mount disconnected successfully
+2025-06-02T03:12:38.531 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=7011
+2025-06-02T03:12:38.531 DEBUG Reporting Connecting as: False
+2025-06-02T03:12:38.531 INFO 127.0.0.1 <- False
+2025-06-02T03:12:38.544 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connecting?ClientID=1&ClientTransactionID=7012
+2025-06-02T03:12:38.544 DEBUG Reporting Connecting as: False
+2025-06-02T03:12:38.548 INFO 127.0.0.1 <- False
+2025-06-02T03:12:38.548 INFO 127.0.0.1 -> GET /api/v1/telescope/0/connected?ClientID=1&ClientTransactionID=7013
+2025-06-02T03:12:38.555 DEBUG Reporting Connected as: False
+2025-06-02T03:12:38.556 INFO 127.0.0.1 <- False

@@ -16,7 +16,7 @@ verbose_driver_exceptions = true
 dev_port = 'COM5'
 
 [logging]
-log_level = 'INFO'
+log_level = 'DEBUG'
 log_to_stdout = false
 max_size_mb = 5
 num_keep_logs = 10
