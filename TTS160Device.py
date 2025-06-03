@@ -3216,7 +3216,6 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             self.TargetRightAscension = right_ascension  
             self.TargetDeclination = declination
             
-            # Execute target slew
             self.SlewToTargetAsync()
             
         except (NotConnectedException, InvalidValueException):
