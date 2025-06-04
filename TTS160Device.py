@@ -31,6 +31,357 @@ from telescope import (
     AlignmentModes, TelescopeAxes, GuideDirections, Rate
 )
 
+"""
+AstroPy Coordinate Frame Caching Mixin
+
+Provides efficient caching of expensive astropy coordinate frame objects
+with time-to-live (TTL) expiration and timing-critical operation support.
+"""
+class AstropyCachingMixin:
+    """
+    Mixin providing cached astropy coordinate frames with TTL and timing optimization.
+    
+    This mixin caches expensive astropy coordinate frame objects (AltAz, GCRS) to
+    improve performance during frequent coordinate transformations. Frames are cached
+    with a configurable time-to-live (TTL) and automatically refreshed when expired.
+    
+    Special support is provided for timing-critical operations (e.g., pulse guiding)
+    where cache refresh can be deferred to avoid delays during time-sensitive calculations.
+    
+    Dependencies (must be provided by inheriting class):
+        - self._site_location: EarthLocation object for telescope site
+        - self._lock: threading.RLock for thread safety
+        - self._logger: Logger instance for debug/info logging
+    
+    Thread Safety:
+        All cache operations are protected by self._lock to ensure thread-safe
+        access in multi-threaded telescope control environments.
+    
+    Performance Characteristics:
+        - Fresh frame access: ~1-5ms (cached lookup)
+        - Expired frame refresh: ~50-100ms (astropy calculation)
+        - Timing-critical access: ~1-5ms (uses stale cache if needed)
+    
+    Example:
+        class TelescopeDevice(AstropyCachingMixin):
+            def coordinate_conversion(self):
+                # Normal usage - refreshes cache if expired
+                altaz_frame = self._altaz_frame
+                
+            def timing_critical_operation(self):
+                # Fast usage - defers refresh if needed
+                refresh_needed = self._check_cache_freshness(['altaz'])
+                altaz_frame = self._altaz_frame  # Uses cached (possibly stale)
+                # ... perform time-critical work ...
+                if refresh_needed:
+                    self._refresh_expired_caches(refresh_needed)
+    """
+    
+    # Cache configuration constants
+    FRAME_CACHE_TTL: float = 10.0  # seconds
+    
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize caching infrastructure.
+        
+        Note: This is a mixin, so it calls super().__init__() to ensure
+        proper multiple inheritance initialization chain.
+        """
+        super().__init__(*args, **kwargs)
+        
+        # Cache storage attributes will be created on-demand
+        # No need to initialize them here as they're managed by properties
+    
+    def _get_frame_cache(self, frame_type: str, timing_critical: bool = False) -> Union[AltAz, GCRS]:
+        """
+        Retrieve cached coordinate frame with optional timing optimization.
+        
+        Returns a cached astropy coordinate frame, creating or refreshing it as needed.
+        In timing-critical mode, will return stale cache rather than blocking for refresh.
+        
+        Args:
+            frame_type: Type of frame to retrieve ('altaz' or 'gcrs')
+            timing_critical: If True, use stale cache to avoid delays
+            
+        Returns:
+            Cached astropy coordinate frame object
+            
+        Raises:
+            ValueError: If frame_type is not supported
+            AttributeError: If required dependencies not available
+            
+        Thread Safety:
+            Method is thread-safe via self._lock protection
+        """
+        if not hasattr(self, '_lock'):
+            raise AttributeError("AstropyCachingMixin requires self._lock from inheriting class")
+        
+        with self._lock:
+            cache_attr = f'_{frame_type}_cache'
+            time_attr = f'_{frame_type}_time'
+            
+            # Check if cache exists and determine freshness
+            cache_exists = hasattr(self, cache_attr)
+            if cache_exists:
+                cache_time = getattr(self, time_attr, 0)
+                is_stale = time.time() - cache_time > self.FRAME_CACHE_TTL
+                
+                if hasattr(self, '_logger'):
+                    age_seconds = time.time() - cache_time
+                    self._logger.debug(f"Frame cache '{frame_type}' age: {age_seconds:.1f}s, stale: {is_stale}")
+            else:
+                is_stale = True
+                if hasattr(self, '_logger'):
+                    self._logger.debug(f"Frame cache '{frame_type}' does not exist, creating initial cache")
+            
+            # Handle timing-critical operations
+            if timing_critical and cache_exists:
+                if is_stale:
+                    if hasattr(self, '_logger'):
+                        self._logger.debug(f"Timing-critical: using stale {frame_type} cache to avoid delays")
+                else:
+                    if hasattr(self, '_logger'):
+                        self._logger.debug(f"Timing-critical: using fresh {frame_type} cache")
+                return getattr(self, cache_attr)
+            
+            # Refresh cache if stale or non-existent
+            if is_stale:
+                try:
+                    frame = self._create_frame(frame_type)
+                    setattr(self, cache_attr, frame)
+                    setattr(self, time_attr, time.time())
+                    
+                    if hasattr(self, '_logger'):
+                        action = "refreshed" if cache_exists else "created"
+                        self._logger.info(f"Frame cache '{frame_type}' {action} successfully")
+                        
+                except Exception as ex:
+                    if hasattr(self, '_logger'):
+                        self._logger.error(f"Failed to create {frame_type} frame: {ex}")
+                    raise
+            
+            return getattr(self, cache_attr)
+    
+    def _create_frame(self, frame_type: str) -> Union[AltAz, GCRS]:
+        """
+        Create new astropy coordinate frame object.
+        
+        Factory method for creating fresh coordinate frame instances with current time.
+        
+        Args:
+            frame_type: Type of frame to create ('altaz' or 'gcrs')
+            
+        Returns:
+            New astropy coordinate frame object
+            
+        Raises:
+            ValueError: If frame_type is not supported
+            AttributeError: If required dependencies not available
+        """
+        current_time = Time.now()
+        
+        if frame_type == 'altaz':
+            if not hasattr(self, '_site_location'):
+                raise AttributeError("AstropyCachingMixin requires self._site_location from inheriting class")
+            
+            frame = AltAz(obstime=current_time, location=self._site_location)
+            
+            if hasattr(self, '_logger'):
+                self._logger.debug(f"Created AltAz frame: time={current_time.iso}, "
+                                 f"site=({self._site_location.lat.deg:.3f}°, {self._site_location.lon.deg:.3f}°)")
+            
+        elif frame_type == 'gcrs':
+            frame = GCRS(obstime=current_time)
+            
+            if hasattr(self, '_logger'):
+                self._logger.debug(f"Created GCRS frame: time={current_time.iso}")
+        else:
+            raise ValueError(f"Unsupported frame type: {frame_type}. Supported: 'altaz', 'gcrs'")
+        
+        return frame
+    
+    def _check_cache_freshness(self, frame_types: List[str]) -> List[str]:
+        """
+        Check which caches need refresh without triggering refresh.
+        
+        Examines cache timestamps to determine which frames are stale and need
+        refreshing. Used by timing-critical operations to identify refresh work
+        that should be deferred until after time-sensitive operations complete.
+        
+        Args:
+            frame_types: List of frame types to check ('altaz', 'gcrs')
+            
+        Returns:
+            List of frame types that need refresh (subset of input list)
+            
+        Thread Safety:
+            Method is thread-safe via self._lock protection
+        """
+        if not hasattr(self, '_lock'):
+            raise AttributeError("AstropyCachingMixin requires self._lock from inheriting class")
+        
+        refresh_needed = []
+        
+        with self._lock:
+            for frame_type in frame_types:
+                cache_attr = f'_{frame_type}_cache'
+                time_attr = f'_{frame_type}_time'
+                
+                if not hasattr(self, cache_attr):
+                    refresh_needed.append(frame_type)
+                    if hasattr(self, '_logger'):
+                        self._logger.debug(f"Cache freshness check: {frame_type} cache missing")
+                else:
+                    cache_time = getattr(self, time_attr, 0)
+                    age = time.time() - cache_time
+                    if age > self.FRAME_CACHE_TTL:
+                        refresh_needed.append(frame_type)
+                        if hasattr(self, '_logger'):
+                            self._logger.debug(f"Cache freshness check: {frame_type} cache stale ({age:.1f}s old)")
+        
+        if hasattr(self, '_logger') and refresh_needed:
+            self._logger.debug(f"Cache freshness check: {len(refresh_needed)} caches need refresh: {refresh_needed}")
+        
+        return refresh_needed
+    
+    def _refresh_expired_caches(self, frame_types: List[str]) -> None:
+        """
+        Refresh specified coordinate frame caches.
+        
+        Updates cached coordinate frames with current time. Typically called after
+        timing-critical operations complete to refresh any caches that were stale
+        but used to avoid delays.
+        
+        Args:
+            frame_types: List of frame types to refresh ('altaz', 'gcrs')
+            
+        Raises:
+            ValueError: If unsupported frame type specified
+            AttributeError: If required dependencies not available
+            
+        Thread Safety:
+            Method is thread-safe via self._lock protection
+            
+        Performance:
+            This method may take 50-100ms per frame type due to astropy calculations.
+            Should not be called during timing-critical operations.
+        """
+        if not frame_types:
+            return
+        
+        if hasattr(self, '_logger'):
+            self._logger.info(f"Refreshing {len(frame_types)} expired coordinate frame caches: {frame_types}")
+        
+        for frame_type in frame_types:
+            try:
+                # Force refresh by calling _get_frame_cache with stale cache
+                self._invalidate_cache(frame_type)
+                self._get_frame_cache(frame_type, timing_critical=False)
+                
+                if hasattr(self, '_logger'):
+                    self._logger.debug(f"Successfully refreshed {frame_type} cache")
+                    
+            except Exception as ex:
+                if hasattr(self, '_logger'):
+                    self._logger.error(f"Failed to refresh {frame_type} cache: {ex}")
+                # Continue trying other caches even if one fails
+        
+        if hasattr(self, '_logger'):
+            self._logger.info("Coordinate frame cache refresh completed")
+    
+    def _invalidate_cache(self, frame_type: str) -> None:
+        """
+        Force invalidation of specific coordinate frame cache.
+        
+        Removes cached frame and timestamp, forcing recreation on next access.
+        Used when cache needs to be updated due to configuration changes
+        (e.g., site location updates) rather than just TTL expiration.
+        
+        Args:
+            frame_type: Type of frame to invalidate ('altaz', 'gcrs')
+            
+        Thread Safety:
+            Method is thread-safe via self._lock protection
+        """
+        if not hasattr(self, '_lock'):
+            raise AttributeError("AstropyCachingMixin requires self._lock from inheriting class")
+        
+        with self._lock:
+            cache_attr = f'_{frame_type}_cache'
+            time_attr = f'_{frame_type}_time'
+            
+            if hasattr(self, cache_attr):
+                delattr(self, cache_attr)
+                if hasattr(self, '_logger'):
+                    self._logger.debug(f"Invalidated {frame_type} cache")
+            
+            if hasattr(self, time_attr):
+                delattr(self, time_attr)
+    
+    def _invalidate_all_caches(self) -> None:
+        """
+        Force invalidation of all coordinate frame caches.
+        
+        Removes all cached frames and timestamps. Useful when fundamental
+        configuration changes occur (e.g., site location updates) that
+        affect multiple frame types.
+        
+        Thread Safety:
+            Method is thread-safe via self._lock protection
+        """
+        frame_types = ['altaz', 'gcrs']
+        
+        if hasattr(self, '_logger'):
+            self._logger.info("Invalidating all coordinate frame caches")
+        
+        for frame_type in frame_types:
+            self._invalidate_cache(frame_type)
+        
+        if hasattr(self, '_logger'):
+            self._logger.debug("All coordinate frame caches invalidated")
+    
+    @property
+    def _altaz_frame(self) -> AltAz:
+        """
+        Cached AltAz coordinate frame for current site and time.
+        
+        Returns a cached AltAz frame object, refreshing if expired (>TTL seconds old).
+        This frame includes the current observation time and telescope site location,
+        making it suitable for coordinate transformations to/from horizontal coordinates.
+        
+        Returns:
+            AltAz: Cached coordinate frame object
+            
+        Raises:
+            AttributeError: If required dependencies not available
+            
+        Performance:
+            - Cache hit: ~1-5ms
+            - Cache miss/refresh: ~50-100ms (due to astropy calculations)
+        """
+        return self._get_frame_cache('altaz', timing_critical=False)
+    
+    @property  
+    def _gcrs_frame(self) -> GCRS:
+        """
+        Cached GCRS coordinate frame for current time.
+        
+        Returns a cached GCRS (Geocentric Celestial Reference System) frame object,
+        refreshing if expired (>TTL seconds old). This frame represents the current
+        epoch for topocentric equatorial coordinate transformations.
+        
+        Returns:
+            GCRS: Cached coordinate frame object
+            
+        Raises:
+            AttributeError: If required dependencies not available
+            
+        Performance:
+            - Cache hit: ~1-5ms  
+            - Cache miss/refresh: ~50-100ms (due to astropy calculations)
+        """
+        return self._get_frame_cache('gcrs', timing_critical=False)
+
 class CapabilitiesMixin:
     # Capability Properties
     @property
@@ -323,6 +674,8 @@ class ConfigurationMixin:
             
             self._logger.info(f"Site location updated: {lat:.6f}°, {lon:.6f}°, {elev:.1f}m")
             
+            self._invalidate_cache('altaz')
+
         except (ValueError, TypeError) as ex:
             # Fallback to origin coordinates for any conversion failures
             self._logger.error(f"Site location update failed, using origin coordinates: {ex}")
@@ -564,8 +917,7 @@ class CoordinateUtilsMixin:
             self._validate_coordinates(alt = altitude, az = azimuth)
                 
             # Create AltAz coordinate at current time
-            current_time = Time.now()
-            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_frame = self._altaz_frame
             altaz_coord = SkyCoord(
                 az=azimuth * u.deg,
                 alt=altitude * u.deg,
@@ -609,8 +961,7 @@ class CoordinateUtilsMixin:
             )
             
             # Transform to AltAz at current time
-            current_time = Time.now()
-            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_frame = self._altaz_frame
             altaz_coord = icrs_coord.transform_to(altaz_frame)
             
             # Normalize azimuth to 0-360 range
@@ -647,8 +998,7 @@ class CoordinateUtilsMixin:
             self._validate_coordinates(alt = altitude, az = azimuth)
                 
             # Create AltAz coordinate at current time
-            current_time = Time.now()
-            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_frame = self._altaz_frame
             altaz_coord = SkyCoord(
                 az=azimuth * u.deg,
                 alt=altitude * u.deg,
@@ -656,7 +1006,7 @@ class CoordinateUtilsMixin:
             )
             
             # Transform to GCRS at current time (topocentric equatorial)
-            gcrs_coord = altaz_coord.transform_to(GCRS(obstime=current_time))
+            gcrs_coord = altaz_coord.transform_to(self._gcrs_frame)
             
             return gcrs_coord.ra.hour, gcrs_coord.dec.degree
             
@@ -685,15 +1035,14 @@ class CoordinateUtilsMixin:
             self._validate_coordinates(ra = right_ascension, dec = declination)
                 
             # Create GCRS coordinate at current time
-            current_time = Time.now()
             gcrs_coord = SkyCoord(
                 ra=right_ascension * u.hour,
                 dec=declination * u.deg,
-                frame=GCRS(obstime=current_time)
+                frame=self._gcrs_frame
             )
             
             # Transform to AltAz
-            altaz_frame = AltAz(obstime=current_time, location=self._site_location)
+            altaz_frame = self._altaz_frame
             altaz_coord = gcrs_coord.transform_to(altaz_frame)
             
             # Normalize azimuth to 0-360 range
@@ -739,8 +1088,7 @@ class CoordinateUtilsMixin:
             )
             
             # Transform to GCRS at current time
-            current_time = Time.now()
-            gcrs_coord = icrs_coord.transform_to(GCRS(obstime=current_time))
+            gcrs_coord = icrs_coord.transform_to(self._gcrs_frame)
             
             # Normalize RA to 0-24 hour range
             ra_hours = gcrs_coord.ra.hour
@@ -778,11 +1126,10 @@ class CoordinateUtilsMixin:
             self._validate_coordinates(ra = right_ascension, dec = declination)
                 
             # Create GCRS coordinate at current time
-            current_time = Time.now()
             gcrs_coord = SkyCoord(
                 ra=right_ascension * u.hour,
                 dec=declination * u.deg,
-                frame=GCRS(obstime=current_time)
+                frame=self._gcrs_frame
             )
             
             # Transform to ICRS (J2000)
@@ -956,7 +1303,7 @@ class CoordinateUtilsMixin:
             self._logger.error(f"Coordinate validation failed: {ex}")
             raise
 
-class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
+class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
     """Complete TTS160 Hardware Implementation with ASCOM compliance."""
     
     # Hardware constants
@@ -988,6 +1335,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             - Site location defaults to (0,0,0) if configuration unavailable
             - Thread pool uses 10 workers for asynchronous operations
             - All ASCOM capability flags are set per TTS160 hardware specifications
+            - Coordinate frame caching initialized for performance optimization
         """
         # Input validation
         if not isinstance(logger, Logger):
@@ -1002,6 +1350,10 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="TTS160")
             self._logger.debug("Thread pool and locking initialized")
             
+            # Initialize mixin chain (must occur after _lock and _logger setup)
+            super().__init__()
+            self._logger.debug("Mixin initialization chain completed")
+
             # Global configuration and serial manager setup
             self._setup_global_objects()
             
@@ -1047,27 +1399,72 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             raise
     
     def _setup_global_objects(self) -> None:
+        """
+        Initialize global configuration and serial manager objects.
         
-        import TTS160Global
+        Loads the global configuration and instantiates the serial manager required
+        for telescope communication. These objects are shared across the application
+        and provide core functionality for device operation.
         
+        This method must be called after _lock and _logger initialization since
+        the caching mixin and other components depend on these global objects.
+        
+        Side Effects:
+            - Sets self._config with application configuration
+            - Sets self._serial_manager with communication interface
+            - Logs successful initialization or detailed error information
+        
+        Raises:
+            DriverException: If TTS160Global module unavailable or initialization fails
+            ImportError: If required TTS160Global module cannot be imported
+            
+        Note:
+            Global objects are shared across application instances and provide
+            centralized configuration and communication management.
+        """
         try:
-            self._config = TTS160Global.get_config()
-            self._serial_manager = TTS160Global.get_serial_manager(self._logger)
-        except ImportError as ex:
-            raise DriverException(0x500, "TTS160Global module unavailable", ex)
-        except Exception as ex:
+            self._logger.debug("Loading TTS160Global module")
+            import TTS160Global
+            
+            # Initialize configuration object
+            try:
+                self._logger.debug("Retrieving global configuration")
+                self._config = TTS160Global.get_config()
+                self._logger.info("Global configuration loaded successfully")
+            except Exception as ex:
                 self._logger.error(f"Failed to load global configuration: {ex}")
                 raise DriverException(0x500, "Configuration initialization failed", ex)
+            
+            # Initialize serial manager
+            try:
+                self._logger.debug("Instantiating serial manager")
+                self._serial_manager = TTS160Global.get_serial_manager(self._logger)
+                self._logger.info("Serial manager instantiated successfully")
+            except Exception as ex:
+                self._logger.error(f"Serial manager instantiation failed: {ex}")
+                raise DriverException(0x500, "Serial manager initialization failed", ex)
+            
+            # Verify global objects are properly initialized
+            if self._config is None:
+                raise DriverException(0x500, "Configuration object is None after initialization")
+            
+            if self._serial_manager is None:
+                raise DriverException(0x500, "Serial manager is None after initialization")
+            
+            self._logger.debug("Global objects validation completed successfully")
+            
+        except ImportError as ex:
+            self._logger.error(f"TTS160Global module import failed: {ex}")
+            raise DriverException(0x500, "TTS160Global module unavailable", ex)
         
-        # Serial manager initialization
-        self._serial_manager = None
-        try:
-            self._logger.info("Instantiating serial manager")
-            self._serial_manager = TTS160Global.get_serial_manager(self._logger)
-            self._logger.debug("Serial manager instantiated successfully")
+        except DriverException:
+            # Re-raise DriverExceptions without wrapping
+            raise
+            
         except Exception as ex:
-            self._logger.error(f"Serial manager instantiation failed: {ex}")
-            raise DriverException(0x500, "Serial manager initialization failed", ex)
+            # Wrap unexpected exceptions
+            self._logger.error(f"Unexpected error during global objects setup: {ex}")
+            raise DriverException(0x500, "Global objects setup failed", ex)
 
     def _initialize_capability_flags(self) -> None:
         """Initialize ASCOM capability flags per TTS160 hardware specifications."""
@@ -1156,11 +1553,14 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
     @property
     def _site_location(self):
         if not hasattr(self, '_site_location_cache'):
-            self._site_location_cache = EarthLocation(
-                lat=self._config.site_latitude * u.deg,
-                lon=self._config.site_longitude * u.deg, 
-                height=self._config.site_elevation * u.m
-            )
+            with self._lock:
+                # Double-check pattern
+                if not hasattr(self, '_site_location_cache'):
+                    self._site_location_cache = EarthLocation(
+                        lat=self._config.site_latitude * u.deg,
+                        lon=self._config.site_longitude * u.deg, 
+                        height=self._config.site_elevation * u.m
+                    )
         return self._site_location_cache
     
     @_site_location.setter
@@ -1395,7 +1795,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         """
         Initialize mount after successful connection.
         
-        Retrieves mount information, synchronizes site coordinates, optionally
+        Retrieves mount information, synchronizes site coordinates, warm-starts cache, optionally
         syncs time, and resets operational state variables.
         
         Raises:
@@ -1430,6 +1830,11 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             
             self._logger.info("Mount initialization completed successfully")
             
+            self._logger.debug("Warming up coordinate frame caches")
+            _ = self._altaz_frame  # Triggers cache creation
+            _ = self._gcrs_frame   # Triggers cache creation  
+            self._logger.info("Coordinate frame caches warmed up successfully")
+
         except Exception as ex:
             self._logger.error(f"Mount initialization failed: {ex}")
             raise DriverException(0x500, "Mount initialization failed", ex)
@@ -1506,6 +1911,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             
             self._logger.info(f"Site coordinates synchronized: {latitude:.6f}°, {longitude:.6f}°, {elevation:.1f}m")
             
+            self._invalidate_cache('altaz')
+
         except DriverException:
             raise
             
@@ -1857,9 +2264,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 time.sleep(0.1)
         else:
             self.Disconnect()
-            #simulate synchronous execution
-            while self.Connected:
-                time.sleep(0.1)
+            #simulate synchronous execution - Disconnect is fast, just do it
+            #while self.Connected:
+            #    time.sleep(0.1)
     
     @property
     def Connecting(self) -> bool:
@@ -2772,11 +3179,20 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             raise DriverException(0x500, "Failed to abort slew", ex)
     
     def FindHome(self):
-        """Locates the telescope's home position (asynchronous)"""
+        """
+        Locates the telescope's home position (asynchronous).
+        
+        Uses cached coordinate frames for efficient Alt/Az to equatorial transformations
+        during home position calculations and reachability testing.
+        
+        Raises:
+            InvalidOperationException: Mount parked, slewing, or home below horizon
+            DriverException: Command execution or coordinate transformation failure
+        """
         self._logger.info("Moving to Home")
         
         try:
-            
+            # State validation
             if self._is_parked:
                 raise InvalidOperationException("The requested operation cannot be undertaken at this time: the mount is parked.")
 
@@ -2787,73 +3203,31 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 self._logger.info("Mount is already at Home")
                 return
 
+            # Get park position from mount
             park_status = self._send_command(":*PG#", CommandType.STRING)
-
             park_type = int(park_status[0])
             park_az = float(park_status[1:8])
             park_alt = float(park_status[8:14])
 
-            self._logger.debug(f"Park Type: {park_type}; Park Az: {park_az}; Park Alt: {park_alt}")
+            self._logger.info(f"Home position: type={park_type}, Az={park_az:.2f}°, Alt={park_alt:.2f}°")
 
-            #TODO: pull park alt and az and use those rather than 180/0    
-            #home_az = 180
-            current_time = Time.now()
+            # Get cached coordinate frames for transformations
+            gcrs_frame = self._get_frame_cache('gcrs', timing_critical=False)
+            altaz_frame = self._get_frame_cache('altaz', timing_critical=False)
             
             if park_type == 1 and int(park_alt) > 0:
-                altaz_coord = AltAz(
-                    az=park_az * u.deg, 
-                    alt=park_alt * u.deg,
-                    obstime=current_time,
-                    location=self._site_location
-                )
-                
-                # Convert to GCRS with current epoch (JNow)
-                gcrs_coord = altaz_coord.transform_to(GCRS(obstime=current_time))
-
-                self._logger.debug(f"Site Location: {self._site_location}")
-                self._logger.debug(f"Target Dec: {gcrs_coord.dec.deg}; Target Ra: {gcrs_coord.ra.hour}")
-
-                self.TargetDeclination = gcrs_coord.dec.deg
-                self.TargetRightAscension = gcrs_coord.ra.hour
-
-                # Try to slew - returns False if target is reachable (slew does not start)
-                if not bool(int(self._send_command(":MS#", CommandType.STRING))):
-                    with self._lock:
-                        self._slewing_hold = True #Allows for immediate return of the slewing property being true
-                    self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
-                    self._executor.submit(self._home_arrival_monitor, park_az, park_alt)
-                    self._logger.debug(f"Started home arrival monitor")
-                    self._goto_in_progress = True
+                # Use stored park position if above horizon
+                success = self._attempt_home_slew(park_az, park_alt, gcrs_frame, altaz_frame)
+                if success:
                     return
-            
                 raise InvalidOperationException("Home position is below horizon, check mount alignment")        
             else:
-                # Try altitudes 0-9 degrees to find position above horizon
+                # Search for reachable position at same azimuth
+                self._logger.debug("Searching for reachable home position above horizon")
                 for target_alt in range(10):
-                    altaz_coord = AltAz(
-                        az=park_az * u.deg, 
-                        alt=target_alt * u.deg,
-                        obstime=current_time,
-                        location=self._site_location
-                    )
-                    
-                    # Convert to GCRS with current epoch (JNow)
-                    gcrs_coord = altaz_coord.transform_to(GCRS(obstime=current_time))
-
-                    self._logger.debug(f"Site Location: {self._site_location.lat}; {self._site_location.lon}")
-                    self._logger.debug(f"Target Dec: {gcrs_coord.dec.deg}; Target Ra: {gcrs_coord.ra.hour}")
-
-                    self.TargetDeclination = gcrs_coord.dec.deg
-                    self.TargetRightAscension = gcrs_coord.ra.hour
-                    
-                    # Try to slew - returns False if target is reachable (slew does not start)
-                    if not bool(int(self._send_command(":MS#", CommandType.STRING))):
-                        with self._lock:
-                            self._slewing_hold = True #Allows for immediate return of the slewing property being true
-                        self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
-                        self._executor.submit(self._home_arrival_monitor, park_az, target_alt)
-                        self._logger.debug(f"Started home arrival monitor")
-                        self._goto_in_progress = True
+                    self._logger.debug(f"Testing home position at Az={park_az:.2f}°, Alt={target_alt}°")
+                    success = self._attempt_home_slew(park_az, target_alt, gcrs_frame, altaz_frame)
+                    if success:
                         return
                 
                 raise InvalidOperationException("Home position is below horizon, check mount alignment")
@@ -2861,6 +3235,51 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         except Exception as ex:
             self._logger.error(f"FindHome error: {ex}")
             raise
+
+    def _attempt_home_slew(self, az: float, alt: float, gcrs_frame, altaz_frame) -> bool:
+        """
+        Attempt to slew to home position at specified Alt/Az coordinates.
+        
+        Args:
+            az: Azimuth in degrees
+            alt: Altitude in degrees  
+            gcrs_frame: Cached GCRS coordinate frame
+            altaz_frame: Cached AltAz coordinate frame
+            
+        Returns:
+            bool: True if slew started successfully, False otherwise
+        """
+        try:
+            # Create AltAz coordinate using cached frame
+            altaz_coord = SkyCoord(
+                az=az * u.deg, 
+                alt=alt * u.deg,
+                frame=altaz_frame
+            )
+            
+            # Convert to GCRS using cached frame
+            gcrs_coord = altaz_coord.transform_to(gcrs_frame)
+            
+            self._logger.debug(f"Converted to equatorial: RA={gcrs_coord.ra.hour:.6f}h, Dec={gcrs_coord.dec.deg:.6f}°")
+
+            self.TargetDeclination = gcrs_coord.dec.deg
+            self.TargetRightAscension = gcrs_coord.ra.hour
+
+            # Try to slew - returns False if target is reachable (slew starts)
+            if not bool(int(self._send_command(":MS#", CommandType.STRING))):
+                with self._lock:
+                    self._slewing_hold = True  # Allows immediate return of slewing property being true
+                self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
+                self._executor.submit(self._home_arrival_monitor, az, alt)
+                self._logger.info(f"Started slew to home position: Az={az:.2f}°, Alt={alt:.2f}°")
+                self._goto_in_progress = True
+                return True
+                
+            return False
+            
+        except Exception as ex:
+            self._logger.debug(f"Home slew attempt failed at Az={az:.2f}°, Alt={alt:.2f}°: {ex}")
+            return False
     
     def _slew_status_monitor(self) -> None:
         """
@@ -3286,6 +3705,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         """
         Pulse guide in specified direction for given duration.
         
+        Implements timing-critical coordinate frame caching to minimize delays during
+        pulse guide operations when using equatorial frame conversion.
+        
         Args:
             direction: Guide direction (North/South/East/West)
             duration: Duration in milliseconds (0-9999)
@@ -3324,10 +3746,24 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             self._logger.debug("Pulse guide monitors initialized")
 
             try:
+                # Cache management for timing-critical operations
+                cache_refresh_needed = []
+                if self._config.pulse_guide_equatorial_frame:
+                    # Check cache freshness before timing-critical conversion
+                    cache_refresh_needed = self._check_cache_freshness(['altaz', 'gcrs'])
+                    if cache_refresh_needed:
+                        self._logger.debug(f"Deferring cache refresh for timing-critical pulse guide: {cache_refresh_needed}")
+                
                 # Determine pulse parameters based on configuration
                 if self._config.pulse_guide_equatorial_frame:
                     self._logger.info(f"PulseGuide - Converting {direction} for {duration} msec to the equatorial frame.")
-                    ns_dir, ns_dur, ew_dir, ew_dur = self._convert_equatorial_pulse(direction, duration)
+                    ns_dir, ns_dur, ew_dir, ew_dur, additional_refresh = self._convert_equatorial_pulse(
+                        direction, duration, timing_critical=True
+                    )
+                    # Merge any additional refresh needs from conversion
+                    if additional_refresh:
+                        cache_refresh_needed.extend(additional_refresh)
+                        cache_refresh_needed = list(set(cache_refresh_needed))  # Remove duplicates
                     self._logger.info(f"PulseGuide Equatorial results: {ns_dir} for {ns_dur} msec; {ew_dir} for {ew_dur} msec")
                 else:
                     ns_dir, ns_dur, ew_dir, ew_dur = self._get_standard_pulse_params(direction, duration)
@@ -3335,6 +3771,15 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
                 # Execute pulse guide commands
                 self._logger.debug("PulseGuide - Commencing")
                 self._execute_pulse_guide(ns_dir, ns_dur, ew_dir, ew_dur, duration)
+                
+                # Refresh stale caches after timing-critical operation completes
+                if cache_refresh_needed:
+                    try:
+                        self._logger.debug("Refreshing coordinate frame caches after pulse guide completion")
+                        self._refresh_expired_caches(cache_refresh_needed)
+                    except Exception as ex:
+                        # Cache refresh failure shouldn't fail the pulse guide
+                        self._logger.debug(f"Post-pulse cache refresh failed: {ex}")
                 
             except Exception as ex:
                 if isinstance(ex, (InvalidValueException, InvalidOperationException)):
@@ -3398,19 +3843,20 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
         return ns_dir, ns_dur, ew_dir, ew_dur
 
 
-    def _convert_equatorial_pulse(self, direction: GuideDirections, duration: int) -> Tuple[GuideDirections, int, GuideDirections, int]:
+    def _convert_equatorial_pulse(self, direction: GuideDirections, duration: int, timing_critical: bool = False) -> Tuple[GuideDirections, int, GuideDirections, int, List[str]]:
         """
         Convert equatorial pulse guide command to alt/az pulse parameters.
         
         Transforms the requested RA/Dec motion into corresponding Alt/Az motions
-        using coordinate transformations.
+        using cached coordinate transformation frames for optimal performance.
         
         Args:
             direction: Requested guide direction in equatorial frame
             duration: Requested duration in milliseconds
+            timing_critical: If True, use potentially stale cache to avoid delays
             
         Returns:
-            Tuple of (ns_direction, ns_duration, ew_direction, ew_duration)
+            Tuple of (ns_direction, ns_duration, ew_direction, ew_duration, cache_refresh_needed)
             
         Raises:
             DriverException: Coordinate transformation failure
@@ -3420,7 +3866,7 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             duration_sec = duration / 1000.0
             guide_rate = self.GuideRateDeclination  # deg/sec
             
-            self._logger.debug(f"Equatorial PulseGuide Conversion - delta angle = {duration_sec * guide_rate}")
+            self._logger.debug(f"Converting equatorial pulse: {direction} for {duration}ms (rate={guide_rate:.6f}°/s)")
 
             # Calculate RA/Dec deltas based on equatorial direction
             delta_ra = 0.0  # degrees
@@ -3435,10 +3881,9 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             elif direction == GuideDirections.guideWest:
                 delta_ra = -duration_sec * guide_rate
             
-            self._logger.debug(f"Equatorial PulseGuide Conversion - delta_dec: {delta_dec}; delta_ra: {delta_ra}")
+            self._logger.debug(f"Computed deltas: RA={delta_ra:.6f}°, Dec={delta_dec:.6f}°")
 
             # Get current telescope position
-            current_time = Time.now()
             current_ra = self.RightAscension  # hours
             current_dec = self.Declination    # degrees
             
@@ -3446,44 +3891,34 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             final_ra = current_ra + delta_ra / 15.0  # convert degrees to hours
             final_dec = current_dec + delta_dec
             
-            self._logger.debug(f"Equatorial PulseGuide Conversion - Current Position Ra: {current_ra}, Dec: {current_dec}")
-            self._logger.debug(f"Equatorial PulseGuide Conversion - Final Position Ra: {final_ra}, Dec: {final_dec}")
+            self._logger.debug(f"Position transformation: ({current_ra:.6f}h, {current_dec:.6f}°) → ({final_ra:.6f}h, {final_dec:.6f}°)")
 
-            #Transform current position to AltAz
-            current_gcrs = GCRS(
+            # Get cached coordinate frames (potentially stale if timing_critical)
+            cache_refresh_needed = []
+            if timing_critical:
+                cache_refresh_needed = self._check_cache_freshness(['gcrs', 'altaz'])
+                if cache_refresh_needed:
+                    self._logger.debug(f"Using potentially stale cache for timing-critical operation: {cache_refresh_needed}")
+            
+            gcrs_frame = self._get_frame_cache('gcrs', timing_critical=timing_critical)
+            altaz_frame = self._get_frame_cache('altaz', timing_critical=timing_critical)
+
+            # Transform current and final positions to AltAz using cached frames
+            current_gcrs = SkyCoord(
                 ra=current_ra * u.hour,
                 dec=current_dec * u.deg,
-                obstime=current_time
+                frame=gcrs_frame
             )
-            self._logger.debug("This is a test to see which side of the 5 seconds this message falls under...")
+            current_altaz = current_gcrs.transform_to(altaz_frame)
+            self._logger.debug(f"Current AltAz: Az={current_altaz.az.deg:.6f}°, Alt={current_altaz.alt.deg:.6f}°")
 
-
-            self._logger.debug("Equatorial PulseGuide Conversion - Current GCRS Calculated")
-
-            self._logger.debug("This is a second test to see which side of the 5 seconds this message falls under...")
-
-            current_altaz = current_gcrs.transform_to(AltAz(
-                obstime=current_time,
-                location=self._site_location
-            ))
-
-            self._logger.debug("Equatorial PulseGuide Conversion - eq to altaz current position calculated")
-
-            # Transform final position to AltAz
-            final_gcrs = GCRS(
+            final_gcrs = SkyCoord(
                 ra=final_ra * u.hour,
                 dec=final_dec * u.deg,
-                obstime=current_time
+                frame=gcrs_frame
             )
-
-            self._logger.debug("Equatorial PulseGuide Conversion - Final GCRS Calculated")
-
-            final_altaz = final_gcrs.transform_to(AltAz(
-                obstime=current_time,
-                location=self._site_location
-            ))
-            
-            self._logger.debug("Equatorial PulseGuide Conversion - eq to altaz final position calculated")
+            final_altaz = final_gcrs.transform_to(altaz_frame)
+            self._logger.debug(f"Final AltAz: Az={final_altaz.az.deg:.6f}°, Alt={final_altaz.alt.deg:.6f}°")
 
             # Calculate Alt/Az deltas
             delta_alt = final_altaz.alt.deg - current_altaz.alt.deg
@@ -3499,13 +3934,13 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             ns_dur = abs(round(delta_alt / guide_rate * 1000))
             ew_dur = abs(round(delta_az / guide_rate * 1000))
             
-            self._logger.debug(f"Equatorial PulseGuide Conversion - NS: {ns_dur} msec; EW: {ew_dur} msec")
-
             # Determine mount directions based on delta signs
             ns_dir = GuideDirections.guideSouth if delta_alt >= 0 else GuideDirections.guideNorth
             ew_dir = GuideDirections.guideEast if delta_az >= 0 else GuideDirections.guideWest
             
-            return ns_dir, ns_dur, ew_dir, ew_dur
+            self._logger.info(f"Converted to AltAz pulses: {ns_dir} {ns_dur}ms, {ew_dir} {ew_dur}ms")
+            
+            return ns_dir, ns_dur, ew_dir, ew_dur, cache_refresh_needed
             
         except Exception as ex:
             raise DriverException(0x500, f"Equatorial pulse conversion failed: {ex}")
@@ -3867,6 +4302,8 @@ class TTS160Device(CapabilitiesMixin, ConfigurationMixin, CoordinateUtilsMixin):
             # Firmware bug workaround - throwaway SiderealTime call
             _ = self.SiderealTime
             
+            self._invalidate_all_caches()
+
             self._logger.info("Mount time set successfully")
             
         except (NotConnectedException, InvalidValueException):

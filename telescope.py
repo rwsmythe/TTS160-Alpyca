@@ -191,8 +191,16 @@ class connected:
 
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            resp.text = MethodResponse(req, # Put is actually like a method :-(
-                            DriverException(0x500, 'Telescope.Connected failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'Telescope.Connected failed', ex)).json
+
+            #resp.text = MethodResponse(req, # Put is actually like a method :-(
+            #                DriverException(0x500, 'Telescope.Connected failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class connecting:
@@ -250,11 +258,19 @@ class disconnect:
             # ---------------------------
             ### DISCONNECT THE DEVICE ###
             # ---------------------------
-            TTS160_dev.Disconnect()
             resp.text = MethodResponse(req).json
+            TTS160_dev.Disconnect()
         except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Disconnect failed', ex)).json
+            exception_name = type(ex).__name__
+            if exception_name in ALPACA_EXCEPTIONS:
+                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
+                resp.text = MethodResponse(req, alpaca_ex).json
+            else:
+                resp.text = MethodResponse(req, 
+                                DriverException(0x500, 'elescope.Disconnect failed', ex)).json
+
+            #resp.text = MethodResponse(req,
+            #                DriverException(0x500, 'Telescope.Disconnect failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class driverinfo:
