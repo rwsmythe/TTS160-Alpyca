@@ -22,10 +22,10 @@ iers.IERS_Auto.open()  # Force download
 
 # Local imports
 from tts160_types import CommandType
-from exceptions import (
-    DriverException, InvalidValueException, InvalidOperationException,
-    NotImplementedException, ParkedException, NotConnectedException
-)
+#from exceptions import (
+#    DriverException, InvalidValueException, InvalidOperationException,
+#    NotImplementedException, ParkedException, NotConnectedException
+#)
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
     AlignmentModes, TelescopeAxes, GuideDirections, Rate
@@ -457,7 +457,7 @@ class CapabilitiesMixin:
                 
         except Exception as ex:
             self._logger.error(f"Failed to check axis {axis} capability: {ex}")
-            raise DriverException(0x500, f"Axis capability check failed: {ex}")
+            raise RuntimeError(f"Axis capability check failed", ex)
     
     @property
     def CanSetDeclinationRate(self) -> bool:
@@ -496,6 +496,9 @@ class CapabilitiesMixin:
             DriverException: If rate retrieval fails
         """
         try:
+            if not self.Connected:
+                raise ConnectionError("Not Connected")
+            
             self._logger.debug(f"Retrieving available rates for axis: {axis}")
             
             if axis in [TelescopeAxes.axisPrimary, TelescopeAxes.axisSecondary]:
@@ -510,7 +513,7 @@ class CapabilitiesMixin:
                 
         except Exception as ex:
             self._logger.error(f"Failed to retrieve rates for axis {axis}: {ex}")
-            raise DriverException(0x500, f"Axis rates retrieval failed: {ex}")
+            raise RuntimeError(f"Axis rates retrieval failed", ex)
     
     @property
     def CanSync(self) -> bool:
@@ -539,6 +542,9 @@ class CapabilitiesMixin:
             NotConnectedException: If device not connected
             DriverException: If tracking rates retrieval fails
         """
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
         try:
             self._logger.debug("Retrieving available tracking rates")
             rates = self._DriveRates
@@ -547,7 +553,7 @@ class CapabilitiesMixin:
             
         except Exception as ex:
             self._logger.error(f"Failed to retrieve tracking rates: {ex}")
-            raise DriverException(0x500, f"Tracking rates retrieval failed: {ex}")
+            raise RuntimeError(f"Tracking rates retrieval failed", ex)
 
     # Static Properties  
     @property
@@ -598,26 +604,33 @@ class CapabilitiesMixin:
             
         except Exception as ex:
             self._logger.error(f"Failed to retrieve alignment mode: {ex}")
-            raise DriverException(0x500, f"Alignment mode retrieval failed: {ex}")
+            raise RuntimeError(f"Alignment mode retrieval failed", ex)
             
 class ConfigurationMixin:
     @property
     def SlewSettleTime(self) -> int:
+        
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+
         return self._config.slew_settle_time
     
     @SlewSettleTime.setter
     def SlewSettleTime(self, value: int) -> None:
         
-        try:
-            if not 0 <= value <= 30:
-                raise InvalidValueException(f"Invalid Slew Settle Time: {value}, value not saved.")
-            
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+
+         
+        if not (0 <= value <= 30):
+            raise ValueError(f"Invalid Slew Settle Time: {value}, value not saved.")
+
+        try:        
             with self._lock:
                 self._config.slew_settle_time = value
-        except InvalidValueException:
-            raise
+
         except Exception as ex:
-            raise DriverException(0x500, "SlewSettleTime assignment failed", ex)
+            raise RuntimeError("SlewSettleTime assignment failed", ex)
     
     def _update_site_location(self) -> None:
         """
@@ -715,12 +728,13 @@ class CoordinateUtilsMixin:
             "-12:34:56" -> -12.582222
             "90*00" -> 90.0
         """
+        if not isinstance(dms_str, str):
+            raise TypeError(f"DMS input must be string, got {type(dms_str)}")
+        
+        if not dms_str.strip():
+            raise ValueError("DMS string cannot be empty")
+        
         try:
-            if not isinstance(dms_str, str):
-                raise InvalidValueException(f"DMS input must be string, got {type(dms_str)}")
-            
-            if not dms_str.strip():
-                raise InvalidValueException("DMS string cannot be empty")
             
             # Clean string and extract sign
             cleaned = dms_str.rstrip('#').strip()
@@ -733,7 +747,7 @@ class CoordinateUtilsMixin:
             parts = cleaned.replace('*', ':').replace("'", ':').replace('"', ':').split(':')
             
             if len(parts) < 1 or len(parts) > 3:
-                raise InvalidValueException(f"Invalid DMS format: expected 1-3 parts, got {len(parts)}")
+                raise ValueError(f"Invalid DMS format: expected 1-3 parts, got {len(parts)}")
             
             # Convert parts to float with validation
             try:
@@ -741,26 +755,26 @@ class CoordinateUtilsMixin:
                 minutes = float(parts[1]) if len(parts) > 1 else 0.0
                 seconds = float(parts[2]) if len(parts) > 2 else 0.0
             except ValueError as ex:
-                raise InvalidValueException(f"Invalid numeric values in DMS string '{dms_str}': {ex}")
+                raise ValueError(f"Invalid numeric values in DMS string '{dms_str}': {ex}")
             
             # Validate ranges
             if degrees < 0:
-                raise InvalidValueException(f"Degrees component cannot be negative in '{dms_str}' (use leading sign)")
+                raise ValueError(f"Degrees component cannot be negative in '{dms_str}' (use leading sign)")
             if not (0 <= minutes < 60):
-                raise InvalidValueException(f"Minutes {minutes} outside valid range 0-59")
+                raise ValueError(f"Minutes {minutes} outside valid range 0-59")
             if not (0 <= seconds < 60):
-                raise InvalidValueException(f"Seconds {seconds} outside valid range 0-59")
+                raise ValueError(f"Seconds {seconds} outside valid range 0-59")
             
             result = sign * (degrees + minutes/60.0 + seconds/3600.0)
             self._logger.debug(f"DMS conversion result: {result:.6f}°")
             return result
             
-        except InvalidValueException:
+        except ValueError:
             self._logger.error(f"DMS conversion failed: {dms_str}")
             raise
         except Exception as ex:
             self._logger.error(f"Unexpected error in DMS conversion '{dms_str}': {ex}")
-            raise InvalidValueException(f"Invalid DMS format: {dms_str}")
+            raise RuntimeError(f"Invalid DMS format: {dms_str}")
 
     def _hms_to_hours(self, hms_str: str) -> float:
         """
@@ -782,12 +796,13 @@ class CoordinateUtilsMixin:
             "23:59:59" -> 23.999722
             "12:30" -> 12.5
         """
-        try:
-            if not isinstance(hms_str, str):
-                raise InvalidValueException(f"HMS input must be string, got {type(hms_str)}")
+        if not isinstance(hms_str, str):
+            raise TypeError(f"HMS input must be string, got {type(hms_str)}")
             
-            if not hms_str.strip():
-                raise InvalidValueException("HMS string cannot be empty")
+        if not hms_str.strip():
+            raise ValueError("HMS string cannot be empty")
+        
+        try:
             
             # Clean string
             cleaned = hms_str.rstrip('#').strip()
@@ -795,33 +810,33 @@ class CoordinateUtilsMixin:
             
             parts = cleaned.split(':')
             if len(parts) < 1 or len(parts) > 3:
-                raise InvalidValueException(f"Invalid HMS format: expected 1-3 parts, got {len(parts)}")
+                raise ValueError(f"Invalid HMS format: expected 1-3 parts, got {len(parts)}")
             
             try:
                 hours = float(parts[0])
                 minutes = float(parts[1]) if len(parts) > 1 else 0.0
                 seconds = float(parts[2]) if len(parts) > 2 else 0.0
             except ValueError as ex:
-                raise InvalidValueException(f"Invalid numeric values in HMS string '{hms_str}': {ex}")
+                raise ValueError(f"Invalid numeric values in HMS string '{hms_str}': {ex}")
             
             # Validate ranges
             if not (0 <= hours < 24):
-                raise InvalidValueException(f"Hours {hours} outside valid range 0-23")
+                raise ValueError(f"Hours {hours} outside valid range 0-23")
             if not (0 <= minutes < 60):
-                raise InvalidValueException(f"Minutes {minutes} outside valid range 0-59")
+                raise ValueError(f"Minutes {minutes} outside valid range 0-59")
             if not (0 <= seconds < 60):
-                raise InvalidValueException(f"Seconds {seconds} outside valid range 0-59")
+                raise ValueError(f"Seconds {seconds} outside valid range 0-59")
             
             result = hours + minutes/60.0 + seconds/3600.0
             self._logger.debug(f"HMS conversion result: {result:.6f}h")
             return result
             
-        except InvalidValueException:
+        except ValueError:
             self._logger.error(f"HMS conversion failed: {hms_str}")
             raise
         except Exception as ex:
             self._logger.error(f"Unexpected error in HMS conversion '{hms_str}': {ex}")
-            raise InvalidValueException(f"Invalid HMS format: {hms_str}")
+            raise RuntimeError(f"Invalid HMS format: {hms_str}")
 
     def _degrees_to_dms(self, degrees: float, deg_sep: str = "*", min_sep: str = ":") -> str:
         """
@@ -930,9 +945,9 @@ class CoordinateUtilsMixin:
             return icrs_coord.ra.hour, icrs_coord.dec.degree
             
         except Exception as ex:
-            if isinstance(ex, InvalidValueException):
+            if isinstance(ex, ValueError):
                 raise
-            raise DriverException(0x500, f"Alt/Az to ICRS conversion failed: {ex}")
+            raise RuntimeError(f"Alt/Az to ICRS conversion failed", ex)
 
     def _icrs_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
@@ -974,9 +989,9 @@ class CoordinateUtilsMixin:
             return azimuth, altaz_coord.alt.degree
             
         except Exception as ex:
-            if isinstance(ex, InvalidValueException):
+            if isinstance(ex, ValueError):
                 raise
-            raise DriverException(0x500, f"ICRS to Alt/Az conversion failed: {ex}")
+            raise RuntimeError(f"ICRS to Alt/Az conversion failed", ex)
 
     def _altaz_to_gcrs(self, azimuth: float, altitude: float) -> Tuple[float, float]:
         """
@@ -1011,9 +1026,9 @@ class CoordinateUtilsMixin:
             return gcrs_coord.ra.hour, gcrs_coord.dec.degree
             
         except Exception as ex:
-            if isinstance(ex, InvalidValueException):
+            if isinstance(ex, ValueError):
                 raise
-            raise DriverException(0x500, f"Alt/Az to GCRS conversion failed: {ex}")
+            raise RuntimeError(f"Alt/Az to GCRS conversion failed", ex)
 
     def _gcrs_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
@@ -1055,9 +1070,9 @@ class CoordinateUtilsMixin:
             return azimuth, altaz_coord.alt.degree
             
         except Exception as ex:
-            if isinstance(ex, InvalidValueException):
+            if isinstance(ex, ValueError):
                 raise
-            raise DriverException(0x500, f"GCRS to Alt/Az conversion failed: {ex}")
+            raise RuntimeError(f"GCRS to Alt/Az conversion failed", ex)
 
     def _icrs_to_gcrs(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
@@ -1100,9 +1115,9 @@ class CoordinateUtilsMixin:
             return ra_hours, gcrs_coord.dec.degree
             
         except Exception as ex:
-            if isinstance(ex, InvalidValueException):
+            if isinstance(ex, ValueError):
                 raise
-            raise DriverException(0x500, f"ICRS to GCRS conversion failed: {ex}")
+            raise RuntimeError(f"ICRS to GCRS conversion failed", ex)
 
     def _gcrs_to_icrs(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
@@ -1145,9 +1160,9 @@ class CoordinateUtilsMixin:
             return ra_hours, icrs_coord.dec.degree
             
         except Exception as ex:
-            if isinstance(ex, InvalidValueException):
+            if isinstance(ex, ValueError):
                 raise
-            raise DriverException(0x500, f"GCRS to ICRS conversion failed: {ex}")
+            raise RuntimeError(f"GCRS to ICRS conversion failed", ex)
     
     def _calculate_sidereal_time(self, time: datetime = None) -> float:
         """
@@ -1187,7 +1202,7 @@ class CoordinateUtilsMixin:
             
         except Exception as ex:
             self._logger.error(f"Sidereal time calculation failed: {ex}")
-            raise DriverException(0x500, "Sidereal time calculation failed", ex)
+            raise RuntimeError("Sidereal time calculation failed", ex)
 
     def _calculate_hour_angle(self, right_ascension: float, time: datetime = None) -> float:
         """
@@ -1218,12 +1233,12 @@ class CoordinateUtilsMixin:
             self._logger.debug(f"Hour angle: {ha:.3f}h (LST: {lst:.3f}h, RA: {right_ascension:.3f}h)")
             return ha
             
-        except InvalidValueException:
+        except ValueError:
             self._logger.error(f"Hour angle calculation failed: invalid RA {right_ascension}")
             raise
         except Exception as ex:
             self._logger.error(f"Hour angle calculation failed: {ex}")
-            raise DriverException(0x500, "Hour angle calculation failed", ex)
+            raise RuntimeError("Hour angle calculation failed", ex)
 
     def _condition_ha(self, ha: float) -> float:
         """
@@ -1277,27 +1292,27 @@ class CoordinateUtilsMixin:
         try:
             if ra is not None:
                 if not isinstance(ra, (int, float)) or math.isnan(ra) or math.isinf(ra):
-                    raise InvalidValueException(f"Right ascension must be valid number, got {ra}")
+                    raise ValueError(f"Right ascension must be valid number, got {ra}")
                 if not (0 <= ra <= 24):
-                    raise InvalidValueException(f"Right ascension {ra} outside valid range 0-24 hours")
+                    raise ValueError(f"Right ascension {ra} outside valid range 0-24 hours")
             
             if dec is not None:
                 if not isinstance(dec, (int, float)) or math.isnan(dec) or math.isinf(dec):
-                    raise InvalidValueException(f"Declination must be valid number, got {dec}")
+                    raise ValueError(f"Declination must be valid number, got {dec}")
                 if not (-90 <= dec <= 90):
-                    raise InvalidValueException(f"Declination {dec} outside valid range ±90 degrees")
+                    raise ValueError(f"Declination {dec} outside valid range ±90 degrees")
             
             if alt is not None:
                 if not isinstance(alt, (int, float)) or math.isnan(alt) or math.isinf(alt):
-                    raise InvalidValueException(f"Altitude must be valid number, got {alt}")
+                    raise ValueError(f"Altitude must be valid number, got {alt}")
                 if not (0 <= alt <= 90):
-                    raise InvalidValueException(f"Altitude {alt} outside valid range ±90 degrees")
+                    raise ValueError(f"Altitude {alt} outside valid range ±90 degrees")
             
             if az is not None:
                 if not isinstance(az, (int, float)) or math.isnan(az) or math.isinf(az):
-                    raise InvalidValueException(f"Azimuth must be valid number, got {az}")
+                    raise ValueError(f"Azimuth must be valid number, got {az}")
                 if not (0 <= az <= 360):
-                    raise InvalidValueException(f"Azimuth {az} outside valid range 0-360 degrees")
+                    raise ValueError(f"Azimuth {az} outside valid range 0-360 degrees")
                     
         except Exception as ex:
             self._logger.error(f"Coordinate validation failed: {ex}")
@@ -1377,7 +1392,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._initialize_mount_state()
             
             # Target coordinate state
-            self._initialize_target_state()
+            #self._initialize_target_state()
             
             # Site location for coordinate transformations
             self._site_location = None
@@ -1433,7 +1448,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.info("Global configuration loaded successfully")
             except Exception as ex:
                 self._logger.error(f"Failed to load global configuration: {ex}")
-                raise DriverException(0x500, "Configuration initialization failed", ex)
+                raise RuntimeError("Configuration initialization failed", ex)
             
             # Initialize serial manager
             try:
@@ -1442,29 +1457,25 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.info("Serial manager instantiated successfully")
             except Exception as ex:
                 self._logger.error(f"Serial manager instantiation failed: {ex}")
-                raise DriverException(0x500, "Serial manager initialization failed", ex)
+                raise RuntimeError("Serial manager initialization failed", ex)
             
             # Verify global objects are properly initialized
             if self._config is None:
-                raise DriverException(0x500, "Configuration object is None after initialization")
+                raise RuntimeError("Configuration object is None after initialization")
             
             if self._serial_manager is None:
-                raise DriverException(0x500, "Serial manager is None after initialization")
+                raise RuntimeError("Serial manager is None after initialization")
             
             self._logger.debug("Global objects validation completed successfully")
             
         except ImportError as ex:
             self._logger.error(f"TTS160Global module import failed: {ex}")
-            raise DriverException(0x500, "TTS160Global module unavailable", ex)
-        
-        except DriverException:
-            # Re-raise DriverExceptions without wrapping
-            raise
+            raise RuntimeError("TTS160Global module unavailable", ex)
             
         except Exception as ex:
             # Wrap unexpected exceptions
             self._logger.error(f"Unexpected error during global objects setup: {ex}")
-            raise DriverException(0x500, "Global objects setup failed", ex)
+            raise RuntimeError("Global objects setup failed", ex)
 
     def _initialize_capability_flags(self) -> None:
         """Initialize ASCOM capability flags per TTS160 hardware specifications."""
@@ -1497,12 +1508,12 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         self._slewing_hold = False
         self._logger.debug("Mount state variables initialized")
 
-    def _initialize_target_state(self) -> None:
-        """Initialize target coordinate state tracking."""
-        self._is_target_set = False
-        self._target_right_ascension_set = False
-        self._target_declination_set = False
-        self._logger.debug("Target state variables initialized")
+    #def _initialize_target_state(self) -> None:
+    #    """Initialize target coordinate state tracking."""
+        #self._is_target_set = False
+        #self._target_right_ascension_set = False
+        #self._target_declination_set = False
+        #self._logger.debug("Target state variables initialized")
 
     def _initialize_hardware_constants(self) -> None:
         """Initialize TTS160-specific hardware constants and operational parameters."""
@@ -1648,15 +1659,15 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         # Validate prerequisites
         if not hasattr(self, '_config') or self._config is None:
             self._logger.error("Connect failed: Configuration not initialized")
-            raise DriverException(0x500, "Configuration not available for connection")
+            raise RuntimeError("Configuration not available for connection")
         
         if not hasattr(self, '_serial_manager') or self._serial_manager is None:
             self._logger.error("Connect failed: Serial manager not initialized, trying to reinitialize.") 
-            raise DriverException(0x500, "Serial manager not available for connection")
+            raise RuntimeError("Serial manager not available for connection")
         
         if not hasattr(self, '_executor') or self._executor is None:
             self._logger.error("Connect failed: Thread executor not initialized")
-            raise DriverException(0x500, "Thread executor not available for connection")
+            raise RuntimeError("Thread executor not available for connection")
         
         with self._lock:
             # Handle already connected (ASCOM shared connection pattern)
@@ -1693,26 +1704,26 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 with self._lock:
                     self._Connecting = False
                 self._logger.error("Thread pool unavailable for connection")
-                raise DriverException(0x500, "Thread pool shutdown, cannot connect", ex)
+                raise RuntimeError("Thread pool shutdown, cannot connect", ex)
             
             self._logger.info("Async connection process initiated successfully")
 
-        except DriverException:
-            with self._lock:
-                self._Connecting = False
-            raise
+        #except DriverException:
+        #    with self._lock:
+        #        self._Connecting = False
+        #    raise
             
         except (AttributeError, RuntimeError) as ex:
             with self._lock:
                 self._Connecting = False
             self._logger.error(f"Connection setup failed: {ex}")
-            raise DriverException(0x500, "Connection initialization failed", ex)
+            raise RuntimeError("Connection initialization failed", ex)
             
         except Exception as ex:
             with self._lock:
                 self._Connecting = False
             self._logger.error(f"Unexpected connection error: {ex}")
-            raise DriverException(0x500, "Unexpected connection failure", ex)
+            raise RuntimeError("Unexpected connection failure", ex)
 
 
     def _perform_mount_connection(self) -> None:
@@ -1743,7 +1754,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     self._logger.debug("Serial manager reinitialized")
             except ImportError as ex:
                 self._logger.error("TTS160Global module import failed during connection")
-                raise DriverException(0x500, "TTS160Global module unavailable", ex)
+                raise RuntimeError("TTS160Global module unavailable", ex)
 
             # Establish serial connection
             try:
@@ -1751,20 +1762,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.info(f"Serial connection established on {self._config.dev_port}")
             except Exception as ex:
                 self._logger.error(f"Serial connection failed on {self._config.dev_port}: {ex}")
-                raise DriverException(0x500, f"Serial connection failed: {ex}", ex)
+                raise RuntimeError(f"Serial connection failed", ex)
             
-            # No longer required to check, firmware keeps mount safe
-            # Check if mount is parked.  If it is, it is not safe to connect to the mount, disconnect and clean up.
-            #try:
-            #    if self.AtPark:
-            #        self._logger.info(f"Mount detected as parked, it is not safe to connect.  Disconnecting.")
-            #        self.Disconnect()
-            #        raise DriverException(0xFFF,f"Could not connect mount due to Parked condition.  Connect cancelled.")
-            #except Exception as ex:
-            #    self._logger.error(f"Mount connection failed with unexpected error: {ex}")
-            #    raise DriverException(0x500, "Mount connectiong failed", ex)
-
-
             # Initialize mount hardware and settings
             self._initialize_connected_mount()
             
@@ -1775,20 +1774,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 
             self._logger.info("TTS160 mount connection completed successfully")
             
-        except DriverException:
-            # Cleanup and re-raise
-            with self._lock:
-                self._Connecting = False
-                self._Connected = False
-            raise
-            
         except Exception as ex:
             # Cleanup and wrap unexpected exceptions
             with self._lock:
                 self._Connecting = False
                 self._Connected = False
             self._logger.error(f"Mount connection failed with unexpected error: {ex}")
-            raise DriverException(0x500, "Mount connection failed", ex)
+            raise RuntimeError("Mount connection failed", ex)
 
 
     def _initialize_connected_mount(self) -> None:
@@ -1815,7 +1807,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.info(f"Connected to mount: {mount_name}")
                 self._logger.info(f"Firmware version: {firmware} ({firmware_date})")
             except Exception as ex:
-                raise DriverException(0x500, f"Failed to retrieve mount identification: {ex}")
+                raise RuntimeError(f"Failed to retrieve mount identification", ex)
             
             # Update site coordinates from mount
             self._sync_site_coordinates_from_mount()
@@ -1825,6 +1817,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 try:
                     self.UTCDate = datetime.now(timezone.utc)
                     self._logger.info("Mount time synchronized with system clock")
+                    mnttime = self.UTCDate
+                    self._logger.debug(f"Computer time: {datetime.now(timezone.utc)}")
+                    self._logger.debug(f"Mount time: {mnttime}")
                 except Exception as ex:
                     self._logger.warning(f"Time synchronization failed: {ex}")
             
@@ -1837,7 +1832,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
         except Exception as ex:
             self._logger.error(f"Mount initialization failed: {ex}")
-            raise DriverException(0x500, "Mount initialization failed", ex)
+            raise RuntimeError("Mount initialization failed", ex)
 
 
     def _sync_site_coordinates_from_mount(self) -> None:
@@ -1886,7 +1881,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 latitude = self.SiteLatitude
                 longitude = self.SiteLongitude
             except Exception as ex:
-                raise DriverException(0x500, f"Failed to retrieve site coordinates from mount: {ex}")
+                raise RuntimeError(f"Failed to retrieve site coordinates from mount", ex)
             
             # Update configuration and site location
             with self._lock:
@@ -1907,18 +1902,15 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     self._logger.debug("AstroPy site location updated")
                     
                 except Exception as ex:
-                    raise DriverException(0x500, f"Failed to update site location objects: {ex}")
+                    raise RuntimeError(f"Failed to update site location objects", ex)
             
             self._logger.info(f"Site coordinates synchronized: {latitude:.6f}°, {longitude:.6f}°, {elevation:.1f}m")
             
             self._invalidate_cache('altaz')
-
-        except DriverException:
-            raise
             
         except Exception as ex:
             self._logger.warning(f"Site coordinate synchronization failed: {ex}")
-            raise DriverException(0x500, "Failed to synchronize site coordinates from mount", ex)
+            raise RuntimeError("Failed to synchronize site coordinates from mount", ex)
     
     def Disconnect(self) -> None:
         """
@@ -1949,6 +1941,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             - Does not raise exceptions for cleanup failures to ensure disconnection completes
         """
         with self._lock:
+            
             # Safe to disconnect when not connected
             if not self._Connected:
                 self._logger.debug("Disconnect called when already disconnected")
@@ -2013,7 +2006,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.error(f"Unexpected error during disconnect: {ex}")
             with self._lock:
                 self._Connected = False
-            raise DriverException(0x500, "Disconnect completed with errors", ex)
+            raise RuntimeError("Disconnect completed with errors", ex)
             
         finally:
             # Always reset connecting state
@@ -2039,7 +2032,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             result in NotImplementedException for all modern devices.
         """
         self._logger.warning(f"CommandBlind called with deprecated method: command='{command}', raw={raw}")
-        raise NotImplementedException("CommandBlind is deprecated and not supported by TTS160")
+        raise NotImplementedError("CommandBlind is deprecated and not supported by TTS160")
 
 
     def CommandBool(self, command: str, raw: bool = False) -> bool:
@@ -2064,7 +2057,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             result in NotImplementedException for all modern devices.
         """
         self._logger.warning(f"CommandBool called with deprecated method: command='{command}', raw={raw}")
-        raise NotImplementedException("CommandBool is deprecated and not supported by TTS160")
+        raise NotImplementedError("CommandBool is deprecated and not supported by TTS160")
 
 
     def CommandString(self, command: str, raw: bool = False) -> str:
@@ -2089,7 +2082,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             result in NotImplementedException for all modern devices.
         """
         self._logger.warning(f"CommandString called with deprecated method: command='{command}', raw={raw}")
-        raise NotImplementedException("CommandString is deprecated and not supported by TTS160")
+        raise NotImplementedError("CommandString is deprecated and not supported by TTS160")
 
 
     def _send_command(self, command: str, command_type: CommandType) -> str:
@@ -2137,12 +2130,12 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         # before setting Connected to True
         if not self._Connected and not self._Connecting:
             self._logger.error(f"Command '{safe_command}' attempted while disconnected")
-            raise NotConnectedException("Device not connected - cannot send command")
+            raise ConnectionError("Device not connected - cannot send command")
         
         # Serial manager validation
         if not hasattr(self, '_serial_manager') or not self._serial_manager:
             self._logger.error("Serial manager not available for command execution")
-            raise DriverException(0x500, "Serial manager not initialized")
+            raise RuntimeError("Serial manager not initialized")
         
         try:
             # Execute command via serial manager
@@ -2158,15 +2151,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             return response
             
-        except DriverException:
-            # Re-raise DriverExceptions as-is
-            self._logger.error(f"DriverException executing command '{safe_command}'")
-            raise
-            
         except Exception as ex:
             # Wrap unexpected exceptions with context
             self._logger.error(f"Communication error executing command '{safe_command}': {ex}")
-            raise DriverException(0x555, f"Command execution failed: {command}", ex)
+            raise RuntimeError(f"Command execution failed: {command}", ex)
         
    
     def _altaz_to_radec(self, azimuth: float, altitude: float) -> Tuple[float, float]:
@@ -2200,12 +2188,12 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             return result
             
-        except (InvalidValueException, DriverException):
+        except ValueError:
             self._logger.error(f"Alt/Az to RA/Dec conversion failed: Az={azimuth}°, Alt={altitude}°")
             raise
         except Exception as ex:
             self._logger.error(f"Unexpected error in Alt/Az conversion: {ex}")
-            raise DriverException(0x500, "Coordinate conversion failed", ex)
+            raise RuntimeError("Coordinate conversion failed", ex)
 
 
     def _radec_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
@@ -2238,50 +2226,56 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             return result
             
-        except (InvalidValueException, DriverException):
+        except ValueError:
             self._logger.error(f"RA/Dec to Alt/Az conversion failed: RA={right_ascension}h, Dec={declination}°")
             raise
         except Exception as ex:
             self._logger.error(f"Unexpected error in RA/Dec conversion: {ex}")
-            raise DriverException(0x500, "Coordinate conversion failed", ex)
+            raise RuntimeError("Coordinate conversion failed", ex)
     
     # Connection Properties
     @property
     def Connected(self) -> bool:
         """ASCOM Connected property."""
-        with self._lock:
-            self._logger.debug(f"Reporting Connected as: {self._Connected}")
-            return self._Connected
-    
+        try:
+            with self._lock:
+                self._logger.debug(f"Reporting Connected as: {self._Connected}")
+                return self._Connected
+        except Exception as ex:
+            raise RuntimeError("Reading Connected property failed", ex)
+        
     @Connected.setter  
     def Connected(self, value: bool) -> None:
         """ASCOM Connected property setter."""
         self._logger.debug(f"Set Connected {value}, deprecated connection method, simulating sync methods")
-        if value:
-            self.Connect()
-            #simulate synchronous execution
-            while not self._Connected:
-                time.sleep(0.1)
-        else:
-            self.Disconnect()
-            #simulate synchronous execution - Disconnect is fast, just do it
-            #while self.Connected:
-            #    time.sleep(0.1)
+        try:
+            if value:
+                self.Connect()
+                #simulate synchronous execution
+                while not self._Connected:
+                    time.sleep(0.1)
+            else:
+                self.Disconnect()
+        except Exception as ex:
+            raise RuntimeError(f"Setting Connected to: {value} failed", ex)
     
     @property
     def Connecting(self) -> bool:
         """ASCOM Connecting property."""
-        with self._lock:
-            self._logger.debug(f"Reporting Connecting as: {self._Connected}")
-            return self._Connecting
-    
+        try:
+            with self._lock:
+                self._logger.debug(f"Reporting Connecting as: {self._Connected}")
+                return self._Connecting
+        except Exception as ex:
+            raise RuntimeError("Reading Connecting property failed", ex)
+        
     # Mount Actions
     def Action(self, action_name: str, *parameters: Any) -> str:
         """Invokes the specified device-specific custom action."""
         self._logger.info(f"Action: {action_name}; Parameters: {parameters}")
         
         if not self.Connected:
-            raise NotConnectedException()
+            raise ConnectionError("Device not connected")
 
         try:
             action_name = action_name.lower()
@@ -2292,7 +2286,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.info(f"FieldRotationAngle - Retrieved: {result}")
                 return result
             
-            raise NotImplementedException(f"Action '{action_name}' is not implemented")
+            raise NotImplementedError(f"Action '{action_name}' is not implemented")
             
         except Exception as ex:
             self._logger.error(f"Action error: {ex}")
@@ -2317,7 +2311,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If command fails or mount communication error
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         try:
             self._logger.debug("Retrieving current altitude from mount")
@@ -2327,7 +2321,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return altitude_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve altitude: {ex}")
-            raise DriverException(0x500, "Failed to get altitude", ex)
+            raise RuntimeError("Failed to get altitude", ex)
 
 
     @property
@@ -2345,8 +2339,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             NotConnectedException: If device not connected
             DriverException: If command fails or mount communication error
         """
-        if not self._Connected:
-            raise NotConnectedException("Device not connected")
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
         
         try:
             self._logger.debug("Retrieving current azimuth from mount")
@@ -2356,7 +2350,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return azimuth_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve azimuth: {ex}")
-            raise DriverException(0x500, "Failed to get azimuth", ex)
+            raise RuntimeError("Failed to get azimuth", ex)
 
 
     @property
@@ -2374,8 +2368,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             NotConnectedException: If device not connected
             DriverException: If command fails or mount communication error
         """
-        if not self._Connected:
-            raise NotConnectedException("Device not connected")
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
         
         try:
             self._logger.debug("Retrieving current declination from mount")
@@ -2385,7 +2379,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return declination_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve declination: {ex}")
-            raise DriverException(0x500, "Failed to get declination", ex)
+            raise RuntimeError("Failed to get declination", ex)
 
 
     @property
@@ -2404,7 +2398,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If command fails or mount communication error
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         try:
             self._logger.debug("Retrieving current right ascension from mount")
@@ -2415,7 +2409,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return ra
         except Exception as ex:
             self._logger.error(f"Failed to retrieve right ascension: {ex}")
-            raise DriverException(0x500, "Failed to get right ascension", ex)
+            raise RuntimeError("Failed to get right ascension", ex)
 
 
     @property
@@ -2434,7 +2428,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If command fails or mount communication error
         """
         if not self._Connected and not self._Connecting:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         try:
             self._logger.debug("Retrieving sidereal time from mount")
@@ -2450,7 +2444,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return lst
         except Exception as ex:
             self._logger.error(f"Failed to retrieve sidereal time: {ex}")
-            raise DriverException(0x500, "Failed to get sidereal time", ex)
+            raise RuntimeError("Failed to get sidereal time", ex)
 
 
     def DestinationSideOfPier(self, ra: float, dec: float) -> PierSide:
@@ -2481,41 +2475,33 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.debug(f"Destination pier side: {pier_side}")
             return pier_side
             
-        except InvalidValueException:
+        except ValueError:
             self._logger.error(f"Invalid coordinates for pier side calculation: RA={ra}, Dec={dec}")
             raise
         except Exception as ex:
             self._logger.error(f"Pier side calculation failed: {ex}")
-            raise DriverException(0x500, "Failed to calculate destination pier side", ex)
+            raise RuntimeError("Failed to calculate destination pier side", ex)
 
     # Site and Telescope Properties
     @property
     def ApertureArea(self) -> float:
-        raise NotImplementedException()
-    
-    @ApertureArea.setter
-    def ApertureArea(self, value: float) -> None:
-        raise NotImplementedException()
+        raise NotImplementedError("ApertureArea not implemented")
     
     @property
     def ApertureDiameter(self) -> float:
-        raise NotImplementedException()
-    
-    @ApertureDiameter.setter
-    def ApertureDiameter(self, value: float) -> None:
-        raise NotImplementedException()
+        raise NotImplementedError("ApertureDiameter not implemented")
 
     @property
     def DoesRefraction(self) -> bool:
-        raise NotImplementedException()
+        raise NotImplementedError("Get DoesRefraction is not implemented")
+    
+    @DoesRefraction.setter
+    def DoesRefraction(self, value: bool ) -> None:
+        raise NotImplementedError("Set DoesRefraction is not implemented")
 
     @property
     def FocalLength(self) -> float:
-        raise NotImplementedException()
-    
-    @FocalLength.setter
-    def FocalLength(self, value: float) -> None:
-        raise NotImplementedException()
+        raise NotImplementedError()
 
     @property  
     def SiteLatitude(self) -> float:
@@ -2533,7 +2519,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If retrieval or parsing fails
         """
         if not self._Connected and not self._Connecting:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         try:
             self._logger.debug("Retrieving site latitude from mount")
@@ -2553,12 +2539,12 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return latitude_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve site latitude: {ex}")
-            raise DriverException(0x500, f"Get latitude failed: {ex}")
+            raise RuntimeError(f"Get latitude failed", ex)
     
     #TODO: I don't think this was implemented in the ASCOM driver, verify.
     @SiteLatitude.setter
     def SiteLatitude(self, value: float) -> None:
-        raise NotImplementedException()
+        raise NotImplementedError()
     
     @property
     def SiteLongitude(self) -> float:
@@ -2576,7 +2562,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If retrieval or parsing fails  
         """
         if not self._Connected and not self._Connecting:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         try:
             self._logger.debug("Retrieving site longitude from mount")
@@ -2596,12 +2582,12 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return longitude_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve site longitude: {ex}")
-            raise DriverException(0x500, f"Get longitude failed: {ex}")
+            raise RuntimeError(f"Get longitude failed", ex)
     
     #TODO: I don't think this was implemented in the ASCOM driver, verify
     @SiteLongitude.setter  
     def SiteLongitude(self, value: float) -> None:
-        raise NotImplementedException()
+        raise NotImplementedError()
     
     @property
     def SiteElevation(self) -> float:
@@ -2611,14 +2597,20 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     #TODO: Ibid.  If I do want this implemented, it needs to feed back to the configuration object
     @SiteElevation.setter
     def SiteElevation(self, value: float) -> None:
-        raise NotImplementedException()
+        raise NotImplementedError()
     
     # Mount State Properties
     @property
     def AtHome(self) -> bool:
         """True if mount is at home position."""
-        with self._lock:
-            return self._is_at_home
+        if not self.Connected:
+            raise ConnectionError("Mount not connected")
+        
+        try:
+            with self._lock:
+                return self._is_at_home
+        except Exception as ex:
+            raise RuntimeError("Failed to retrieve AtHome", ex)
     
     @AtHome.setter
     def AtHome(self, value: bool) -> None:
@@ -2631,19 +2623,15 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         """True if mount is parked."""
 
         if not self._Connected:
-            raise NotConnectedException()
+            raise ConnectionError("Mount not connected")
     
-        with self._lock:
-            self._is_parked = self._send_command(":*Pq#", CommandType.BOOL)
-            self._logger.debug(f"Returning self._is_parked as: {self._is_parked}.  It is a {type(self._is_parked)}")
-            return self._is_parked
-    
-    # AtPark is a read-only property
-    #@AtPark.setter
-    #def AtPark(self, value: bool) -> None:
-    #    """Set parked state."""
-    #    with self._lock:
-    #        self._is_parked = value
+        try:
+            with self._lock:
+                self._is_parked = self._send_command(":*Pq#", CommandType.BOOL)
+                self._logger.debug(f"Returning self._is_parked as: {self._is_parked}.  It is a {type(self._is_parked)}")
+                return self._is_parked
+        except Exception as ex:
+            raise RuntimeError("Failed to retrieve AtPark", ex)
 
     @property
     def DeviceState(self) -> List[dict]:
@@ -2683,19 +2671,25 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
         except Exception as ex:
                 self._logger.error(f"Failed to assemble device state: {ex}")
-                raise DriverException(0x500, f"Device state retrieval failed: {ex}")
+                raise RuntimeError(f"Device state retrieval failed", ex)
 
     @property
     def EquatorialSystem(self) -> EquatorialCoordinateType:
         """Which Equatorial Type does the mount use"""
-        self._logger.info("Querying current epoch")
-        result = self._send_command(":*E#", CommandType.BOOL)
-        if result:
-            self._logger.info(f"Retrieved {result}, indicating Topocentric Equatorial")
-            return EquatorialCoordinateType.equTopocentric
-        else:
-            self._logger.info(f"Retrieved {result}, indicating J2000")
-            return EquatorialCoordinateType.equJ2000
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
+        try:
+            self._logger.info("Querying current epoch")
+            result = self._send_command(":*E#", CommandType.BOOL)
+            if result:
+                self._logger.info(f"Retrieved {result}, indicating Topocentric Equatorial")
+                return EquatorialCoordinateType.equTopocentric
+            else:
+                self._logger.info(f"Retrieved {result}, indicating J2000")
+                return EquatorialCoordinateType.equJ2000
+        except Exception as ex:
+            raise RuntimeError("Get EatuatorialSystem failed", ex)
     
     @property
     def GuideRateDeclination(self) -> float:   
@@ -2729,7 +2723,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
         except Exception as ex:
             self._logger.error(f"Failed to retrieve declination guide rate: {ex}")
-            raise DriverException(0x500, f"Guide rate retrieval failed: {ex}")
+            raise RuntimeError(f"Guide rate retrieval failed", ex)
 
     @GuideRateDeclination.setter
     def GuideRateDeclination(self, value: float) -> None:
@@ -2759,7 +2753,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
         except Exception as ex:
             self._logger.error(f"Failed to set declination guide rate {value}: {ex}")
-            raise DriverException(0x500, f"Guide rate setting failed: {ex}")
+            raise RuntimeError(f"Guide rate setting failed", ex)
 
     @property
     def GuideRateRightAscension(self) -> float:
@@ -2793,7 +2787,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
         except Exception as ex:
             self._logger.error(f"Failed to retrieve right ascension guide rate: {ex}")
-            raise DriverException(0x500, f"Guide rate retrieval failed: {ex}")
+            raise RuntimeError(f"Guide rate retrieval failed", ex)
 
     @GuideRateRightAscension.setter
     def GuideRateRightAscension(self, value: float) -> None:
@@ -2823,7 +2817,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
         except Exception as ex:
             self._logger.error(f"Failed to set right ascension guide rate {value}: {ex}")
-            raise DriverException(0x500, f"Guide rate setting failed: {ex}")
+            raise RuntimeError(f"Guide rate setting failed", ex)
 
     def _calculate_side_of_pier(self, right_ascension: float) -> PierSide:
         """
@@ -2857,12 +2851,12 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.debug(f"RA {right_ascension:.3f}h, LST {sidereal_time:.3f}h, HA {hour_angle:.3f}h -> {pier_side.name}")
             return pier_side
             
-        except InvalidValueException:
+        except ValueError:
             self._logger.error(f"Invalid RA for pier side calculation: {right_ascension}")
             raise
         except Exception as ex:
             self._logger.error(f"Pier side calculation failed for RA {right_ascension}: {ex}")
-            raise DriverException(0x500, "Pier side calculation failed", ex)
+            raise RuntimeError("Pier side calculation failed", ex)
 
     @property
     def SideOfPier(self) -> PierSide:
@@ -2872,6 +2866,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     @property
     def Slewing(self) -> bool:
         """True if mount is slewing."""
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
         try:
             
             #Atomic Snapshot provides protection
@@ -2879,25 +2876,31 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return (slew_future and not slew_future.done()) or self._slewing_hold
                 
         except Exception as ex:
-            raise DriverException(0x500, f"Error checking slewing status: {ex}")
+            raise RuntimeError(f"Error checking slewing status", ex)
     
     @property
     def Tracking(self) -> bool:
         """True if mount is tracking."""
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
         try:
             result = self._send_command(":GW#", CommandType.STRING)
             return result[1] == 'T' if len(result) > 1 else False
         except Exception as ex:
-            raise DriverException(0x500, "Failed to get tracking state", ex)
+            raise RuntimeError(0x500, "Failed to get tracking state", ex)
     
     @Tracking.setter
     def Tracking(self, value: bool) -> None:
         """Set tracking state."""
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
         if self.Slewing:
-            raise InvalidOperationException("Cannot change tracking while slewing")
+            raise RuntimeError("Cannot change tracking while slewing")
         
         if self.AtPark:
-            raise InvalidOperationException("Cannot change tracking state while parked")
+            raise RuntimeError("Cannot change tracking state while parked")
 
         try:
             command = ":T1#" if value else ":T0#" 
@@ -2905,7 +2908,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             with self._lock:
                 self._tracking = value
         except Exception as ex:
-            raise DriverException(0x500, "Failed to set tracking", ex)
+            raise RuntimeError("Failed to set tracking", ex)
     
     @property
     def TrackingRate(self) -> DriveRates:
@@ -2920,6 +2923,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             NotConnectedException: If device not connected
             DriverException: If tracking rate retrieval fails
         """
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
         try:
             self._logger.debug("Retrieving current tracking rate from mount")
             command = ":*TRG#"
@@ -2933,14 +2939,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 rate = DriveRates.driveSolar
             else:
                 self._logger.error(f"Unknown tracking rate value from mount: {result}")
-                raise DriverException(0x500, f"TrackingRate get failed due to unknown value received: {result}")
+                raise RuntimeError(f"TrackingRate get failed due to unknown value received: {result}")
             
             self._logger.debug(f"Current tracking rate: {rate.name}")
             return rate
             
         except Exception as ex:
             self._logger.error(f"Failed to retrieve tracking rate: {ex}")
-            raise DriverException(0x500, f"Unknown error: {ex}")
+            raise RuntimeError(f"Unknown error", ex)
 
     @TrackingRate.setter
     def TrackingRate(self, rate: DriveRates) -> None:
@@ -2955,16 +2961,17 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             NotConnectedException: If device not connected
             DriverException: If tracking rate setting fails
         """
-        
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+
         try:
             rate = DriveRates(rate)
         except ValueError:
-            raise InvalidValueException(f"Invalid tracking rate: {rate}")
+            raise ValueError(f"Invalid tracking rate: {rate}")
         
-
         # Check if supported
         if rate not in [DriveRates.driveSidereal, DriveRates.driveLunar, DriveRates.driveSolar]:
-            raise InvalidValueException(f"Unsupported tracking rate: {rate}")
+            raise ValueError(f"Unsupported tracking rate: {rate}")
         
         try:
             self._logger.info(f"Setting tracking rate to: {rate.name}")
@@ -2975,14 +2982,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             elif rate == DriveRates.driveSolar:
                 command = ":TS#"
             else:
-                raise InvalidValueException(f"Unsupported tracking rate: {rate}")
+                raise ValueError(f"Unsupported tracking rate: {rate}")
             
             self._send_command(command, CommandType.BLIND)
             self._logger.info(f"Tracking rate successfully set to: {rate.name}")
 
         except Exception as ex:
             self._logger.error(f"Failed to set tracking rate to {rate.name}: {ex}")
-            raise DriverException(0x500, f"Set Tracking Rate Failed: {ex}")
+            raise RuntimeError(f"Set Tracking Rate Failed", ex)
 
 
     @property
@@ -2992,7 +2999,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     
     @RightAscensionRate.setter
     def RightAscensionRate(self, value: float) -> None:
-        raise NotImplementedException()
+        raise NotImplementedError("Set RightAscensionRate not implemented")
     
     @property
     def DeclinationRate(self) -> float:
@@ -3001,7 +3008,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     
     @DeclinationRate.setter
     def DeclinationRate(self, value: float) -> None:
-        raise NotImplementedException()        
+        raise NotImplementedError()        
 
     @property
     def IsPulseGuiding(self) -> bool:
@@ -3040,7 +3047,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 return len(active_pulses) > 0
                 
         except Exception as ex:
-            raise DriverException(0x500, f"Failed to check pulse guide status: {ex}")
+            raise RuntimeError(f"Failed to check pulse guide status", ex)
 
 
     def _is_axis_pulse_active(self, axis: str, current_time: datetime) -> bool:
@@ -3094,20 +3101,35 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     @property
     def TargetDeclination(self) -> float:
         """Target declination in degrees."""
-        if not self._target_declination_set:
-            raise InvalidOperationException("Target declination not set")
-        else:
+        #TODO: Don't need to worry about this, get rid of this internal variables
+        #if not self._target_declination_set:
+        #    raise RuntimeError("Target declination not set")
+        #else:
+        
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
+        try:
             command = ":*Gd#"
             declination_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
             declination_deg = declination_rad * 180 / math.pi
             return declination_deg
+        except Exception as ex:
+            self._logger.info(f"Failed to get TargetDeclination: {ex}")
+            raise RuntimeError("Failed to get TargetDeclination", ex)
     
     @TargetDeclination.setter
     def TargetDeclination(self, value: float) -> None:
         """Set target declination."""
-        if not -90 <= value <= 90:
-            raise InvalidValueException(f"Invalid declination: {value}")
+            
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
         
+        try:
+            self._validate_coordinates(dec = value)
+        except:
+            raise
+
         try:
             # Send to mount
             self._logger.debug(f"Set Target Declination - Received: {value}")
@@ -3121,33 +3143,46 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
             result = self._send_command(command, CommandType.BOOL)
             if not result:
-                raise InvalidValueException(f"Mount rejected target declination assignment: {value}")
+                raise RuntimeError(f"Mount rejected target declination assignment: {value}")
             
             # Update state
-            with self._lock:
-                self._target_declination_set = True
-                if self._target_right_ascension_set:
-                    self._is_target_set = True
+            #with self._lock:
+            #    self._target_declination_set = True
+            #    if self._target_right_ascension_set:
+            #        self._is_target_set = True
                 
         except Exception as ex:
-            raise DriverException(0x500, f"Failed to set target declination {value}", ex)
+            raise RuntimeError(f"Failed to set target declination {value}", ex)
     
     @property
     def TargetRightAscension(self) -> float:
         """Target right ascension in hours.""" 
-        if not self._target_right_ascension_set:
-            raise InvalidOperationException("Target Right Ascension not set")
-        else:
+        #if not self._target_right_ascension_set:
+        #    raise InvalidOperationException("Target Right Ascension not set")
+        #else:
+        
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+
+        try:
             command = ":*Gr#"
             right_ascension_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
             right_ascension_hr = (right_ascension_rad * 180 / math.pi * 24 / 360) % 24
             return right_ascension_hr
+        except Exception as ex:
+            self._logger.info(f"Failed to get TargetRightAscension: {ex}")
+            raise RuntimeError("Failed to get TargetRightAscension", ex)
     
     @TargetRightAscension.setter
     def TargetRightAscension(self, value: float) -> None:
         """Set target right ascension."""
-        if not 0 <= value <= 24:
-            raise InvalidValueException(f"Invalid right ascension: {value}")
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
+        try:
+            self._validate_coordinates(ra = value)
+        except:
+            raise
         
         try:
             # Send to mount
@@ -3156,27 +3191,28 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             result = self._send_command(command, CommandType.BOOL)
             if not result:
-                raise InvalidValueException(f"Mount rejected target right ascension assignment: {value}")
+                raise RuntimeError(f"Mount rejected target right ascension assignment: {value}")
             
             # Update state
-            with self._lock:
-                self._target_right_ascension_set = True
-                if self._target_declination_set:
-                    self._is_target_set = True
+            #with self._lock:
+            #    self._target_right_ascension_set = True
+            #    if self._target_declination_set:
+            #        self._is_target_set = True
                 
         except Exception as ex:
-            raise DriverException(0x500, f"Failed to set target right ascension {value}", ex)
+            raise RuntimeError(f"Failed to set target right ascension {value}", ex)
     
     # Operation Methods
     def AbortSlew(self) -> None:
         """Abort any current slewing."""
         try:
             
+            #TODO: Look how to verify monitor threads are appropriately closed
             self._goto_in_progress = False
             self._send_command(":Q#", CommandType.BLIND)
             
         except Exception as ex:
-            raise DriverException(0x500, "Failed to abort slew", ex)
+            raise RuntimeError("AbortSlew failed", ex)
     
     def FindHome(self):
         """
@@ -3189,16 +3225,19 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             InvalidOperationException: Mount parked, slewing, or home below horizon
             DriverException: Command execution or coordinate transformation failure
         """
-        self._logger.info("Moving to Home")
+        # State validation
+        if not self.Connected:
+            raise ConnectionError("Not connected to device")
         
-        try:
-            # State validation
-            if self._is_parked:
-                raise InvalidOperationException("The requested operation cannot be undertaken at this time: the mount is parked.")
+        if self.AtPark:
+            raise RuntimeError("Cannot FindHome: the mount is parked.")
 
-            if self.Slewing:
-                raise InvalidOperationException("The requested operation cannot be undertaken at this time: the mount is slewing.")
-            
+        if self.Slewing:
+            raise RuntimeError("Cannot FindHome: the mount is slewing.")
+
+        self._logger.info("Moving to Home")
+
+        try:        
             if self.AtHome:
                 self._logger.info("Mount is already at Home")
                 return
@@ -3209,28 +3248,28 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             park_az = float(park_status[1:8])
             park_alt = float(park_status[8:14])
 
-            self._logger.info(f"Home position: type={park_type}, Az={park_az:.2f}°, Alt={park_alt:.2f}°")
+            self._logger.info(f"Home position: type={park_type}, Az={park_az:.2f} deg, Alt={park_alt:.2f} deg")
 
             # Get cached coordinate frames for transformations
-            gcrs_frame = self._get_frame_cache('gcrs', timing_critical=False)
             altaz_frame = self._get_frame_cache('altaz', timing_critical=False)
+            gcrs_frame = self._get_frame_cache('gcrs', timing_critical=False)
             
             if park_type == 1 and int(park_alt) > 0:
                 # Use stored park position if above horizon
                 success = self._attempt_home_slew(park_az, park_alt, gcrs_frame, altaz_frame)
                 if success:
                     return
-                raise InvalidOperationException("Home position is below horizon, check mount alignment")        
+                raise RuntimeError("Home position is below horizon, check mount alignment")        
             else:
                 # Search for reachable position at same azimuth
                 self._logger.debug("Searching for reachable home position above horizon")
                 for target_alt in range(10):
-                    self._logger.debug(f"Testing home position at Az={park_az:.2f}°, Alt={target_alt}°")
+                    self._logger.debug(f"Testing home position at Az={park_az:.2f} deg, Alt={target_alt} deg")
                     success = self._attempt_home_slew(park_az, target_alt, gcrs_frame, altaz_frame)
                     if success:
                         return
                 
-                raise InvalidOperationException("Home position is below horizon, check mount alignment")
+                raise RuntimeError("Home position is below horizon, check mount alignment")
             
         except Exception as ex:
             self._logger.error(f"FindHome error: {ex}")
@@ -3260,7 +3299,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Convert to GCRS using cached frame
             gcrs_coord = altaz_coord.transform_to(gcrs_frame)
             
-            self._logger.debug(f"Converted to equatorial: RA={gcrs_coord.ra.hour:.6f}h, Dec={gcrs_coord.dec.deg:.6f}°")
+            self._logger.debug(f"Converted to equatorial: RA={gcrs_coord.ra.hour:.6f}h, Dec={gcrs_coord.dec.deg:.6f} deg")
 
             self.TargetDeclination = gcrs_coord.dec.deg
             self.TargetRightAscension = gcrs_coord.ra.hour
@@ -3271,14 +3310,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     self._slewing_hold = True  # Allows immediate return of slewing property being true
                 self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
                 self._executor.submit(self._home_arrival_monitor, az, alt)
-                self._logger.info(f"Started slew to home position: Az={az:.2f}°, Alt={alt:.2f}°")
+                self._logger.info(f"Started slew to home position: Az={az:.2f} deg, Alt={alt:.2f} deg")
                 self._goto_in_progress = True
                 return True
                 
             return False
             
         except Exception as ex:
-            self._logger.debug(f"Home slew attempt failed at Az={az:.2f}°, Alt={alt:.2f}°: {ex}")
+            self._logger.debug(f"Home slew attempt failed at Az={az:.2f} deg, Alt={alt:.2f} deg: {ex}")
             return False
     
     def _slew_status_monitor(self) -> None:
@@ -3301,10 +3340,12 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     status = self._send_command(":D#", CommandType.STRING)
                     if status != "|#":
                         break
-                    time.sleep(0.1)  # 100ms polling interval
+                    time.sleep(0.05)  # 100ms polling interval
+                    self._logger.debug(f"Getting Azimuth for rate test: {self.Azimuth}")
+                    self._logger.debug(f"Getting Altitude for rate test: {self.Altitude}")
                 except Exception as ex:
                     self._logger.error(f"Error polling slew status: {ex}")
-                    raise DriverException(0x502, f"Slew status monitoring failed: {ex}")
+                    raise RuntimeError(f"Slew status monitoring failed", ex)
             
             # Apply settle time only for goto operations
             if self._goto_in_progress:
@@ -3314,12 +3355,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     time.sleep(settle_time)
                 self._goto_in_progress = False
                 self._logger.info("Slew operation completed")
-            
-        except DriverException:
-            raise
+
         except Exception as ex:
             self._logger.error(f"Unexpected error in slew monitoring: {ex}")
-            raise DriverException(0x502, f"Slew status monitoring error: {ex}")
+            raise RuntimeError(f"Slew status monitoring error", ex)
 
     def _home_arrival_monitor(self, target_azimuth: float, target_altitude: float) -> None:
         """
@@ -3365,7 +3404,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.error(error_msg)
                 with self._lock:
                     self._slewing_hold = False
-                raise DriverException(0x500, error_msg)
+                raise RuntimeError(error_msg)
             
             self.Tracking = False
 
@@ -3373,68 +3412,104 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.error(f"Home arrival monitoring failed: {ex}")
             with self._lock:
                     self._slewing_hold = False
-            if not isinstance(ex, DriverException):
-                raise DriverException(0x500, f"Home arrival monitoring error: {ex}")
-            raise
+            raise RuntimeError(f"Home arrival monitoring error", ex)
     
     def MoveAxis(self, axis: TelescopeAxes, rate: float) -> None:
-        """Move telescope axis at specified rate."""
+        """
+        Move telescope axis at specified rate using extended firmware commands.
         
+        Converts rate to timing pulses using fraction-based precision control.
+        Sends LX200-compatible movement commands with 4-digit numerator/denominator.
+        
+        Args:
+            axis: TelescopeAxes.axisPrimary (0) or TelescopeAxes.axisSecondary (1)
+            rate: Movement rate in degrees/second (-3.5 to +3.5)
+            
+        Raises:
+            InvalidOperationException: If mount is parked or goto in progress
+            InvalidValueException: If rate exceeds limits or invalid axis
+            DriverException: For other errors
+        """
+        
+                    
+        # Validation checks
+        if self._is_parked:
+            raise RuntimeError("Cannot move axis: mount is parked")
+        
+        if abs(rate) > self._MAX_RATE:
+            raise ValueError(f"Rate {rate} exceeds limit ±{self._MAX_RATE} deg/sec")
+        
+        if axis not in self._AXIS_COMMANDS:
+            raise ValueError(f"Invalid axis: {axis}")
+
+        if self._goto_in_progress:
+            raise RuntimeError("Cannot execute MoveAxis while Goto is in progress")
+
         try:
+            self._logger.debug(f"MoveAxis called: axis={axis}, rate={rate}")
 
-            if self._is_parked:
-                raise InvalidOperationException("Cannot move axis: mount is parked")
-            
-            if abs(rate) > self._MAX_RATE:
-                raise InvalidValueException(f"Rate {rate} exceeds limit ±{self._MAX_RATE} deg/sec")
-            
-            if axis not in self._AXIS_COMMANDS:
-                raise InvalidValueException(f"Invalid axis: {axis}")
-
-            if self._goto_in_progress:
-                raise InvalidOperationException("Cannot execute MoveAxis while Goto is in progress.")
+            # Handle stop case (rate == 0)
+            if rate == 0:
+                self._logger.info(f"Stopping {self._AXIS_COMMANDS[axis]['name']} Axis")
+                self._send_command(self._AXIS_COMMANDS[axis]['stop'], CommandType.BLIND)
+                return
 
             # Calculate timing parameters
-            if rate == 0:
-                time_to_pulse = 1.0
-            else:
-                time_to_pulse = (self._CLOCK_FREQ * self._TICKS_PER_PULSE) / (abs(rate) * self._TICKS_PER_DEGREE[axis])
+            abs_rate = abs(rate)
+            time_to_pulse = (self._CLOCK_FREQ * self._TICKS_PER_PULSE) / (abs_rate * self._TICKS_PER_DEGREE[axis])
             
-            # Convert to fraction and scale
-            frac = Fraction(time_to_pulse).limit_denominator(9999)
+            self._logger.debug(f"TTP: ({self._CLOCK_FREQ} * {self._TICKS_PER_PULSE}) / ({abs_rate} * {self._TICKS_PER_DEGREE[axis]}) = {time_to_pulse}")
+            
+            # Convert 1/TTP to fraction (matching C# RealToFraction behavior)
+            inverse_ttp = 1.0 / time_to_pulse
+            frac = Fraction(inverse_ttp).limit_denominator(99999)
             num, den = frac.numerator, frac.denominator
             
+            self._logger.debug(f"Initial fraction: {num}/{den} = {num/den:.6f}")
+            
+            # Scale to fit 4-digit hardware constraints (matching C# logic)
             if den < 4999:
+                # Scale up denominator toward 4999
                 mult = 4999 // den
                 num *= mult
                 den *= mult
+                self._logger.debug(f"Scaled up by {mult}: {num}/{den}")
+            elif den > 9999:
+                # Scale down to fit 4-digit limit
+                mult = math.ceil(den / 9999)
+                original_ratio = num / den
+                den = round(den / mult)
+                num = round(original_ratio * den)
+                self._logger.debug(f"Scaled down by {mult}: {num}/{den}")
             
+            # Handle edge case where scaling results in zero numerator
             if num == 0:
                 den = 9999
-
-            self._logger.info(f"MoveAxis - Num: {num}; Den: {den}; Result: {num / den}")
+                self._logger.debug("Numerator became 0, setting den=9999")
             
-            # Execute command
-            cmds = self._AXIS_COMMANDS[axis]
+            # Ensure 4-digit limits
+            num = min(abs(num), 9999)
+            den = min(den, 9999)
             
-            if rate == 0:
-                self._logger.info(f"Stopping {cmds['name']} Axis")
-                self._send_command(cmds['stop'], CommandType.BLIND)
-            else:
-                cmd_base = cmds['pos'] if rate > 0 else cmds['neg']
-                command = f"{cmd_base}{abs(num):04d}{abs(den):04d}#"
-                self._logger.info(f"Sending Command: {command}")
-                self._send_command(command, CommandType.BLIND)
-                
-                # Set up the slew status monitor if one does not exist (this immediately makes slewing be true)
-                if self._slew_in_progress is None or self._slew_in_progress.done():
-                    self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
-                self._is_at_home = False
-        
-        except InvalidValueException or InvalidOperationException:
-            raise
+            result_rate = num / den if den != 0 else 0
+            self._logger.info(f"MoveAxis - Num: {num}; Den: {den}; Result: {result_rate:.6f}")
+            
+            # Build and send command
+            cmd_base = (self._AXIS_COMMANDS[axis]['pos'] if rate > 0 
+                    else self._AXIS_COMMANDS[axis]['neg'])
+            command = f"{cmd_base}{num:04d}{den:04d}#"
+            
+            self._logger.info(f"Sending Command: {command}")
+            self._send_command(command, CommandType.BLIND)
+            
+            # Update movement state
+            if self._slew_in_progress is None or self._slew_in_progress.done():
+                self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
+            self._is_at_home = False
+   
         except Exception as ex:
-            raise DriverException(0x503, f"MoveAxis Error: {ex}")
+            self._logger.error(f"MoveAxis error: {ex}")
+            raise RuntimeError(f"MoveAxis Error", ex)
 
     def SyncToAltAz(self, azimuth: float, altitude: float) -> None:
         """
@@ -3451,13 +3526,16 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If coordinate conversion or sync fails
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         if self.AtPark:
-            raise ParkedException("Cannot sync while parked")
+            raise RuntimeError("Cannot sync while parked")
         
         # Validate coordinate ranges
-        self._validate_coordinates(alt = altitude, az = azimuth)
+        try:
+            self._validate_coordinates(alt = altitude, az = azimuth)
+        except:
+            raise
         
         try:
             self._logger.info(f"Syncing to Alt/Az: {azimuth:.3f}°, {altitude:.3f}°")
@@ -3468,11 +3546,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Perform equatorial sync
             self.SyncToCoordinates(right_ascension, declination)
             
-        except (ParkedException, InvalidValueException, NotConnectedException):
-            raise
         except Exception as ex:
             self._logger.error(f"Alt/Az sync failed: {ex}")
-            raise DriverException(0x500, f"Sync to Alt/Az failed: {ex}")
+            raise RuntimeError(f"Sync to Alt/Az failed", ex)
 
     def SyncToCoordinates(self, right_ascension: float, declination: float) -> None:
         """
@@ -3489,13 +3565,16 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If sync operation fails
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         if self.AtPark:
-            raise ParkedException("Cannot sync while parked")
+            raise RuntimeError("Cannot sync while parked")
         
         # Validate coordinate ranges
-        self._validate_coordinates(ra = right_ascension, dec = declination)
+        try:
+            self._validate_coordinates(ra = right_ascension, dec = declination)
+        except:
+            raise
         
         try:
             self._logger.info(f"Syncing to RA {right_ascension:.3f}h, Dec {declination:.3f}°")
@@ -3512,11 +3591,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             self._logger.info("Coordinate sync completed")
             
-        except (ParkedException, InvalidValueException, NotConnectedException):
-            raise
         except Exception as ex:
             self._logger.error(f"Coordinate sync failed: {ex}")
-            raise DriverException(0x500, f"Synchronization failed: {ex}")
+            raise RuntimeError(f"Synchronization failed", ex)
 
     def SyncToTarget(self) -> None:
         """
@@ -3529,13 +3606,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If sync operation fails
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         if self.AtPark:
-            raise ParkedException("Cannot sync while parked")
-        
-        if not self._is_target_set:
-            raise InvalidOperationException("Target coordinates not set")
+            raise RuntimeError("Cannot sync while parked")
         
         try:
             self._logger.info("Syncing to target coordinates")
@@ -3548,16 +3622,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             self._logger.info("Target sync completed")
             
-        except (ParkedException, InvalidOperationException, NotConnectedException):
-            raise
         except Exception as ex:
             self._logger.error(f"Target sync failed: {ex}")
-            raise DriverException(0x500, f"Target synchronization failed: {ex}")
+            raise RuntimeError(f"Target synchronization failed", ex)
 
 
     def SlewToAltAz(self, azimuth: float, altitude: float) -> None:
         """Slew to given altaz coordinates (synchronous)."""
-        raise NotImplementedException()
+        raise NotImplementedError()
     
     def SlewToAltAzAsync(self, azimuth: float, altitude: float) -> None:
         """
@@ -3575,16 +3647,16 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If coordinate conversion or slew initiation fails
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         if self.Slewing:
-            raise InvalidOperationException("Cannot start slew while already slewing")
+            raise RuntimeError("Cannot start slew while already slewing")
         
         if self.Tracking:
-            raise InvalidOperationException("Cannot slew to Alt/Az while tracking enabled")
+            raise RuntimeError("Cannot slew to Alt/Az while tracking enabled")
         
         if self.AtPark:
-            raise ParkedException("Cannot slew while parked")
+            raise RuntimeError("Cannot slew while parked")
         
         # Validate coordinate ranges
         self._validate_coordinates(alt = altitude, az = azimuth)
@@ -3598,15 +3670,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Execute equatorial slew
             self.SlewToCoordinatesAsync(right_ascension, declination)
             
-        except (NotConnectedException, InvalidOperationException, ParkedException, InvalidValueException):
-            raise
         except Exception as ex:
             self._logger.error(f"Alt/Az async slew failed: {ex}")
-            raise DriverException(0x500, f"Alt/Az slew initiation failed: {ex}")
+            raise RuntimeError(f"Alt/Az slew initiation failed", ex)
 
     def SlewToCoordinates(self, rightAscension: float, declination: float) -> None:
         """Slew to given equatorial coordinates (synchronous)."""
-        raise NotImplementedException()
+        raise NotImplementedError()
     
     def SlewToCoordinatesAsync(self, right_ascension: float, declination: float) -> None:
         """
@@ -3623,10 +3693,18 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If target setting or slew initiation fails
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
+        if self.AtPark:
+            raise RuntimeError("Cannot SlewToCoordinatesAsync while parked")
+
         if self.Slewing:
-            raise InvalidOperationException("Cannot start slew while already slewing")
+            raise RuntimeError("Cannot start slew while already slewing")
+        
+        try:
+            self._validate_coordinates(ra = right_ascension, dec = declination)
+        except:
+            raise
         
         try:
             self._logger.info(f"Starting slew to RA {right_ascension:.3f}h, Dec {declination:.3f}°")
@@ -3637,15 +3715,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             self.SlewToTargetAsync()
             
-        except (NotConnectedException, InvalidValueException):
-            raise
         except Exception as ex:
             self._logger.error(f"Coordinate async slew failed: {ex}")
-            raise DriverException(0x500, f"Coordinate slew initiation failed: {ex}")
+            raise RuntimeError(0x500, f"Coordinate slew initiation failed: {ex}")
     
     def SlewToTarget(self) -> None:
         """Slew to current target coordinates (synchronous)."""
-        raise NotImplementedException()        
+        raise NotImplementedError()        
 
     
     def SlewToTargetAsync(self) -> None:
@@ -3659,16 +3735,16 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If slew command fails or target below horizon
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
-        if not self._is_target_set:
-            raise InvalidOperationException("Target coordinates not set")
+        #if not self._is_target_set:
+        #    raise RuntimeError("Target coordinates not set")
         
         if self.Slewing:
-            raise InvalidOperationException("Cannot start slew while already slewing")
+            raise RuntimeError("Cannot start slew while already slewing")
         
         if self.AtPark:
-            raise ParkedException("Cannot slew while parked")
+            raise RuntimeError("Cannot slew while parked")
         
         try:
             with self._lock:
@@ -3679,11 +3755,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 
                 # Parse LX200 slew response
                 if result.startswith("1"):
-                    raise DriverException(0x500, "Target object below horizon")
+                    raise RuntimeError("Target object below horizon")
                 elif result.startswith("2"):
-                    raise DriverException(0x500, "Target object below higher limit")
+                    raise RuntimeError("Target object below higher limit")
                 elif not result.startswith("0"):
-                    raise DriverException(0x500, f"Unexpected slew response: {result}")
+                    raise RuntimeError(f"Unexpected slew response: {result}")
                 
                 # Set up movement monitoring
                 self._goto_in_progress = True
@@ -3692,14 +3768,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 
                 self._logger.info("Target slew initiated successfully")
                 
-        except (NotConnectedException, InvalidOperationException, ParkedException):
-            raise
-        except DriverException as ex:
-            self._logger.error(f"Target slew failed: {ex}")
-            raise
         except Exception as ex:
             self._logger.error(f"Unexpected target slew error: {ex}")
-            raise DriverException(0x500, f"Target slew initiation failed: {ex}")
+            raise RuntimeError(f"Target slew initiation failed", ex)
     
     def PulseGuide(self, direction: GuideDirections, duration: int) -> None:
         """
@@ -3721,19 +3792,20 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         try:
             direction = GuideDirections(direction)
         except:
-            InvalidValueException(f"Invalid Guide Direction: {direction}")
+            raise ValueError(f"Invalid guide direction: {direction}")
         
         if not isinstance(direction, GuideDirections):
-            raise InvalidValueException(f"Invalid guide direction: {direction}")
+            raise ValueError(f"Invalid guide direction: {direction}")
         if not 0 <= duration <= 9999:
-            raise InvalidValueException(f"Duration {duration} outside valid range 0-9999ms")
+            raise ValueError(f"Duration {duration} outside valid range 0-9999 msec")
         
+        # State validation
+        if self._is_parked:
+            raise RuntimeError("Cannot move axis: mount is parked")
+        if self.Slewing:
+            raise RuntimeError("Cannot pulse guide while slewing")
+
         with self._lock:
-            # State validation
-            if self._is_parked:
-                raise InvalidOperationException("Cannot move axis: mount is parked")
-            if self.Slewing:
-                raise InvalidOperationException("Cannot pulse guide while slewing")
             
             self._logger.debug("Pulseguide - Checking for pulseguide conflicts")
             # Check for axis conflicts
@@ -3782,9 +3854,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                         self._logger.debug(f"Post-pulse cache refresh failed: {ex}")
                 
             except Exception as ex:
-                if isinstance(ex, (InvalidValueException, InvalidOperationException)):
-                    raise
-                raise DriverException(0x500, "Pulse guide failed", ex)
+                raise RuntimeError("Pulse guide failed", ex)
 
 
     def _check_pulse_guide_conflicts(self, direction: GuideDirections) -> None:
@@ -3795,11 +3865,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         if direction in [GuideDirections.guideNorth, GuideDirections.guideSouth]:
             monitor = self._pulse_guide_monitor.get('ns')
             if monitor and not monitor.done():
-                raise InvalidOperationException("North/South pulse guide already active")
+                raise RuntimeError("North/South pulse guide already active")
         else:  # East/West
             monitor = self._pulse_guide_monitor.get('ew')
             if monitor and not monitor.done():
-                raise InvalidOperationException("East/West pulse guide already active")
+                raise RuntimeError("East/West pulse guide already active")
 
 
     def _initialize_pulse_guide_monitoring(self) -> None:
@@ -3943,7 +4013,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return ns_dir, ns_dur, ew_dir, ew_dur, cache_refresh_needed
             
         except Exception as ex:
-            raise DriverException(0x500, f"Equatorial pulse conversion failed: {ex}")
+            raise RuntimeError(f"Equatorial pulse conversion failed", ex)
 
 
     def _apply_altitude_compensation(self, duration: int) -> int:
@@ -3982,7 +4052,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return max(0, compensated_duration)
             
         except Exception as ex:
-            raise DriverException(0x500, f"Altitude compensation failed: {ex}")
+            raise RuntimeError(f"Altitude compensation failed", ex)
 
 
     def _execute_pulse_guide(self, ns_dir: GuideDirections, ns_dur: int, 
@@ -4053,7 +4123,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         except Exception as ex:
             # Cleanup any started monitors on failure
             self._cleanup_failed_pulse_guide(monitors_started)
-            raise DriverException(0x500, f"Pulse guide execution failed: {ex}")
+            raise RuntimeError(f"Pulse guide execution failed", ex)
 
 
     def _cleanup_failed_pulse_guide(self, monitors_started: list) -> None:
@@ -4133,9 +4203,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 
         except Exception as ex:
             self._logger.error(f"Park monitoring failed: {ex}")
-            if not isinstance(ex, DriverException):
-                raise DriverException(0x500, f"Park monitoring error: {ex}")
-            raise
+            raise RuntimeError(f"Park monitoring error", ex)
+           
 
     def Park(self) -> None:
         """
@@ -4147,11 +4216,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If park initiation fails
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         if self.AtPark:
             self._logger.info("Mount already parked")
-            return
+            raise RuntimeError("Mount is already parked")
         
         try:
             self._logger.info("Parking mount")
@@ -4163,7 +4232,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
         except Exception as ex:
             self._logger.error(f"Park operation failed: {ex}")
-            raise DriverException(0x500, "Park failed", ex)
+            raise RuntimeError("Park failed", ex)
     
     def SetPark(self) -> None:
         """
@@ -4174,7 +4243,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If park position setting fails
         """
         if not self._Connected:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         try:
             park_alt = round(self.Altitude, 3)
@@ -4196,11 +4265,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
         except Exception as ex:
             self._logger.error(f"SetPark failed: {ex}")
-            raise DriverException(0x500, f"SetPark failed: {ex}")
+            raise RuntimeError(f"SetPark failed", ex)
     
     def Unpark(self) -> None:
         """Unpark Mount."""
-        raise NotImplementedException()    
+        raise NotImplementedError()    
 
     # UTC Date Property
     @property
@@ -4216,7 +4285,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If date/time retrieval fails
         """
         if not self._Connected and not self._Connecting:
-            raise NotConnectedException("Device not connected")
+            raise ConnectionError("Device not connected")
         
         try:
             # Get local date and time from mount
@@ -4240,13 +4309,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             utc = utc_dt.replace(tzinfo=timezone.utc)
             self._logger.info(f"Mount UTC time: {utc}")
-            self._logger.debug(f"Mount UTC time as ISO 8601 string: {utc.isoformat()}")
+            self._logger.debug(f"Mount UTC time as ISO 8601 string: {utc.isoformat().replace('+00:00', 'Z')}")
 
-            return utc.isoformat()
+            return utc.isoformat().replace('+00:00', 'Z')
             
         except Exception as ex:
             self._logger.error(f"Failed to get UTC date: {ex}")
-            raise DriverException(0x500, "Failed to get UTC date", ex)
+            raise RuntimeError("Failed to get UTC date", ex)
 
 
     @UTCDate.setter
@@ -4263,18 +4332,15 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If date/time setting fails
         """
         if not self._Connected and not self._Connecting:
-            raise NotConnectedException("Device not connected")
-        
-        if not isinstance(value, datetime):
-            raise InvalidValueException(f"UTCDate must be datetime object, got {type(value)}")
-        
+            raise ConnectionError("Device not connected")
+    
         if isinstance(value, str):
             try:
                 value = parser.isoparse(value)
             except ValueError:
-                raise InvalidValueException(f"Invalid ISO 8601 format: {value}")
+                raise ValueError(f"Invalid ISO 8601 format: {value}")
         elif not isinstance(value, datetime):
-            raise InvalidValueException(f"Error: {value} is not a datetime object or string.")
+            raise TypeError(f"Error: {value} is not a datetime object or string.")
             # Use datetime directly
 
         try:
@@ -4283,21 +4349,22 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             offset_hours = float(utc_offset.rstrip('#'))
             
             # Convert UTC to local time
+            self._logger.debug(f"Set UTCDate - Passed Value: {value}; offset Hours {offset_hours}")
             local_dt = value - timedelta(hours=offset_hours)
             
-            self._logger.info(f"Setting mount time to: {value}")
+            self._logger.info(f"Setting mount time to: {local_dt}")
 
             # Set date (MM/dd/yy format)
             date_str = local_dt.strftime("%m/%d/%y")
             date_response = self._send_command(f":SC{date_str}#", CommandType.STRING)
             if not (date_response.rstrip('#') == '1'):
-                raise DriverException(0x501, f"Invalid date: {date_str}")
+                raise RuntimeError(f"Invalid date: {date_str}")
             
             # Set time (HH:mm:ss format)
             time_str = local_dt.strftime("%H:%M:%S")
             time_response = self._send_command(f":SL{time_str}#", CommandType.STRING)
             if not (time_response.rstrip('#') == '1'):
-                raise DriverException(0x501, f"Invalid time: {time_str}")
+                raise RuntimeError(f"Invalid time: {time_str}")
             
             # Firmware bug workaround - throwaway SiderealTime call
             _ = self.SiderealTime
@@ -4306,9 +4373,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
             self._logger.info("Mount time set successfully")
             
-        except (NotConnectedException, InvalidValueException):
+        except (ConnectionError, ValueError):
             raise
         except Exception as ex:
             self._logger.error(f"Failed to set UTC date: {ex}")
-            raise DriverException(0x500, "Failed to set UTC date", ex)
+            raise RuntimeError("Failed to set UTC date", ex)
 

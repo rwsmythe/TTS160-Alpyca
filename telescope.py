@@ -18,7 +18,7 @@ from shr import PropertyResponse, MethodResponse, PreProcessRequest, \
                 StateValue, get_request_field, to_bool
 from exceptions import *        # Nothing but exception classes
 from datetime import datetime
-from config import Config
+from dateutil import parser
 import TTS160Global
 
 logger: Logger = None
@@ -132,11 +132,20 @@ class TelescopeAxes(IntEnum):
 # RESOURCE CONTROLLERS
 # --------------------
 
+#TODO: action is likely no implemented correctly, must review and fix
 @before(PreProcessRequest(maxdev))
 class action:
     def on_put(self, req: Request, resp: Response, devnum: int):
-        resp.text = MethodResponse(req, NotImplementedException()).json
-        #TODO: Implement
+        try:
+            supported_actions = TTS160_dev.SupportedActions
+            if req not in supported_actions:
+                resp.text = MethodResponse(req, ActionNotImplementedException(f"{req} is not a supported action")).json
+            else:
+                val = TTS160_dev.Action(req)
+                resp.text = MethodResponse(req = req, value = val).json
+        except Exception as ex:
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Action failed', ex)).json
 
 #Commandxxx commands have been are being deprecated
 @before(PreProcessRequest(maxdev))
@@ -188,27 +197,19 @@ class connected:
             # --------------------------------------
            
             TTS160_dev.Connected = conn
-
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Connected failed', ex)).json
-
-            #resp.text = MethodResponse(req, # Put is actually like a method :-(
-            #                DriverException(0x500, 'Telescope.Connected failed', ex)).json
+            resp.text = MethodResponse(req, # Put is actually like a method :-(
+                            DriverException(0x500, 'Telescope.Connected failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class connecting:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
             # ------------------------------
-            val = TTS160_dev.Connecting ## GET CONNECTING STATE ##
+            ## GET CONNECTING STATE ##
             # ------------------------------
+            val = TTS160_dev.Connecting            
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -258,19 +259,11 @@ class disconnect:
             # ---------------------------
             ### DISCONNECT THE DEVICE ###
             # ---------------------------
-            resp.text = MethodResponse(req).json
             TTS160_dev.Disconnect()
+            resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'elescope.Disconnect failed', ex)).json
-
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Disconnect failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Disconnect failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class driverinfo:
@@ -295,15 +288,12 @@ class name():
 @before(PreProcessRequest(maxdev))
 class supportedactions:
     def on_get(self, req: Request, resp: Response, devnum: int):
-        
-        if not TTS160_dev.Connected:
-            resp.text = PropertyResponse(None, req, 
-                            NotConnectedException()).json
         try:
             # ----------------------
-            val = TTS160_dev.SupportedActions   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
-            resp.text = PropertyResponse(val, req).json  # Not PropertyNotImplemented
+            val = TTS160_dev.SupportedActions   
+            resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.SupportedActions failed', ex)).json
@@ -316,7 +306,10 @@ class abortslew:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                            InvalidOperationException("Cannot AbortSlew while parked")).json
+            return 
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -338,8 +331,9 @@ class alignmentmode:
         
         try:
             # ----------------------
-            val = TTS160_dev.AlignmentMode   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.AlignmentMode   
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -347,8 +341,8 @@ class alignmentmode:
 
 @before(PreProcessRequest(maxdev))
 class altitude:
-
     def on_get(self, req: Request, resp: Response, devnum: int):
+
         if not TTS160_dev.Connected:   ##IS DEV CONNECTED##:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
@@ -367,42 +361,34 @@ class altitude:
 class aperturearea:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not TTS160_dev.Connected:    ##IS DEV CONNECTED##:
-            resp.text = PropertyResponse(None, req,
-                            NotConnectedException()).json
-            return
+        #if not TTS160_dev.Connected:    ##IS DEV CONNECTED##:
+        #    resp.text = PropertyResponse(None, req,
+        #                    NotConnectedException()).json
+        #    return
         
         try:
             # ----------------------
-            val = TTS160_dev.ApertureArea   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
-            resp.text = PropertyResponse(val, req).json
-            #resp.text = PropertyResponse(None, req, NotImplementedException("Aperturearea property not implemented")).json
+            resp.text = PropertyResponse(None, req, NotImplementedException()).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = PropertyResponse(None, req, alpaca_ex).json
-            else:
-                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Apertureare failed', ex)).json
-            #resp.text = PropertyResponse(None, req,
-            #                DriverException(0x500, 'Telescope.Aperturearea failed', ex)).json
+            resp.text = PropertyResponse(None, req,
+                            DriverException(0x500, 'Telescope.Aperturearea failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class aperturediameter:
 
     def on_get(self, req: Request, resp: Response, devnum: int):
-        if not TTS160_dev.Connected:  ##IS DEV CONNECTED##:
-            resp.text = PropertyResponse(None, req,
-                            NotConnectedException()).json
-            return
+        #if not TTS160_dev.Connected:  ##IS DEV CONNECTED##:
+        #    resp.text = PropertyResponse(None, req,
+        #                    NotConnectedException()).json
+        #    return
         
         try:
             # ----------------------
-            #val = TTS160_dev.ApertureDiameter   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
-            #resp.text = PropertyResponse(val, req).json
-            resp.text = PropertyResponse(None, req, NotImplementedException("Aperturediameter property not implemented")).json
+            resp.text = PropertyResponse(None, req, NotImplementedException()).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
                             DriverException(0x500, 'Telescope.Aperturediameter failed', ex)).json
@@ -418,8 +404,9 @@ class athome:
         
         try:
             # ----------------------
-            val = TTS160_dev.AtHome ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.AtHome 
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -436,8 +423,9 @@ class atpark:
         
         try:
             # ----------------------
-            val = TTS160_dev.AtPark ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.AtPark
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -466,9 +454,10 @@ class axisrates:
 
         try:
             # ----------------------
-            logger.info(f"Calling for axis rate with argument {axis}")
-            val = TTS160_dev.AxisRates(axis) ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            logger.info(f"Calling for axis rate with argument {axis}")
+            val = TTS160_dev.AxisRates(axis)
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -503,8 +492,9 @@ class canfindhome:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanFindHome    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanFindHome    
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -533,8 +523,9 @@ class canmoveaxis:
 
         try:
             # ----------------------
-            val = TTS160_dev.CanMoveAxis(axis)    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanMoveAxis(axis)    
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -551,8 +542,9 @@ class canpark:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanPark    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanPark    
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -569,8 +561,9 @@ class canpulseguide:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanPulseGuide  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanPulseGuide  
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -587,8 +580,9 @@ class cansetdeclinationrate:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSetDeclinationRate  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSetDeclinationRate  
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -605,8 +599,9 @@ class cansetguiderates:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSetGuideRates   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSetGuideRates
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -623,8 +618,9 @@ class cansetpark:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSetPark ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSetPark
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -641,8 +637,9 @@ class cansetpierside:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSetPierSide ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSetPierSide 
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -659,8 +656,9 @@ class cansetrightascensionrate:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSetRightAscensionRate   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSetRightAscensionRate
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -677,8 +675,9 @@ class cansettracking:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSetTracking ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSetTracking
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -695,8 +694,9 @@ class canslew:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSlew    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSlew
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -713,8 +713,9 @@ class canslewaltaz:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSlewAltAz   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSlewAltAz
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -731,8 +732,9 @@ class canslewaltazasync:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSlewAltAzAsync  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSlewAltAzAsync
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -749,8 +751,9 @@ class canslewasync:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSlewAsync   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSlewAsync
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -767,8 +770,9 @@ class cansync:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSync    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSync
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -785,8 +789,9 @@ class cansyncaltaz:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanSyncAltAz   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanSyncAltAz
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -803,8 +808,9 @@ class canunpark:
         
         try:
             # ----------------------
-            val = TTS160_dev.CanUnpark  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.CanUnpark
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -821,8 +827,9 @@ class declination:
         
         try:
             # ----------------------
-            val = TTS160_dev.Declination    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.Declination
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -839,8 +846,9 @@ class declinationrate:
         
         try:
             # ----------------------
-            val = TTS160_dev.DeclinationRate    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.DeclinationRate
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -887,7 +895,11 @@ class destinationsideofpier:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'RightAscension {rightascensionstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (0.0 <= rightascension <= 24.0):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Right Ascension is outside 0.0-24.0: {rightascension}")).json
+            return
+            
         declinationstr = get_request_field('Declination', req)      # Raises 400 bad request if missing
         try:
             declination = float(declinationstr)
@@ -895,11 +907,16 @@ class destinationsideofpier:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Declination {declinationstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (-90.0 <= declination <= 90.0):
+            resp.text = MethodResponse(req, 
+                            InvalidValueException(f'Declination is outisde -90.0-90.0: {declination}')).json
+            return
+        
         try:
             # ----------------------
-            val = TTS160_dev.DestinationSideOfPier  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.DestinationSideOfPier
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -942,7 +959,8 @@ class doesrefraction:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            resp.text = MethodResponse(req).json
+            resp.text = MethodResponse(req, NotImplementedException("Set Doesrefraction is not implemented")).json
+            #resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Doesrefraction failed', ex)).json
@@ -958,8 +976,9 @@ class equatorialsystem:
         
         try:
             # ----------------------
-            val = TTS160_dev.EquatorialSystem   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.EquatorialSystem
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -973,7 +992,10 @@ class findhome:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                            InvalidOperationException("Cannot FindHome while parked")).json
+
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -998,7 +1020,7 @@ class focallength:
             #val = TTS160_dev.FocalLength    ## GET PROPERTY ##
             # ----------------------
             #resp.text = PropertyResponse(val, req).json
-            resp.text = PropertyResponse(None, req, NotImplementedException("ApertureArea property not implemented")).json
+            resp.text = PropertyResponse(None, req, NotImplementedException("Focallength property not implemented")).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
                             DriverException(0x500, 'Telescope.Focallength failed', ex)).json
@@ -1014,8 +1036,9 @@ class guideratedeclination:
         
         try:
             # ----------------------
-            val = TTS160_dev.GuideRateDeclination   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.GuideRateDeclination
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1035,10 +1058,16 @@ class guideratedeclination:
                             InvalidValueException(f'GuideRateDeclination {guideratedeclinationstr} not a valid number.')).json
             return
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not ((1.5/3600) <= guideratedeclination <= (15.0 / 3600)):
+            resp.text = MethodResponse(req, 
+                            InvalidValueException(f"Declination Guide Rate out of bounds: {guideratedeclination}, must be between {1.5/3600} and {15/3600} deg/sec")).json
+            return
+
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.GuideRateDeclination = guideratedeclination
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1076,10 +1105,15 @@ class guideraterightascension:
                             InvalidValueException(f'GuideRateRightAscension {guideraterightascensionstr} not a valid number.')).json
             return
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not ((1.5/3600) <= guideraterightascension <= (15.0 / 3600)):
+            resp.text = MethodResponse(req, 
+                            InvalidValueException(f"Right Ascension Guide Rate out of bounds: {guideraterightascension}, must be between {1.5/3600} and {15/3600} deg/sec")).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.GuideRateRightAscension = guideraterightascension
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1096,8 +1130,9 @@ class ispulseguiding:
         
         try:
             # ----------------------
-            val = TTS160_dev.IsPulseGuiding ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.IsPulseGuiding
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1111,7 +1146,11 @@ class moveaxis:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                            InvalidOperationException("Cannot MoveAxis while parked")).json
+            return
+
         axisstr = get_request_field('Axis', req)      # Raises 400 bad request if missing
         try:
             axis = int(axisstr)
@@ -1131,6 +1170,18 @@ class moveaxis:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Rate {ratestr} not a valid number.')).json
             return
+        
+        if axis > 1:
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Cannot MoveAxis on ordered axis: {axis}")).json
+            return
+
+        #ratemax = max(TTS160_dev.AxisRates(axis))
+        ratemax = 3.5
+        if abs(rate) > ratemax:
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Ordered rate {rate} outside valid range: -{ratemax} - +{ratemax} deg/sec")).json
+            return
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
         try:
             # -----------------------------
@@ -1139,16 +1190,8 @@ class moveaxis:
             TTS160_dev.MoveAxis(axis, rate)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Moveaxis failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Moveaxis failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Moveaxis failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class park:
@@ -1159,10 +1202,16 @@ class park:
                             NotConnectedException()).json
             return
         
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                                ParkedException("Cannot Park mount while parked")).json
+            return
+
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.Park
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1176,7 +1225,10 @@ class pulseguide:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                                InvalidOperationException(f"Cannot Pulseguide while parked")).json
+            return
         directionstr = get_request_field('Direction', req)      # Raises 400 bad request if missing
         try:
             direction = int(directionstr)
@@ -1196,7 +1248,12 @@ class pulseguide:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Duration {durationstr} not a valid integer.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        
+        if not (0 <= duration <= 9999):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Duration {duration} msec is out of bounds.  Valid range: 0-9999 msec")).json
+            return
+        
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1204,16 +1261,8 @@ class pulseguide:
             TTS160_dev.PulseGuide(direction, duration)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Pulseguide failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Pulseguide failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Pulseguide failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class rightascension:
@@ -1226,8 +1275,9 @@ class rightascension:
         
         try:
             # ----------------------
-            val = TTS160_dev.RightAscension ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.RightAscension
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1244,8 +1294,9 @@ class rightascensionrate:
         
         try:
             # ----------------------
-            val = TTS160_dev.RightAscensionRate ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.RightAscensionRate
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1289,6 +1340,7 @@ class setpark:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.SetPark
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -1305,8 +1357,9 @@ class sideofpier:
         
         try:
             # ----------------------
-            val = TTS160_dev.SideOfPier ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.SideOfPier
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1351,8 +1404,9 @@ class siderealtime:
         
         try:
             # ----------------------
-            val = TTS160_dev.SiderealTime   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.SiderealTime
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1369,8 +1423,9 @@ class siteelevation:
         
         try:
             # ----------------------
-            val = TTS160_dev.SiteElevation  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.SiteElevation
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1412,8 +1467,9 @@ class sitelatitude:
         
         try:
             # ----------------------
-            val = TTS160_dev.SiteLatitude   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.SiteLatitude
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1454,8 +1510,9 @@ class sitelongitude:
         
         try:
             # ----------------------
-            val = TTS160_dev.SiteLongitude  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.SiteLongitude
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1496,8 +1553,9 @@ class slewing:
         
         try:
             # ----------------------
-            val = TTS160_dev.Slewing    ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.Slewing
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1514,8 +1572,9 @@ class slewsettletime:
         
         try:
             # ----------------------
-            val = TTS160_dev.SlewSettleTime ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.SlewSettleTime
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1534,7 +1593,12 @@ class slewsettletime:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'SlewSettleTime {slewsettletimestr} not a valid integer.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        
+        if not (0 <= slewsettletime <= 30):
+            resp.text = MethodResponse(req,
+                                InvalidValueException(f"Slewsettletime value {slewsettletime} sec outside valid range: 0-30 sec")).json
+            return
+        
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1542,16 +1606,8 @@ class slewsettletime:
             TTS160_dev.SlewSettleTime = slewsettletime
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Slewsettletime failed', ex)).json
-
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Slewsettletime failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Slewsettletime failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtoaltaz:
@@ -1582,19 +1638,12 @@ class slewtoaltaz:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            TTS160_dev.SlewToAltAz(azimuth, altitude)
-            resp.text = MethodResponse(req).json
+            #TTS160_dev.SlewToAltAz(azimuth, altitude)
+            #resp.text = MethodResponse(req).json
+            resp.text = MethodResponse(req, NotImplementedException()).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Slewtoaltaz failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Slewtoaltaz failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Slewtoaltaz failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtoaltazasync:
@@ -1605,6 +1654,11 @@ class slewtoaltazasync:
                             NotConnectedException()).json
             return
         
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                                ParkedException()).json
+            return
+
         azimuthstr = get_request_field('Azimuth', req)      # Raises 400 bad request if missing
         try:
             azimuth = float(azimuthstr)
@@ -1612,7 +1666,10 @@ class slewtoaltazasync:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Azimuth {azimuthstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (0<=azimuth<=360):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Azimuth {azimuth} outside expected range: 0-360")).json
+            return
         altitudestr = get_request_field('Altitude', req)      # Raises 400 bad request if missing
         try:
             altitude = float(altitudestr)
@@ -1620,7 +1677,10 @@ class slewtoaltazasync:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Altitude {altitudestr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (0<=altitude<=90):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Altitude {altitude} outside expected range: 0-90")).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1628,16 +1688,8 @@ class slewtoaltazasync:
             TTS160_dev.SlewToAltAzAsync(azimuth, altitude)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Slewtoaltazasync failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Slewtoaltazasync failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Slewtoaltazasync failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtocoordinates:
@@ -1668,19 +1720,13 @@ class slewtocoordinates:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            TTS160_dev.SlewToCoordinates(rightascension, declination)
-            resp.text = MethodResponse(req).json
+            #TTS160_dev.SlewToCoordinates(rightascension, declination)
+            #resp.text = MethodResponse(req).json
+            resp.text = MethodResponse(req,
+                            NotImplementedException()).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Slewtocoordinates failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Slewtocoordinates failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Slewtocoordinates failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtocoordinatesasync:
@@ -1698,7 +1744,10 @@ class slewtocoordinatesasync:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'RightAscension {rightascensionstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (0.0 <= rightascension <= 24.0):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Right Ascension {rightascension} outside expected range: 0-24 hr")).json
+            return
         declinationstr = get_request_field('Declination', req)      # Raises 400 bad request if missing
         try:
             declination = float(declinationstr)
@@ -1706,7 +1755,10 @@ class slewtocoordinatesasync:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Declination {declinationstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (-90 <= declination <= 90):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Declination {declination} outside expected range: -90 - +90 deg")).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1714,16 +1766,8 @@ class slewtocoordinatesasync:
             TTS160_dev.SlewToCoordinatesAsync(rightascension, declination)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Slewtocoordinatesasync failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Slewtocoordinatesasync failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Slewtocoordinatesasync failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtotarget:
@@ -1738,19 +1782,13 @@ class slewtotarget:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            TTS160_dev.SlewToTarget()
-            resp.text = MethodResponse(req).json
+            #TTS160_dev.SlewToTarget()
+            #resp.text = MethodResponse(req).json
+            resp.text = MethodResponse(req,
+                            NotImplementedException()).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Slewtotarget failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Slewtotarget failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Slewtotarget failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class slewtotargetasync:
@@ -1761,6 +1799,11 @@ class slewtotargetasync:
                             NotConnectedException()).json
             return
         
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                        ParkedException()).json
+            return
+
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1768,16 +1811,8 @@ class slewtotargetasync:
             TTS160_dev.SlewToTargetAsync()
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Slewtotargetasync failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Slewtotargetasync failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Slewtotargetasync failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class synctoaltaz:
@@ -1788,6 +1823,11 @@ class synctoaltaz:
                             NotConnectedException()).json
             return
         
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                        ParkedException()).json
+            return
+
         azimuthstr = get_request_field('Azimuth', req)      # Raises 400 bad request if missing
         try:
             azimuth = float(azimuthstr)
@@ -1795,7 +1835,6 @@ class synctoaltaz:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Azimuth {azimuthstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
         altitudestr = get_request_field('Altitude', req)      # Raises 400 bad request if missing
         try:
             altitude = float(altitudestr)
@@ -1803,7 +1842,14 @@ class synctoaltaz:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Altitude {altitudestr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (0<=azimuth<=360):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Azimuth {azimuth} outside expected range: 0-360")).json
+            return
+        if not (0<=altitude<=90):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Altitude {altitude} outside expected range: 0-90")).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1811,16 +1857,8 @@ class synctoaltaz:
             TTS160_dev.SyncToAltAz(azimuth, altitude)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Synctoaltaz failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Synctoaltaz failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Synctoaltaz failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class synctocoordinates:
@@ -1831,6 +1869,11 @@ class synctocoordinates:
                             NotConnectedException()).json
             return
         
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                        ParkedException()).json
+            return
+
         rightascensionstr = get_request_field('RightAscension', req)      # Raises 400 bad request if missing
         try:
             rightascension = float(rightascensionstr)
@@ -1838,7 +1881,7 @@ class synctocoordinates:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'RightAscension {rightascensionstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+       
         declinationstr = get_request_field('Declination', req)      # Raises 400 bad request if missing
         try:
             declination = float(declinationstr)
@@ -1846,7 +1889,15 @@ class synctocoordinates:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'Declination {declinationstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (0.0 <= rightascension <= 24.0):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Right Ascension {rightascension} outside expected range: 0-24 hr")).json
+            return
+
+        if not (-90 <= declination <= 90):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Declination {declination} outside expected range: -90 - +90 deg")).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1854,16 +1905,8 @@ class synctocoordinates:
             TTS160_dev.SyncToCoordinates(rightascension, declination)
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Synctocoordinates failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Synctocoordinates failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Synctocoordinates failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class synctotarget:
@@ -1874,6 +1917,11 @@ class synctotarget:
                             NotConnectedException()).json
             return
         
+        if TTS160_dev.AtPark:
+            resp.text = PropertyResponse(None, req,
+                        ParkedException()).json
+            return
+
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1881,14 +1929,6 @@ class synctotarget:
             TTS160_dev.SyncToTarget()
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Synctotarget failed', ex)).json
-            
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Synctotarget failed', ex)).json
 
@@ -1903,19 +1943,13 @@ class targetdeclination:
         
         try:
             # ----------------------
-            val = TTS160_dev.TargetDeclination  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.TargetDeclination
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = PropertyResponse(None, req, alpaca_ex).json
-            else:
-                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
-
-            #resp.text = PropertyResponse(None, req,
-            #                DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
+            resp.text = PropertyResponse(None, req,
+                            DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
         if not TTS160_dev.Connected: ##IS DEV CONNECTED##:
@@ -1930,7 +1964,10 @@ class targetdeclination:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'TargetDeclination {targetdeclinationstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (-90 <= targetdeclination <= 90):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f'Target Declination {targetdeclination} outside expected range: -90 - +90 deg')).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1938,15 +1975,8 @@ class targetdeclination:
             TTS160_dev.TargetDeclination = targetdeclination
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Targetdeclination failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class targetrightascension:
@@ -1959,19 +1989,13 @@ class targetrightascension:
         
         try:
             # ----------------------
-            val = TTS160_dev.TargetRightAscension   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.TargetRightAscension 
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = PropertyResponse(None, req, alpaca_ex).json
-            else:
-                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
-            
-            #resp.text = PropertyResponse(None, req,
-            #                DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
+            resp.text = PropertyResponse(None, req,
+                            DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
 
     def on_put(self, req: Request, resp: Response, devnum: int):
         if not TTS160_dev.Connected: ##IS DEV CONNECTED##:
@@ -1986,7 +2010,10 @@ class targetrightascension:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'TargetRightAscension {targetrightascensionstr} not a valid number.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if not (0.0 <= targetrightascension <= 24.0):
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f"Right Ascension {targetrightascension} outside expected range: 0-24 hr")).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -1994,15 +2021,8 @@ class targetrightascension:
             TTS160_dev.TargetRightAscension = targetrightascension
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = PropertyResponse(None, req, alpaca_ex).json
-            else:
-                resp.text = PropertyResponse(None, req, DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Targetrightascension failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class tracking:
@@ -2057,8 +2077,9 @@ class trackingrate:
         
         try:
             # ----------------------
-            val = TTS160_dev.TrackingRate   ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.TrackingRate
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -2077,7 +2098,10 @@ class trackingrate:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'TrackingRate {trackingratestr} not a valid integer.')).json
             return
-        ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
+        if trackingrate not in [0, 1, 2]:
+            resp.text = MethodResponse(req,
+                            InvalidValueException(f'Tacking rate {trackingrate} outside expected range of 0, 1, or 2')).json
+            return
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
@@ -2085,16 +2109,8 @@ class trackingrate:
             TTS160_dev.TrackingRate = trackingrate
             resp.text = MethodResponse(req).json
         except Exception as ex:
-            exception_name = type(ex).__name__
-            if exception_name in ALPACA_EXCEPTIONS:
-                alpaca_ex = ALPACA_EXCEPTIONS[exception_name](ex.Message)
-                resp.text = MethodResponse(req, alpaca_ex).json
-            else:
-                resp.text = MethodResponse(req, 
-                                DriverException(0x500, 'Telescope.Trackingrate failed', ex)).json
-            
-            #resp.text = MethodResponse(req,
-            #                DriverException(0x500, 'Telescope.Trackingrate failed', ex)).json
+            resp.text = MethodResponse(req,
+                            DriverException(0x500, 'Telescope.Trackingrate failed', ex)).json
 
 @before(PreProcessRequest(maxdev))
 class trackingrates:
@@ -2107,8 +2123,9 @@ class trackingrates:
         
         try:
             # ----------------------
-            val = TTS160_dev.TrackingRates  ## GET PROPERTY ##
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.TrackingRates
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -2125,9 +2142,10 @@ class utcdate:
         
         try:
             # ----------------------
-            val = TTS160_dev.UTCDate    ## GET PROPERTY ##
-            logger.info(f"Retrieved date: {val}")
+            ## GET PROPERTY ##
             # ----------------------
+            val = TTS160_dev.UTCDate
+            logger.info(f"Retrieved date: {val}")
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -2140,11 +2158,25 @@ class utcdate:
             return
         
         utcdate = get_request_field('UTCDate', req)         # Raises 400 bad request if missing
+
         ### INTEPRET AS NEEDED OR FAIL ###  # Raise Alpaca InvalidValueException with details!
+        if isinstance(utcdate, str):
+            try:
+                utcdate = parser.isoparse(utcdate)
+            except ValueError:
+                resp.text = MethodResponse(req,
+                                InvalidValueException(f"Invalid ISO 8601 format: {utcdate}")).json
+                return
+        elif not isinstance(utcdate, datetime):
+            resp.text = MethodResponse(req,
+                                InvalidValueException(f"Error: {utcdate} is not a datetime object or string.")).json
+            return
+        
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
+            TTS160_dev.UTCDate = utcdate
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
