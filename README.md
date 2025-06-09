@@ -20,19 +20,19 @@ There will be a GUI developed to handle driver settings (similar to the ASCOM dr
 The intent is for this driver to have a distribution package similar to the one for ASCOM driver.  Ideally, this will include for deployment on Linux/Raspbian and Mac OSes as well.
 
 ## TODO before conform testing
-* Fix connect/disconnect logic so you can reconnect multiple times (ready for initial verification testing)
-* Verify multiple connects and disconnects from multiple clients (Sharpcap, NINA, phd, etc...) do not break connect/disconnect logic (ready for initial verification testing)
+* ~~Fix connect/disconnect logic so you can reconnect multiple times (ready for initial verification testing)~~
+* ~~Verify multiple connects and disconnects from multiple clients (Sharpcap, NINA, phd, etc...) do not break connect/disconnect logic (ready for initial verification testing)~~
 * ~~Continue converting methods - SlewToxxx should be the last big ones.  Also need the syncs, now that I think of it~~
 * ~~Have abort slew bypass settling time: set _goto_in_progress to False before sending the abort command~~
 * ~~Implement EquatorialSystem in applicable functions.  Likely make two alt-az <-> ra-dec conversion functions that will choose the correct epoch based on the mount so that we don't need to check in each and every function.  Functions...SlewToAltAzAsync, SlewToCoordinatesAsync, all of the Syncs, FindHome, any others?~~
-* Add an internal get park variable status command for driver awareness, should be read on initial connect.  Need to figure out a good method for periodic update of mount status (epoch, location, park settings, etc...) for later inclusion in the gui
-* Add log entries to support debugging, add function documentation (see good todos)
+* ~~Add an internal get park variable status command for driver awareness, should be read on initial connect.  Need to figure out a good method for periodic update of mount status (epoch, location, park settings, etc...) for later inclusion in the gui~~
+* ~~Add log entries to support debugging, add function documentation (see good todos)~~
 
 ## Good TODOs
-* Run existing methods through Claude to ensure pythonic, best practices, documented, etc...
+* ~~Run existing methods through Claude to ensure pythonic, best practices, documented, etc...~~
 
 ## Known bugs
-* NINA does not seem to like how time is passed, it fails the mount/computer difference check
+* ~~NINA does not seem to like how time is passed, it fails the mount/computer difference check~~ <-- Fixed by changing "+00:00" for UTCDate timezone to "Z"
 
 ## Headscratchers
 * How to deal with EquPulseGuide timing, particular when some programs (metaguide?) expect the mount to indicate pulse-guiding for the defined time?  Possibly spin off a monitor thread to handle that specific case.  A ns and ew for the ordered duration to simulate ra and dec motor motion, allowing for ra and eq orders to be executed?  How will that interface with the hardware?
