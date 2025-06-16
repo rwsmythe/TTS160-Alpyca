@@ -79,6 +79,26 @@ from shr import set_shr_logger
 ##############################
 import telescope
 
+# Global reference for shutdown
+_httpd_server = None
+_DSC = None
+
+def shutdown_server():
+    """Shutdown the HTTP server"""
+    global _httpd_server, _DSC
+    if _httpd_server:
+        _httpd_server.shutdown()
+
+    # Close logging handlers
+    if hasattr(log, 'logger') and log.logger:
+        handlers = log.logger.handlers[:]
+        for handler in handlers:
+            handler.close()
+            log.logger.removeHandler(handler)
+
+    if _DSC:
+        _DSC.shutdown()
+
 #--------------
 API_VERSION = 1
 #--------------
@@ -119,6 +139,9 @@ class LoggingWSGIRequestHandler(WSGIRequestHandler):
         ##TODO## on non-200s, per Wireshark. So crazy!
         #if args[1] != '200':  # Log this only on non-200 responses
         #    log.logger.info(f'{self.client_address[0]} <- {format%args}')
+
+    #Forces HTTP/1.1 to try and fix android skysafari problem
+    http_version = "HTTP/1.1"
 
 #-----------------------
 # Magic routing function
@@ -240,6 +263,7 @@ def main():
     # ---------
     # DISCOVERY
     # ---------
+    global _DSC
     _DSC = DiscoveryResponder(Config.ip_address, Config.port)
 
     # ----------------------------------
@@ -271,7 +295,10 @@ def main():
     # SERVER APPLICATION
     # ------------------
     # Using the lightweight built-in Python wsgi.simple_server
+    # Modified to allow for startup and shutdown from gui/cmdline
+    global _httpd_server
     with make_server(Config.ip_address, Config.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
+        _httpd_server = httpd
         logger.info(f'==STARTUP== Serving on {Config.ip_address}:{Config.port}. Time stamps are UTC.')
         # Serve until process is killed
         httpd.serve_forever()

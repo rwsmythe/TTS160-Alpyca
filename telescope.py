@@ -253,6 +253,7 @@ class devicestate:
                             DriverException(0x500, 'telescope.Devicestate failed', ex)).json
 
 
+@before(PreProcessRequest(maxdev))
 class disconnect:
     def on_put(self, req: Request, resp: Response, devnum: int):
         try:
@@ -867,14 +868,18 @@ class declinationrate:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'DeclinationRate {declinationratestr} not a valid number.')).json
             return
+        if TTS160_dev.TrackingRate != DriveRates.driveSidereal:
+            resp.text = MethodResponse(req,
+                            InvalidOperationException("Tracking rate must be sidereal to set declination rate.")).json
+            return
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            #TTS160_dev.DeclinationRate = declinationrate
-            #resp.text = MethodResponse(req).json
-            resp.text = PropertyResponse(None, req, NotImplementedException("DeclinationRate Set property not implemented")).json
+            TTS160_dev.DeclinationRate = declinationrate
+            resp.text = MethodResponse(req).json
+            #resp.text = PropertyResponse(None, req, NotImplementedException("DeclinationRate Set property not implemented")).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Declinationrate failed', ex)).json
@@ -1315,14 +1320,18 @@ class rightascensionrate:
             resp.text = MethodResponse(req,
                             InvalidValueException(f'RightAscensionRate {rightascensionratestr} not a valid number.')).json
             return
+        if TTS160_dev.TrackingRate != DriveRates.driveSidereal:
+            resp.text = MethodResponse(req,
+                            InvalidOperationException(f"Tracking rate must be sidereal to set right ascension rate.")).json
+            return
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
         try:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            #TTS160_dev.RightAscensionRate = rightascensionrate
-            #resp.text = MethodResponse(req).json
-            resp.text = PropertyResponse(None, req, NotImplementedException("Rightascensionrate set property not implemented")).json
+            TTS160_dev.RightAscensionRate = rightascensionrate
+            resp.text = MethodResponse(req).json
+            #resp.text = PropertyResponse(None, req, NotImplementedException("Rightascensionrate set property not implemented")).json
         except Exception as ex:
             resp.text = MethodResponse(req,
                             DriverException(0x500, 'Telescope.Rightascensionrate failed', ex)).json

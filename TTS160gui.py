@@ -1,53 +1,65 @@
-# -*- coding: utf-8 -*-
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel
+from PySide6.QtCore import Qt
 
-################################################################################
-## Form generated from reading UI file 'TTS160gui.ui'
-##
-## Created by: Qt User Interface Compiler version 6.9.0
-##
-## WARNING! All changes made in this file will be lost when recompiling UI file!
-################################################################################
+class TTS160GUI(QWidget):
+    def __init__(self, start_callback=None, stop_callback=None):
+        super().__init__()
+        self.start_callback = start_callback
+        self.stop_callback = stop_callback
+        self.init_ui()
+        self.connect_signals()
+        
+    def init_ui(self):
+        self.setWindowTitle("TTS160 Controller")
+        self.setMinimumSize(300, 150)
+        
+        layout = QVBoxLayout()
+        
+        # Status label
+        self.status_label = QLabel("Driver Stopped")
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        layout.addWidget(self.status_label)
+        
+        # Start button
+        self.start_button = QPushButton("Start Driver")
+        self.start_button.setEnabled(True)
+        layout.addWidget(self.start_button)
+        
+        # Stop button
+        self.stop_button = QPushButton("Stop Driver")
+        self.stop_button.setEnabled(False)
+        layout.addWidget(self.stop_button)
+        
+        self.setLayout(layout)
+        
+    def connect_signals(self):
+        """Connect button signals to handler methods"""
+        self.start_button.clicked.connect(self.on_start_clicked)
+        self.stop_button.clicked.connect(self.on_stop_clicked)
+        
+    def on_start_clicked(self):
+        """Handle start button click"""
+        if self.start_callback:
+            self.start_callback()
+            
+    def on_stop_clicked(self):
+        """Handle stop button click"""
+        if self.stop_callback:
+            self.stop_callback()
+        
+    def set_driver_running(self, running):
+        """Update GUI state based on driver status"""
+        if running:
+            self.status_label.setText("Driver Running")
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(True)
+        else:
+            self.status_label.setText("Driver Stopped")
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
 
-from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
-    QMetaObject, QObject, QPoint, QRect,
-    QSize, QTime, QUrl, Qt)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
-    QFont, QFontDatabase, QGradient, QIcon,
-    QImage, QKeySequence, QLinearGradient, QPainter,
-    QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QMainWindow, QMenuBar, QPushButton,
-    QSizePolicy, QStatusBar, QWidget)
-
-class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
-        if not MainWindow.objectName():
-            MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(892, 654)
-        self.centralwidget = QWidget(MainWindow)
-        self.centralwidget.setObjectName(u"centralwidget")
-        self.pushStart = QPushButton(self.centralwidget)
-        self.pushStart.setObjectName(u"pushStart")
-        self.pushStart.setGeometry(QRect(30, 10, 101, 41))
-        self.pushStop = QPushButton(self.centralwidget)
-        self.pushStop.setObjectName(u"pushStop")
-        self.pushStop.setGeometry(QRect(30, 60, 101, 41))
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QMenuBar(MainWindow)
-        self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 892, 33))
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QStatusBar(MainWindow)
-        self.statusbar.setObjectName(u"statusbar")
-        MainWindow.setStatusBar(self.statusbar)
-
-        self.retranslateUi(MainWindow)
-
-        QMetaObject.connectSlotsByName(MainWindow)
-    # setupUi
-
-    def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.pushStart.setText(QCoreApplication.translate("MainWindow", u"Start Driver", None))
-        self.pushStop.setText(QCoreApplication.translate("MainWindow", u"Stop Driver", None))
-    # retranslateUi
-
+def create_window(start_callback=None, stop_callback=None):
+    window = TTS160GUI(start_callback, stop_callback)
+    window.show()
+    return window
