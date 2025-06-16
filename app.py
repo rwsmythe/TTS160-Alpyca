@@ -79,6 +79,27 @@ from shr import set_shr_logger
 ##############################
 import telescope
 
+# Global reference for shutdown
+_httpd_server = None
+_DSC = None
+
+def shutdown_server():
+    """Shutdown the HTTP server and cleanup logging"""
+    global _httpd_server, _DSC
+    if _httpd_server:
+        _httpd_server.shutdown()
+    
+    # Stop discovery responder
+    if _DSC:
+        _DSC.shutdown()  # or whatever cleanup method it has
+    
+    # Close logging handlers
+    if hasattr(log, 'logger') and log.logger:
+        handlers = log.logger.handlers[:]
+        for handler in handlers:
+            handler.close()
+            log.logger.removeHandler(handler)
+
 #--------------
 API_VERSION = 1
 #--------------
@@ -240,6 +261,7 @@ def main():
     # ---------
     # DISCOVERY
     # ---------
+    global _DSC
     _DSC = DiscoveryResponder(Config.ip_address, Config.port)
 
     # ----------------------------------
@@ -271,7 +293,9 @@ def main():
     # SERVER APPLICATION
     # ------------------
     # Using the lightweight built-in Python wsgi.simple_server
+    global _httpd_server
     with make_server(Config.ip_address, Config.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
+        _httpd_server = httpd  # Store reference
         logger.info(f'==STARTUP== Serving on {Config.ip_address}:{Config.port}. Time stamps are UTC.')
         # Serve until process is killed
         httpd.serve_forever()

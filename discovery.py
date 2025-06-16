@@ -92,6 +92,8 @@ class DiscoveryResponder(Thread):
             self.tsock.close()
             self.tsock = 0
             raise
+        
+        self.running = True  # Add this flag
 
         # OK start the listener
         self.daemon = True
@@ -99,9 +101,24 @@ class DiscoveryResponder(Thread):
 
     def run(self):
         """Discovery responder forever loop"""
-        while True:
-            data, addr = self.rsock.recvfrom(1024)
-            datascii = str(data, 'ascii')
-            logger.info(f'Disc rcv {datascii} from {str(addr)}')
-            if 'alpacadiscovery1' in datascii:
-                self.tsock.sendto(self.alpaca_response.encode(), addr)
+        while self.running:
+            try:
+                data, addr = self.rsock.recvfrom(1024)
+                datascii = str(data, 'ascii')
+                logger.info(f'Disc rcv {datascii} from {str(addr)}')
+                if 'alpacadiscovery1' in datascii:
+                    self.tsock.sendto(self.alpaca_response.encode(), addr)
+            except OSError as e:
+                if e.winerror == 10038:  # Socket operation on non-socket (shutdown)
+                    break
+                else:
+                    logger.error(f'Discovery socket error: {e}')
+                    raise  # Re-raise unexpected errors
+
+    def shutdown(self):
+        """Stop the discovery responder"""
+        self.running = False
+        if self.rsock:
+            self.rsock.close()
+        if self.tsock:
+            self.tsock.close()
