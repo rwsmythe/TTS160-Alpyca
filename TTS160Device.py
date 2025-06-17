@@ -703,9 +703,10 @@ class ConfigurationMixin:
             # Configuration object not properly initialized
             self._logger.error(f"Configuration object not available for site location: {ex}")
             raise  # Re-raise as this indicates a serious initialization problem
-    
+
+# Coordinate Conversion Utilities           
 class CoordinateUtilsMixin:
-     # Coordinate Conversion Utilities
+    
     def _dms_to_degrees(self, dms_str: str) -> float:
         """
         Convert DMS (Degrees:Minutes:Seconds) string to decimal degrees.
@@ -1483,11 +1484,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         self._CanMoveAxis = True
         self._CanPark = True
         self._CanPulseGuide = True
-        self._CanSetDeclinationRate = False
+        self._CanSetDeclinationRate = True
         self._CanSetGuideRates = True
         self._CanSetPark = False
         self._CanSetPierSide = False
-        self._CanSetRightAscensionRate = False
+        self._CanSetRightAscensionRate = True
         self._CanSetTracking = True
         self._CanSlew = False
         self._CanSlewAltAz = False
@@ -1506,14 +1507,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         self._tracking = False
         self._goto_in_progress = False
         self._slewing_hold = False
+        self._rightascensionrate = 0.0
+        self._declinationrate = 0.0
         self._logger.debug("Mount state variables initialized")
-
-    #def _initialize_target_state(self) -> None:
-    #    """Initialize target coordinate state tracking."""
-        #self._is_target_set = False
-        #self._target_right_ascension_set = False
-        #self._target_declination_set = False
-        #self._logger.debug("Target state variables initialized")
 
     def _initialize_hardware_constants(self) -> None:
         """Initialize TTS160-specific hardware constants and operational parameters."""
@@ -1560,7 +1556,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         except Exception as ex:
             self._logger.warning(f"Error cleaning up serial manager: {ex}")
 
-    #Cached vriables
+    #Cached variables
     @property
     def _site_location(self):
         if not hasattr(self, '_site_location_cache'):
@@ -1962,8 +1958,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Last client disconnecting - perform physical disconnect
             self._Connecting = True  # Indicate disconnection in progress
             self._logger.info("Beginning physical mount disconnection (last client)")
-            
+
         try:
+
+            self._logger.info("Aborting any slew in progress")
+            #self._executor.shutdown(wait=True)
+            self._send_command(":Q#", CommandType.BLIND)
+            #time.sleep(1)
             # Save configuration before disconnecting
             try:
                 if self._config:
@@ -2994,21 +2995,139 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
     @property
     def RightAscensionRate(self) -> float:
-        #Not Implemented
-        return 0.0
-    
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
+        if self.TrackingRate != DriveRates.driveSidereal:
+            return 0.0
+
+        try:
+            result = self._send_command(":*RR#",CommandType.STRING).rstrip('#')
+            rar = float(result) * 0.9972695677  #convert from UTC seconds to sidereal seconds
+            return rar
+        except Exception as ex:
+            raise RuntimeError(f"Get RightAscensionRate failed", ex)
+
     @RightAscensionRate.setter
     def RightAscensionRate(self, value: float) -> None:
-        raise NotImplementedError("Set RightAscensionRate not implemented")
-    
+        """
+        Set the right ascension tracking rate.
+        
+        Args:
+            value: RA rate in seconds/second (will be corrected for sidereal time)
+            
+        Raises:
+            ConnectionError: If device not connected
+            RuntimeError: If tracking rate not sidereal, rate out of range, or command fails
+            
+        Note:
+            Rate is automatically corrected by sidereal factor (1.00273791) and
+            validated against firmware limits (±99.9999999999 sec/sec after correction).
+        """
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
+        if self.TrackingRate != DriveRates.driveSidereal:
+            raise RuntimeError("Unable to set RightAscensionRate when TrackingRate is not Sidereal")
+        
+        # Apply sidereal time correction factor
+        corrected_ra_rate = value * 1.00273791  # Convert to RA seconds per UTC second
+        
+        # Validate corrected rate against firmware limits
+        if abs(corrected_ra_rate) > 99.9999:
+            raise RuntimeError(f"RA rate {corrected_ra_rate:.10f} sec/sec exceeds firmware limit ±99.9999999999 sec/sec")
+        
+        self._logger.info(f"Setting RA rate: input={value:.10f} sec/sec, corrected={corrected_ra_rate:.10f} sec/sec")
+        
+        try:           
+            # Format command: :*SRCXX.XXXXXXXXXX# 
+            # where XX.XXXX = RA rate, C is Sign
+            # Signs (+ or -) are included in the formatted numbers (2 digits before decimal)
+            command = f":*SR{corrected_ra_rate:+014.10f}#"
+            
+            self._logger.debug(f"Transmitting RA rate command: {command}")
+            
+            # Send command to firmware (blind command - no response expected)
+            self._send_command(command, CommandType.BLIND)
+            
+            # Update state under lock protection for thread safety
+            with self._lock:
+                self._rightascensionrate = corrected_ra_rate
+                self._rightascensionrate_set = (corrected_ra_rate != 0)
+            
+            self._logger.info(f"RA rate configured successfully: RA={corrected_ra_rate:.10f} sec/sec")
+            
+        except Exception as ex:
+            error_msg = f"Failed to set RA rate {corrected_ra_rate:.10f} sec/sec"
+            self._logger.error(f"{error_msg}: {ex}")
+            raise RuntimeError(error_msg) from ex
+
     @property
     def DeclinationRate(self) -> float:
-        #Not Implemented
-        return 0.0
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
+        if self.TrackingRate != DriveRates.driveSidereal:
+            return 0.0
+
+        try:
+            result = self._send_command(":*RD#",CommandType.STRING).rstrip('#')
+            decr = float(result)
+            return decr
+        except Exception as ex:
+            raise RuntimeError(f"Get DeclinationRate failed", ex)
+    
     
     @DeclinationRate.setter
     def DeclinationRate(self, value: float) -> None:
-        raise NotImplementedError()        
+        """
+        Set the declination tracking rate.
+        
+        Args:
+            value: Dec rate in arcsec/second (no sidereal correction needed)
+            
+        Raises:
+            ConnectionError: If device not connected
+            RuntimeError: If tracking rate not sidereal, rate out of range, or command fails
+            
+        Note:
+            Rate is validated against firmware limits (±99.9999999999 arcsec/sec).
+        """
+        if not self.Connected:
+            raise ConnectionError("Device not connected")
+        
+        if self.TrackingRate != DriveRates.driveSidereal:
+            raise RuntimeError("Unable to set DeclinationRate when TrackingRate is not Sidereal")
+        
+        # Validate rate against firmware limits (no sidereal correction needed)
+        if abs(value) > 99.9999999999:
+            raise RuntimeError(f"Dec rate {value:.10f} arcsec/sec exceeds firmware limit ±99.9999999999 arcsec/sec")
+        
+        self._logger.info(f"Setting Dec rate: {value:.10f} arcsec/sec")
+        
+        try:
+            
+            # Format command: :*SDXX.XXXXXXXXXX# 
+            # where XX.XXXXXXXXXX = Dec rate, C = Sign
+            # Signs (+ or -) are included in the formatted numbers (2 digits before decimal)
+            command = f":*SD{value:+014.10f}#"
+            
+            self._logger.debug(f"Transmitting Dec rate command: {command}")
+            
+            # Send command to firmware (blind command - no response expected)
+            self._send_command(command, CommandType.BLIND)
+            
+            # Update state under lock protection for thread safety
+            with self._lock:
+                self._declinationrate = value
+                self._declinationrate_set = (value != 0)
+            
+            self._logger.info(f"Dec rate configured successfully: Dec={value:.10f} arcsec/sec")
+            
+        except Exception as ex:
+            error_msg = f"Failed to set Dec rate {value:.10f} arcsec/sec"
+            self._logger.error(f"{error_msg}: {ex}")
+            raise RuntimeError(error_msg) from ex
 
     @property
     def IsPulseGuiding(self) -> bool:
@@ -3208,6 +3327,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         try:
             
             #TODO: Look how to verify monitor threads are appropriately closed
+            self._logger.info("Abort command initiated")
             self._goto_in_progress = False
             self._send_command(":Q#", CommandType.BLIND)
             
@@ -3340,9 +3460,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     status = self._send_command(":D#", CommandType.STRING)
                     if status != "|#":
                         break
-                    time.sleep(0.05)  # 100ms polling interval
-                    self._logger.debug(f"Getting Azimuth for rate test: {self.Azimuth}")
-                    self._logger.debug(f"Getting Altitude for rate test: {self.Altitude}")
+                    time.sleep(0.1)  # 100ms polling interval
                 except Exception as ex:
                     self._logger.error(f"Error polling slew status: {ex}")
                     raise RuntimeError(f"Slew status monitoring failed", ex)

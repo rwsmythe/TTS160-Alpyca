@@ -59,7 +59,7 @@
 import sys
 import traceback
 import inspect
-from wsgiref.simple_server import WSGIRequestHandler, make_server
+from wsgiref.simple_server import WSGIRequestHandler, make_server, ServerHandler
 from enum import IntEnum
 
 # -- isort wants the above line to be blank --
@@ -106,7 +106,28 @@ API_VERSION = 1
 
 class LoggingWSGIRequestHandler(WSGIRequestHandler):
     """Subclass of  WSGIRequestHandler allowing us to control WSGI server's logging"""
+    
+    def handle(self):
+        # Copy the parent method but override ServerHandler
+        self.raw_requestline = self.rfile.readline(65537)
+        if len(self.raw_requestline) > 65536:
+            self.requestline = ''
+            self.request_version = ''
+            self.command = ''
+            self.send_error(414)
+            return
 
+        if not self.parse_request():
+            return
+
+        handler = ServerHandler(
+            self.rfile, self.wfile, self.get_stderr(), self.get_environ(),
+            multithread=False,
+        )
+        handler.http_version = "1.1"  # Override here
+        handler.request_handler = self
+        handler.run(self.server.get_app())
+    
     def log_message(self, format: str, *args):
         """Log a message from within the Python **wsgiref** simple server
 
