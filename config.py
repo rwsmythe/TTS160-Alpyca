@@ -43,11 +43,17 @@
 #               write-Connected behavior.
 #
 import sys
+import os
 import toml
 import logging
 
+def get_config_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return sys.path[0]
+
 _dict = {}
-_dict = toml.load(f'{sys.path[0]}/config.toml')    # Errors here are fatal.
+_dict = toml.load(f'{get_config_dir()}/config.toml')    # Errors here are fatal.
 _dict2 = {}
 try:
     # ltf - this file, if it exists can override or supplement definitions

@@ -35,7 +35,7 @@
 import threading
 from pathlib import Path
 from typing import Any, Union
-
+import sys
 import toml
 
 
@@ -67,6 +67,11 @@ class TTS160Config:
     DEFAULT_CONFIG_FILE = 'TTS160config.toml'
     OVERRIDE_CONFIG_PATH = '/alpyca/TTS160config.toml'
     
+    def get_config_dir(self):
+        if getattr(sys, 'frozen', False):
+            return Path(sys.executable).parent
+        return Path.cwd()
+
     def __init__(self):
         """Initialize configuration by loading TOML files."""
         self._lock = threading.RLock()
@@ -74,7 +79,7 @@ class TTS160Config:
         self._dict2 = {}
         
         # Use pathlib for file paths
-        self._config_file = Path.cwd() / self.DEFAULT_CONFIG_FILE
+        self._config_file = self.get_config_dir() / self.DEFAULT_CONFIG_FILE
         self._override_file = Path(self.OVERRIDE_CONFIG_PATH)
         
         self._load_config()

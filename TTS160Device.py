@@ -16,9 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, Future
 from astropy.coordinates import SkyCoord, AltAz, ICRS, EarthLocation, GCRS
 from astropy.time import Time
 from astropy import units as u
-from astropy.utils.data import download_file
 from astropy.utils import iers
-iers.IERS_Auto.open()  # Force download
 
 # Local imports
 from tts160_types import CommandType
@@ -88,6 +86,12 @@ class AstropyCachingMixin:
         proper multiple inheritance initialization chain.
         """
         super().__init__(*args, **kwargs)
+
+        try:
+            iers.IERS_Auto.open()  # Trigger download attempt
+        except Exception as e:
+            self._logger.info(f"IERS data download failed: {e}")
+            # Continue with cached/default data
         
         # Cache storage attributes will be created on-demand
         # No need to initialize them here as they're managed by properties
@@ -2321,8 +2325,17 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.debug(f"Current altitude: {altitude_deg:.3f}°")
             return altitude_deg
         except Exception as ex:
-            self._logger.error(f"Failed to retrieve altitude: {ex}")
-            raise RuntimeError("Failed to get altitude", ex)
+            self._logger.error(f"Failed to retrieve altitude: {ex}, retrying")
+            try:
+                self._serial_manager.clear_buffers()
+                self._logger.debug("Retrieving current altitude from mount")
+                result = self._send_command(":*GA#", CommandType.STRING).rstrip('#')
+                altitude_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
+                self._logger.debug(f"Current altitude: {altitude_deg:.3f}°")
+                return altitude_deg
+            except Exception as ex:
+                self._logger.error(f"Retry failed to retrieve altitude: {ex}")
+                raise RuntimeError("Failed to get altitude", ex)
 
 
     @property
@@ -2351,6 +2364,15 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             return azimuth_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve azimuth: {ex}")
+            try:
+                self._serial_manager.clear_buffers()
+                self._logger.debug("Retrieving current azimuth from mount")
+                result = self._send_command(":*GZ#", CommandType.STRING).rstrip('#')
+                azimuth_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
+                self._logger.debug(f"Current azimuth: {azimuth_deg:.3f}°")
+                return azimuth_deg
+            except Exception as ex:
+                self._logger.error(f"Retry failed to retrieve azimuth: {ex}")
             raise RuntimeError("Failed to get azimuth", ex)
 
 
