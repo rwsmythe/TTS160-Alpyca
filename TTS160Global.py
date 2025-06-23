@@ -65,3 +65,15 @@ def reset_serial_manager() -> None:
             except Exception:
                 pass  # Ignore cleanup errors
             _serial_instance = None
+
+def reset_device() -> None:
+    """Reset the device instance (for cleanup)."""
+    global _device_instance
+    
+    with _lock:
+        if _device_instance is not None:
+            try:
+                _device_instance = None
+            except Exception:
+                pass  # Ignore cleanup errors
+            _device_instance = None

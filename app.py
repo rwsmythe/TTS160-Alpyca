@@ -259,13 +259,18 @@ def falcon_uncaught_exception_handler(req: Request, resp: Response, ex: BaseExce
 # APP STARTUP
 # ===========
 def main():
+    """ Global variables """
+    
+    global _DSC
+    global _httpd_server
+
     """ Application startup"""
 
     logger = log.init_logging()
     # Share this logger throughout
     log.logger = logger
     exceptions.logger = logger
-    telescope.start_TTS160_dev(logger)
+    telescope.start_TTS160_dev(logger) #return telescope object for use
     discovery.logger = logger
     set_shr_logger(logger)
 
@@ -282,7 +287,6 @@ def main():
     # ---------
     # DISCOVERY
     # ---------
-    global _DSC
     _DSC = DiscoveryResponder(Config.ip_address, Config.port)
 
     # ----------------------------------
@@ -314,7 +318,6 @@ def main():
     # SERVER APPLICATION
     # ------------------
     # Using the lightweight built-in Python wsgi.simple_server
-    global _httpd_server
     with make_server(Config.ip_address, Config.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
         _httpd_server = httpd  # Store reference
         logger.info(f'==STARTUP== Serving on {Config.ip_address}:{Config.port}. Time stamps are UTC.')

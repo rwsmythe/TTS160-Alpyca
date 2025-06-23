@@ -97,7 +97,7 @@ class Config:
     # Device Section
     # --------------
     
-    dev_port: str = get_toml('device', 'dev_port')
+    #dev_port: str = get_toml('device', 'dev_port')
     #can_reverse: bool = get_toml('device', 'can_reverse')
     #step_size: float = get_toml('device', 'step_size')
     #steps_per_sec: int = get_toml('device', 'steps_per_sec')

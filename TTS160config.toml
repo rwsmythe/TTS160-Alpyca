@@ -7,7 +7,12 @@ dev_port = "COM5"
 site_altitude = 0.0
 site_latitude = 21.34722222222222
 site_longitude = -157.90333333333334
+site_elevation = 0.0
 
 [driver]
 sync_time_on_connect = true
 slew_settle_time = 1
+pulse_guide_equatorial_frame = true
+pulse_guide_altitude_compensation = true
+pulse_guide_max_compensation = 1000
+pulse_guide_compensation_buffer = 20

@@ -10,6 +10,8 @@ import sys
 from PySide6.QtWidgets import QApplication
 from tts160_window import TTS160Window
 from controllers.driver_controller import DriverController
+from controllers.telescope_controller import TelescopeController
+import TTS160Global
 
 class TTS160Control:
     """Main controller class for TTS160 system"""
@@ -20,14 +22,24 @@ class TTS160Control:
         
         # Initialize feature controllers
         self.driver = DriverController(self)
-        
+        self.telescope = TelescopeController(self)
+        self.TTS160_dev = None
+               
+    def get_config(self):
+        """Get the TTS160 config instance"""
+        return TTS160Global.get_config()
+    
     def start(self):
         """Start the driver - called by GUI"""
         self.driver.start()
+        import log
+        self.TTS160_dev = TTS160Global.get_device(log.logger)
                 
     def stop(self):
         """Stop the driver - called by GUI"""
         self.driver.stop()
+        self.TTS160_dev = TTS160Global.reset_device()
+        self.TTS160_dev = None # This should initiate GC process for the global object
         
     def start_gui(self):
         """Start the GUI in the main thread"""
@@ -42,6 +54,8 @@ class TTS160Control:
         """Clean shutdown of both components"""
         # Stop driver if running
         self.driver.stop()
+        self.TTS160_dev = TTS160Global.reset_device()
+        self.TTS160_dev = None # This should initiate GC process for the global object
         
         if self.qt_app:
             self.qt_app.quit()

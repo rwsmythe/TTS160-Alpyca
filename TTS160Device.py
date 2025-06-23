@@ -1725,7 +1725,6 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.error(f"Unexpected connection error: {ex}")
             raise RuntimeError("Unexpected connection failure", ex)
 
-
     def _perform_mount_connection(self) -> None:
         """
         Perform synchronous mount connection in background thread.
@@ -1782,7 +1781,6 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.error(f"Mount connection failed with unexpected error: {ex}")
             raise RuntimeError("Mount connection failed", ex)
 
-
     def _initialize_connected_mount(self) -> None:
         """
         Initialize mount after successful connection.
@@ -1833,7 +1831,6 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         except Exception as ex:
             self._logger.error(f"Mount initialization failed: {ex}")
             raise RuntimeError("Mount initialization failed", ex)
-
 
     def _sync_site_coordinates_from_mount(self) -> None:
         """

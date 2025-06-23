@@ -237,7 +237,8 @@ class TTS160Config:
     @property
     def sync_time_on_connect(self) -> bool:
         """Synch mount time with computer on connect."""
-        return self._get_toml(self.DRIVER_SECTION, 'sync_time_on_connect') or True
+        value = self._get_toml(self.DRIVER_SECTION, 'sync_time_on_connect')
+        return True if value is None else value
     
     @sync_time_on_connect.setter
     def sync_time_on_connect(self, value: bool) -> None:
@@ -246,7 +247,8 @@ class TTS160Config:
     @property
     def pulse_guide_equatorial_frame(self) -> bool:
         """Use the equatorial frame for pulse guides"""
-        return self._get_toml(self.DRIVER_SECTION, 'pulse_guide_equatorial_frame') or True
+        value = self._get_toml(self.DRIVER_SECTION, 'pulse_guide_equatorial_frame')
+        return True if value is None else value
     
     @pulse_guide_equatorial_frame.setter
     def pulse_guide_equatorial_frame(self, value: bool) -> None:
@@ -255,7 +257,8 @@ class TTS160Config:
     @property
     def pulse_guide_altitude_compensation(self) -> bool:
         """Compensate azimuth pulse length for mount altitude"""
-        return self._get_toml(self.DRIVER_SECTION, 'pulse_guide_altitude_compensation') or True
+        value = self._get_toml(self.DRIVER_SECTION, 'pulse_guide_altitude_compensation')
+        return True if value is None else value
 
     @pulse_guide_altitude_compensation.setter
     def pulse_guide_altitude_compensation(self, value: bool) -> None:
@@ -267,7 +270,7 @@ class TTS160Config:
         return self._get_toml(self.DRIVER_SECTION, 'pulse_guide_max_compensation') or 1000
 
     @pulse_guide_max_compensation.setter
-    def pulse_guide_altitude_compensation(self, value: int) -> None:
+    def pulse_guide_max_compensation(self, value: int) -> None:
         self._put_toml(self.DRIVER_SECTION, 'pulse_guide_max_compensation', value)
 
     @property
