@@ -7,6 +7,7 @@ __pycache__
 .idea
 dist
 build
+AlpycaDevice
 device/__pycache__
 rotator.log*
 docs/build
@@ -15,8 +16,8 @@ alpycadevice.code-workspace
 skeletons/AlpycaDeviceSkeletons.code-workspace
 alpyca.log*
 device/exceptions.py
-AlpycaDevice
 TTS160.log*
 ratetest.csv
 logparser.py
 *.spec
+*.pyc
