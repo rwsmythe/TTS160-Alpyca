@@ -259,45 +259,45 @@ class SerialManager:
     def _setup_default_formats(self) -> None:
         """Setup predefined binary formats for standard cases."""
         default_formats = {
-            'case0': (
+            '0': (
                 '13i4f',
                  ['h_ticks', 'e_ticks', 'tracking',
                   'h_motor_on', 'e_motor_on', 'h_motor_moving','e_motor_moving',
                   'h_dir', 'e_dir', 'align_status', 'error', 'slewing','collision',
                   'ra','dec','az','alt']
             ),
-            'case1': (
+            '1': (
                 '3i9f', 
                 ['tracking_mode', 'tracking_rate', 'custom_track_rate',
                  'align_time', 'lx200_object_ra', 'lx200_object_dec',
                  'last_goto_ra', 'last_goto_dec', 'custom_rate_ra', 'custom_rate_dec',
                  'current_obj_ra', 'current_obj_de']
             ), 
-            'case2': (
+            '2': (
                 '5i2f', 
                 ['goto_speed_h', 'goto_speed_e', 'guide_speed_h', 
                  'guide_speed_e', 'park_flag', 'park_az', 'park_alt']
             ),
-            'case3': (
+            '3': (
                 '6i3f',
                  ['month', 'day','year','hrs','mins','secs',
                   'longitude','latitude','timezone'] 
             ),
-            'case4': (
+            '4': (
                 '7i', 
                 ['ticks_per_round_h', 'ticks_per_round_e', 'guide_corr_h', 'guide_corr_e', 
                  'cable_twist_alarm', 'south_angle', 'az_counter']
             ),
-            'case5': ('9f', None),
-            'case6': ('9f', None),
-            'case7': (
+            '5': ('9f', None),
+            '6': ('9f', None),
+            '7': (
                 '13i4f',
                 ['clock_freq', 'h_jerk', 'e_jerk', 'h_speed_active','e_speed_active',
                  'h_posit_active', 'e_posit_active', 'h_den', 'h_num_final', 'h_num_curr',
                  'e_den', 'e_num_final', 'e_num_curr',
                  'h_pos_init', 'h_pos_final', 'e_pos_init', 'e_pos_final']
             ),
-            'case8': (
+            '8': (
                 '5i2f',
                 ['rotator_on', 'rotator_ticks', 'field_rot_ticks',
                  'field_rot_ticks_range', 'field_rot_direction',

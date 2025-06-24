@@ -15,6 +15,13 @@ class TelescopeController:
             main_control: Reference to TTS160Control instance
         """
         self.main_control = main_control
+    def connect(self):
+        if self.main_control.TTS160_dev:
+            self.main_control.TTS160_dev.Connect()
+
+    def disconnect(self):
+        if self.main_control.TTS160_dev:
+            self.main_control.TTS160_dev.Disconnect()
     
     def get_connection_count(self) -> int:
         if self.main_control.driver.driver_running and self.main_control.TTS160_dev:

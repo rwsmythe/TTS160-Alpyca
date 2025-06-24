@@ -6,6 +6,7 @@ import sys
 from config import Config
 import serial.tools.list_ports
 from ui_tts160gui import Ui_MainWindow
+from tts160_types import CommandType
 
 
 class TTS160Window(QMainWindow):
@@ -133,6 +134,16 @@ class TTS160Window(QMainWindow):
                 self.ui.pushButtonConnect.setEnabled(False)
                 self.ui.pushButtonDisconnect.setEnabled(True)
                 enabled = False
+                #data = self.main_control.TTS160_dev._serial_manager.send_command(':*!G T17,18,1,2,30,M1#', CommandType.AUTO)
+                #self.ui.labelRA.setText(f"{data[0]}")
+                #self.ui.labelDec.setText(f"{data[1]}")
+                #self.ui.labelH.setText(f"{data[2]}")
+                #self.ui.labelH_2.setText(f"{data[3]}")
+                data = self.main_control.TTS160_dev._serial_manager.send_command(':*!0#', CommandType.AUTO)
+                self.ui.labelRA.setText(f"{data['h_ticks']}")
+                self.ui.labelDec.setText(f"{data['e_ticks']}")
+                self.ui.labelH.setText(f"{data['alt']}")
+                self.ui.labelH_2.setText(f"{data['az']}")
         else:
             self.ui.pushButtonConnect.setEnabled(False)
             self.ui.pushButtonDisconnect.setEnabled(False)
@@ -187,14 +198,16 @@ class TTS160Window(QMainWindow):
             self.ui.pushStop.setEnabled(False)
 
     def on_connect_clicked(self):
-        if self.main_connect.telescope.get_connection_count():
-            self.main_control.telescope.connect
+        buff = self.main_control.telescope.get_connection_count()
+        
+        if  buff == 0:
+            self.main_control.telescope.connect()
             self.ui.pushButtonConnect.setEnabled(False)
 
     def on_disconnect_clicked(self):
-        if self.main_connect.telescope.get_connection_count():
-            self.main_control.telescope.disconnect
-            self.ui.pushButtonDisconnect.setEnabled(True)
+        if self.main_control.telescope.get_connection_count():
+            self.main_control.telescope.disconnect()
+            self.ui.pushButtonDisconnect.setEnabled(False)
 
     def get_selected_port(self):
         """Returns just the port.device string for saving"""

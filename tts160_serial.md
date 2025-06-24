@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `tts160_serial` module provides enhanced serial communication capabilities for TTS160 telescope devices, supporting both traditional text-based commands and high-efficiency binary data transfers.
+The `tts160_serial` module provides enhanced serial communication capabilities for TTS160 telescope devices, supporting both traditional text-based LX200 commands and high-efficiency binary data transfers. The module implements dual binary protocols: a legacy case-based system for predefined data sets and a modern variable-based system for flexible multi-variable queries.
 
 ## Requirements
 
@@ -25,6 +25,7 @@ serial_mgr = SerialManager(logger)
 # Connect and use
 serial_mgr.connect('/dev/ttyUSB0')
 response = serial_mgr.send_command(':GR#', CommandType.STRING)
+case_data = serial_mgr.get_case_data(2)
 serial_mgr.disconnect()
 ```
 
@@ -84,7 +85,7 @@ Property returning current reference count.
 Sends command with automatic retry and response parsing.
 
 **Parameters:**
-- `command`: Command string (e.g., ':GR#')
+- `command`: Command string (e.g., ':GR#', ':*!2#', ':*!G T1,2#')
 - `command_type`: Response handling mode
 
 **Raises:**
@@ -100,8 +101,11 @@ tracking = serial_mgr.send_command(':GS#', CommandType.BOOL)
 # String command
 ra = serial_mgr.send_command(':GR#', CommandType.STRING)
 
-# Binary case data
+# Legacy case data
 case_data = serial_mgr.send_command(':*!2#', CommandType.AUTO)
+
+# Multi-variable query
+data = serial_mgr.send_command(':*!G T1,2,C5#', CommandType.AUTO)
 ```
 
 #### Binary Format Management
@@ -111,8 +115,8 @@ case_data = serial_mgr.send_command(':*!2#', CommandType.AUTO)
 Registers custom binary data format for parsing.
 
 **Parameters:**
-- `name`: Format identifier (e.g., 'case2')
-- `format_string`: Format specification (e.g., '5i2f')
+- `name`: Format identifier (e.g., 'case2', 'multi_vars')
+- `format_string`: Format specification (e.g., '5i2f', '2i3fB')
 - `field_names`: Optional field names for dictionary output
 
 #### Format Characters
@@ -123,6 +127,7 @@ Registers custom binary data format for parsing.
 - `I`: 32-bit unsigned integer (4 bytes)
 - `H`: 16-bit unsigned integer (2 bytes)
 - `B`: 8-bit unsigned integer (1 byte)
+- `m`: 3x3 transformation matrix (36 bytes, 9 doubles) **Note: sizeof(double) = sizeof(float) = 4 bytes in firmware**
 
 **Example:**
 ```python
@@ -133,16 +138,23 @@ serial_mgr.register_binary_format(
     ['goto_speed_h', 'goto_speed_e', 'guide_speed_h', 
      'guide_speed_e', 'park_flag', 'park_az', 'park_alt']
 )
+
+# Register format for multi-variable response
+serial_mgr.register_binary_format(
+    'tracking_basic',
+    '2i1f',
+    ['h_ticks', 'e_ticks', 'ra_position']
+)
 ```
 
 #### Convenience Methods
 
 ##### get_case_data(case_number: int) -> Union[List[Any], Dict[str, Any]]
 
-Retrieves binary case data using the `:*!n#` command format.
+Retrieves legacy binary case data using the `:*!n#` command format.
 
 ```python
-# Get case 2 binary data
+# Get case 2 binary data (motor speeds and park info)
 case_data = serial_mgr.get_case_data(2)
 ```
 
@@ -176,20 +188,6 @@ class BinaryFormat:
     field_names: Optional[List[str]]  # Optional field names
 ```
 
-### BinaryFormat (Dataclass)
-
-Binary data structure definition.
-
-```python
-@dataclass
-class BinaryFormat:
-    name: str                    # Format identifier
-    format_string: str          # Format specification (e.g., '5i2f')
-    struct_format: str          # Python struct format ('<5i2f')
-    byte_size: int              # Total bytes required
-    field_names: List[str]      # Optional field names
-```
-
 ### BinaryParser
 
 Static utility class for binary format operations.
@@ -201,6 +199,10 @@ Converts format string to struct format and byte count.
 ```python
 struct_fmt, bytes_needed = BinaryParser.parse_format_string('5i2f')
 # Returns: ('<5i2f', 28)
+
+# Matrix format
+struct_fmt, bytes_needed = BinaryParser.parse_format_string('1m')
+# Returns: ('<9d', 72)  # 9 doubles for 3x3 matrix
 ```
 
 ##### create_format(name: str, format_string: str, field_names: List[str] = None) -> BinaryFormat
@@ -213,50 +215,94 @@ Unpacks binary data according to format specification.
 
 ## Binary Response Protocols
 
-The module supports multiple binary response formats for efficient data transfer:
+The TTS160 firmware implements dual binary protocols for different use cases:
 
-### Header-Prefixed Binary
+### 1. Legacy Case-Based Protocol
 
-Firmware sends format specification in header:
-
-```
-"BINARY:5i2f\n" + [20 bytes of binary data]
-```
-
-**Firmware Implementation:**
-```c
-// Send header first
-printf("BINARY:5i2f\n");
-// Send binary data directly to stdout
-fwrite(binary_data, 1, data_size, stdout);
-```
-
-### Case-Based Binary (Primary Protocol)
-
-The `:*!n#` command format for predefined case data:
+Fixed predefined data sets accessed via `:*!n#` commands where n = 0-8.
 
 ```
 Command: ":*!2#"
-Response: "CASE:2B\n" + [28 bytes of binary data]
+Response: "CASE:2\n" + [28 bytes of binary data]
 ```
 
 **Firmware Implementation:**
 ```c
-// Detect :*!n# command
-if (command[1] == '*' && command[2] == '!') {
-    int case_num = command[3] - '0';
-    printf("CASE:%dB\n", case_num);
-    fwrite(&case_data[case_num], 1, case_sizes[case_num], stdout);
-    fflush(stdout);
-}
+// Handles predefined case data in GF_Lx200_Custom_Status()
+printf("CASE:%d\n", case_number);
+fwrite(binary_data, 1, data_size, stdout);
+fflush(stdout);
 ```
 
-### String Fallback
+### 2. Multi-Variable Protocol (New)
+
+Flexible variable queries via `:*!G <variables>#` commands.
+
+```
+Command: ":*!G T1,2,C5#"
+Response: "BINARY:2i1B\n" + [9 bytes of binary data]
+```
+
+**Variable Categories:**
+- **T**: Tracking subsystem (positions, motors, status)
+- **C**: Control subsystem (speeds, settings, location)
+- **M**: Mount subsystem (hardware configuration)
+- **A**: Alignment subsystem (star positions, matrices)
+- **L**: LX200 subsystem (protocol state)
+- **O**: Motor subsystem (control parameters)
+- **D**: Display subsystem (UI state)
+- **P**: PEC subsystem (periodic error correction)
+- **X**: Computed variables (real-time calculations)
+
+**Command Format:**
+```
+:*!G <category><id>[,<category><id>]...#
+
+Examples:
+:*!G T1#          - Get tracking variable 1 (H ticks)
+:*!G T1,2,17#     - Get H ticks, E ticks, RA position
+:*!G C1,2,M12#    - Get goto speeds and ticks per round
+:*!G X1,2#        - Get computed altitude and azimuth
+```
+
+**Firmware Implementation:**
+```c
+// Handles flexible variable queries in GF_Lx200_Process_Binary_Command()
+format_response_header(requests, var_count, header);
+pack_response_data(requests, var_count, response_buffer, &data_size);
+printf("%s", header);  // e.g., "BINARY:2i1f\n"
+fwrite(response_buffer, 1, data_size, stdout);
+```
+
+### 3. Inline Binary Format
+
+Direct format specification in response header.
+
+```
+Command: Custom commands
+Response: "BINARY:5i2f\n" + [28 bytes of binary data]
+```
+
+### 4. String Fallback
 
 Traditional text responses work unchanged:
 
 ```
-"123;456;789#"
+Response: "123;456;789#"
+```
+
+### Error Responses
+
+All binary protocols support standardized error reporting:
+
+```
+Response: "ERROR:<message>\n"
+
+Examples:
+ERROR:INVALID_CMD\n
+ERROR:PARSE_ERROR\n
+ERROR:VAR_ERROR\n
+ERROR:RESPONSE_TOO_LARGE\n
 ```
 
 **Protocol Requirements:**
@@ -264,210 +310,339 @@ Traditional text responses work unchanged:
 - Headers must end with '\n'  
 - String responses must end with '#'
 - No mixing of binary and text in single response
+- Matrix data stored as 9 consecutive doubles (row-major)
+
+## Variable Reference
+
+### Tracking Variables (T1-T31)
+
+| ID | Name | Type | Description |
+|----|------|------|-------------|
+| T1 | H_TICKS | int32 | Horizontal position ticks |
+| T2 | E_TICKS | int32 | Elevation position ticks |
+| T3 | R_TICKS | int32 | Rotator position ticks |
+| T4 | TRACKING_ON | uint8 | Tracking enabled flag |
+| T5 | ROTATOR_ON | uint8 | Rotator enabled flag |
+| T6 | MOTOR_H_ON | uint8 | H motor enabled |
+| T7 | MOTOR_E_ON | uint8 | E motor enabled |
+| T8 | MOVING_H | uint8 | H motor moving |
+| T9 | MOVING_E | uint8 | E motor moving |
+| T10 | DIRECTION_H | int8 | H direction |
+| T11 | DIRECTION_E | int8 | E direction |
+| T12 | COLLISION | uint8 | Collision detected |
+| T13 | MERIDIAN_FLIP | uint8 | Meridian flip needed |
+| T14 | TRACKING_MODE | uint8 | Tracking mode |
+| T15 | TRACKING_RATE | uint8 | Tracking rate |
+| T16 | CUSTOM_RATE_TRACK | uint8 | Custom rate tracking |
+| T17 | RA | float | Right ascension |
+| T18 | DEC | float | Declination |
+| T19 | TARGET_RA | float | Target RA |
+| T20 | TARGET_DEC | float | Target DEC |
+| T21 | CUSTOM_RATE_RA | float | Custom RA rate |
+| T22 | CUSTOM_RATE_DEC | float | Custom DEC rate |
+| T23 | GOTO_H_TICKS | int32 | Goto target H ticks |
+| T24 | GOTO_E_TICKS | int32 | Goto target E ticks |
+| T25 | GOTO_R_TICKS | int32 | Goto target R ticks |
+| T26 | MSECS | uint32 | Millisecond counter |
+| T27 | START_TIME | uint32 | Start tracking time |
+| T28 | SOUTH_ANGLE | float | South angle |
+| T29 | INITIAL_FIELD_ROT | float | Initial field rotation |
+| T30 | ALIGNMENT_MATRIX | matrix | 3x3 alignment matrix |
+| T31 | INV_MATRIX | matrix | 3x3 inverse matrix |
+
+### Control Variables (C1-C25)
+
+| ID | Name | Type | Description |
+|----|------|------|-------------|
+| C1 | GOTO_SPEED_H | uint8 | H goto speed |
+| C2 | GOTO_SPEED_E | uint8 | E goto speed |
+| C3 | GUIDE_SPEED_H | uint8 | H guide speed |
+| C4 | GUIDE_SPEED_E | uint8 | E guide speed |
+| C5 | PARK_FLAG | uint8 | Park status |
+| C6 | CUSTOM_PARK_POS | uint8 | Custom park position |
+| C7 | LANGUAGE | uint8 | Language setting |
+| C8 | CHOSEN_LOCATION | uint8 | Location index |
+| C9 | GOTO_ABORT | uint8 | Goto abort flag |
+| C10 | SPEED_MODE | uint8 | Speed/step mode |
+| C11 | DRIFT_MODE | uint8 | Drift mode |
+| C12 | CATALOG_CHOICE | uint8 | Catalog selection |
+| C13 | COORD_CHOICE | uint8 | Coordinate system |
+| C14 | ERROR_CODE | uint8 | Error code |
+| C15 | PARK_AZ | float | Park azimuth |
+| C16 | PARK_ALT | float | Park altitude |
+| C17 | LONGITUDE | float | Site longitude (radians) |
+| C18 | LATITUDE | float | Site latitude (radians) |
+| C19 | TIMEZONE | int8 | Timezone offset |
+| C20 | DATE_YEAR | uint16 | Date year |
+| C21 | DATE_MONTH | uint8 | Date month |
+| C22 | DATE_DAY | uint8 | Date day |
+| C23 | TIME_HOUR | uint8 | Time hour |
+| C24 | TIME_MINUTE | uint8 | Time minute |
+| C25 | TIME_SECOND | uint8 | Time second |
+
+### Mount Variables (M1-M22)
+
+| ID | Name | Type | Description |
+|----|------|------|-------------|
+| M1 | TELESCOPE_MOUNTING | uint8 | Mount type |
+| M2 | BACKLASH_H | int16 | H backlash ticks |
+| M3 | BACKLASH_E | int16 | E backlash ticks |
+| M4 | GUIDE_CORR_H | int16 | H guide correction |
+| M5 | GUIDE_CORR_E | int16 | E guide correction |
+| M6 | BACKLASH_ON | uint8 | Backlash enabled |
+| M7 | PEC_ON | uint8 | PEC enabled |
+| M8 | CABLE_TWIST_ALARM | uint8 | Cable twist alarm |
+| M9 | AZ_NORM_COUNTER | int8 | AZ normalization |
+| M10 | MOTOR_DIR_H | uint8 | H motor direction |
+| M11 | MOTOR_DIR_E | uint8 | E motor direction |
+| M12 | TICKS_PER_ROUND_H | int32 | H ticks per revolution |
+| M13 | TICKS_PER_ROUND_E | int32 | E ticks per revolution |
+| M14 | WORMGEAR_TICKS_H | int32 | H wormgear ticks |
+| M15 | WORMGEAR_TICKS_E | int32 | E wormgear ticks |
+| M16 | FLIP_LIMIT_WEST | int32 | West flip limit |
+| M17 | FLIP_LIMIT_EAST | int32 | East flip limit |
+| M18 | FIELD_ROT_TICKS | int32 | Field rotation ticks |
+| M19 | FIELD_ROT_RANGE | int32 | Field rotation range |
+| M20 | FIELD_ROT_ANGLE | float | Field rotation angle |
+| M21 | FIELD_ROT_DIRECTION | uint8 | Field rotation direction |
+| M22 | CLOCK_FREQ | uint32 | Clock frequency |
+
+### Computed Variables (X1-X2)
+
+| ID | Name | Type | Description |
+|----|------|------|-------------|
+| X1 | CURRENT_ALT | float | Current altitude ⚠️ **Triggers position update** |
+| X2 | CURRENT_AZ | float | Current azimuth ⚠️ **Triggers position update** |
+
+**Performance Note**: Computed variables execute `GF_Force_Position_Update()` and coordinate transformations, adding ~10ms latency per query.
+
+*Note: Additional variable categories (A, L, O, D, P) available - see firmware source for complete listings.*
+
+## Legacy Case Data Formats
+
+### Predefined Binary Formats
+
+| Case | Size | Format | Description |
+|------|------|--------|-------------|
+| 0 | 76 bytes | 13i4f | Position/status data |
+| 1 | 48 bytes | 3i9f | Tracking/coordinate data |
+| 2 | 28 bytes | 5i2f | Motor speeds/park data |
+| 3 | 42 bytes | 6i3f | Date/time/location data |
+| 4 | 28 bytes | 7i | Mount configuration |
+| 5 | 36 bytes | 9d | Alignment matrix (T_Alignment) |
+| 6 | 36 bytes | 9d | Inverse matrix (Tinv) |
+| 7 | 68 bytes | 13i4f | Motor control data |
+| 8 | 28 bytes | 5i2f | Rotator data |
+
+### Case 0: System Status
+```python
+case_data = serial_mgr.get_case_data(0)
+# Returns dict with keys:
+# h_ticks, e_ticks, tracking, h_motor_on, e_motor_on, 
+# h_motor_moving, e_motor_moving, h_dir, e_dir, 
+# align_status, error, slewing, collision, ra, dec, az, alt
+```
+
+### Case 1: Tracking Data  
+```python
+case_data = serial_mgr.get_case_data(1)
+# Returns dict with keys:
+# tracking_mode, tracking_rate, custom_track_rate, align_time,
+# lx200_object_ra, lx200_object_dec, last_goto_ra, last_goto_dec,
+# custom_rate_ra, custom_rate_dec, current_obj_ra, current_obj_de
+```
+
+### Case 2: Motor Configuration
+```python
+case_data = serial_mgr.get_case_data(2)
+# Returns dict with keys:
+# goto_speed_h, goto_speed_e, guide_speed_h, guide_speed_e,
+# park_flag, park_az, park_alt
+```
 
 ## Error Handling
 
-### Connection Errors
-- `ValueError`: Invalid parameters (port, baudrate, command format)
-- `ConnectionError`: Port access, communication failures, retry exhaustion
-- `BinaryFormatError`: Invalid formats, data size mismatches  
-- `ResponseError`: Response parsing failures
-- Automatic retry with exponential backoff (5 attempts)
-- Buffer flushing on communication failures
+### Exception Hierarchy
+- `TTS160SerialError`: Base exception
+  - `ConnectionError`: Port/communication issues
+  - `BinaryFormatError`: Format validation errors
+  - `ResponseError`: Response parsing failures
 
-**Exception Sources:**
+### Error Sources
 - `connect()`: `ValueError`, `ConnectionError` for port/parameter issues
 - `send_command()`: `ValueError` for command format, `ConnectionError` for communication
 - `register_binary_format()`: `ValueError`, `BinaryFormatError` for format validation
 - Binary parsing: `ResponseError` with graceful fallback to string
 
-### Binary Parse Errors
-- Graceful fallback to string parsing
-- Size validation for binary data
-- Format validation for registered formats
+### Automatic Recovery
+- Retry with exponential backoff (5 attempts)
+- Buffer flushing on communication failures
+- Graceful fallback to string parsing on binary errors
 
-### Usage Pattern
-```python
-try:
-    response = serial_mgr.send_command(':GCS2B#')
-except RuntimeError as e:
-    logger.error(f"Communication failed: {e}")
-    # Handle error
-```
+## Best Practices
 
-## Predefined Binary Formats
-
-The module includes predefined formats for common cases:
-
-| Format | Description | Size | Fields |
-|--------|-------------|------|--------|
-| case0 | 15 integers + 4 floats | 76 bytes | Position/status data |
-| case1 | 9 floats + 3 integers | 48 bytes | Coordinate data |  
-| case2 | 5 integers + 2 floats | 28 bytes | Motor speeds/park data |
-| case4 | 7 integers | 28 bytes | Mount configuration |
-
-## Performance Considerations
-
-### Binary vs Text Transmission
-
-| Data Type | ASCII Size | Binary Size | Savings |
-|-----------|------------|-------------|---------|
-| Case 2 (5i+2f) | ~37 bytes | 28 bytes | 24% |
-| Case 4 (7i) | ~48 bytes | 28 bytes | 42% |
-| Case 5 (9f) | ~85 bytes | 36 bytes | 58% |
-
-### Best Practices
-
-1. **Use binary for data-heavy operations** (matrices, arrays)
+1. **Use multi-variable queries** for related data to minimize round trips
 2. **Use AUTO detection** for mixed command sequences  
 3. **Register formats once** during initialization
-4. **Handle connection cleanup** in finally blocks
+4. **Handle connection cleanup** with context managers
+5. **Leverage computed variables** (X1, X2) for real-time coordinate transforms
+6. **Cache transformation matrices** (T30, T31) rather than repeated queries
 
-## Migration from Original Module
+## Migration Guide
 
-The enhanced module is a drop-in replacement:
+### From Legacy Case System
 
 ```python
-# Import change only
-from tts160_serial import SerialManager
+# Old approach
+case_2_data = serial_mgr.get_case_data(2)
 
-# All existing code works unchanged  
-serial_mgr = SerialManager(logger)
-result = serial_mgr.send_command(':GR#', CommandType.STRING)
+# New flexible approach  
+motor_data = serial_mgr.send_command(':*!G C1,2,3,4,5#')
+# Gets goto_speed_h, goto_speed_e, guide_speed_h, guide_speed_e, park_flag
+
+# Mix with real-time data
+current_state = serial_mgr.send_command(':*!G T1,2,17,18,X1,2#')
+# Gets h_ticks, e_ticks, ra, dec, current_alt, current_az
 ```
 
-**Enhancements:**
-- Custom exception hierarchy for better error handling
-- Input validation for all parameters
-- Context manager support for automatic cleanup
-- Enhanced logging throughout operations
-- Immutable format definitions with validation
+### Enhanced Error Handling
 
-## Threading
-
-The module is thread-safe with internal locking:
-- Connection reference counting
-- Binary format registry protection  
-- Atomic command execution
-
-## Examples
-
-### Basic Usage
-```python
-import logging
-from tts160_serial import SerialManager
-from tts160_types import CommandType
-
-logger = logging.getLogger(__name__)
-serial_mgr = SerialManager(logger)
-
-try:
-    serial_mgr.connect('/dev/ttyUSB0')
-    
-    # Text command
-    ra = serial_mgr.send_command(':GR#', CommandType.STRING)
-    print(f"RA: {ra}")
-    
-    # Binary status (auto-detected)
-    status = serial_mgr.send_command(':GCS2B#', CommandType.AUTO)
-    if isinstance(status, dict):
-        print(f"Park status: {status['park_flag']}")
-    
-finally:
-    serial_mgr.disconnect()
-```
-
-### Custom Binary Format
-```python
-# Register custom format
-serial_mgr.register_binary_format(
-    'motor_data',
-    '4i2f',  # 4 ints, 2 floats
-    ['step_h', 'step_e', 'active_h', 'active_e', 'speed_h', 'speed_e']
-)
-
-# Use with custom command
-motor_status = serial_mgr.send_command(':GMOT#', CommandType.AUTO)
-print(f"Motor H speed: {motor_status['speed_h']}")
-```
-
-### Error Handling
 ```python
 try:
     with SerialManager(logger) as serial_mgr:
         serial_mgr.connect('/dev/ttyUSB0')
-        case_data = serial_mgr.get_case_data(2)
-        process_motor_data(case_data)
         
-except ValueError as e:
-    logger.error(f"Parameter error: {e}")
-    # Handle invalid parameters
-    
-except ConnectionError as e:
-    logger.error(f"Communication error: {e}")
-    # Implement fallback strategy
-    
+        # Multi-variable query
+        tracking_data = serial_mgr.send_command(':*!G T1,2,4,17,18#')
+        
+        # Legacy case fallback
+        if not tracking_data:
+            tracking_data = serial_mgr.get_case_data(0)
+            
 except BinaryFormatError as e:
     logger.error(f"Format error: {e}")
-    # Handle malformed format
+    # Handle format registration issues
     
 except ResponseError as e:
     logger.error(f"Response parsing error: {e}")
-    # Handle malformed response
+    # Handle malformed responses
+    
+except ConnectionError as e:
+    logger.error(f"Communication error: {e}")
+    # Implement retry logic or fallback
 ```
 
-### Context Manager (Recommended)
+## Threading
+
+Thread-safe design with internal locking:
+- Connection reference counting with concurrent access
+- Binary format registry protection
+- Atomic command execution
+
+Multiple SerialManager instances can operate independently on different ports or the same port with automatic connection sharing.
+
+## Examples
+
+### Basic Multi-Variable Query
 ```python
-# Automatic connection management and cleanup
+import logging
+from tts160_serial import SerialManager
+
+logger = logging.getLogger(__name__)
+
 with SerialManager(logger) as serial_mgr:
     serial_mgr.connect('/dev/ttyUSB0')
-    result = serial_mgr.send_command(':*!0#')
-    case_data = serial_mgr.get_case_data(2)
-    # Connection automatically cleaned up on exit
+    
+    # Get current position and status in one command
+    status = serial_mgr.send_command(':*!G T1,2,4,17,18,X1,2#')
+    # Returns: [h_ticks, e_ticks, tracking_on, ra, dec, alt, az]
+    
+    print(f"Position: RA={status[3]:.4f}, DEC={status[4]:.4f}")
+    print(f"Alt/Az: {status[5]:.2f}°, {status[6]:.2f}°")
 ```
 
-### Multi-Threading Support
+### Matrix Data Access
 ```python
-import threading
+# Get alignment transformation matrices
+matrices = serial_mgr.send_command(':*!G T30,31#')
+alignment_matrix = matrices[0]  # 9-element transformation matrix
+inverse_matrix = matrices[1]    # 9-element inverse matrix
 
-def worker_thread(port, logger, results, thread_id):
-    """Each thread gets its own SerialManager instance."""
-    serial_mgr = SerialManager(logger)
-    try:
-        serial_mgr.connect(port)
-        result = serial_mgr.get_case_data(thread_id)
-        results[thread_id] = result
-    finally:
-        serial_mgr.disconnect()
+# Alternative: use legacy case commands
+alignment_matrix = serial_mgr.get_case_data(5)
+inverse_matrix = serial_mgr.get_case_data(6)
+```
 
-# Safe concurrent access
-results = {}
-threads = []
-for i in range(3):
-    t = threading.Thread(target=worker_thread, 
-                        args=('/dev/ttyUSB0', logger, results, i))
-    threads.append(t)
-    t.start()
+### Custom Format Registration
+```python
+# Register format for specific variable combination
+serial_mgr.register_binary_format(
+    'position_status',
+    '2i2fB',  # 2 ints, 2 floats, 1 byte
+    ['h_ticks', 'e_ticks', 'ra', 'dec', 'tracking']
+)
 
-for t in threads:
-    t.join()
+# Use with corresponding multi-variable query
+pos_data = serial_mgr.send_command(':*!G T1,2,17,18,4#')
+# Returns: {'h_ticks': 12345, 'e_ticks': 67890, 'ra': 1.23, 'dec': 0.45, 'tracking': 1}
+```
+
+### Mixed Protocol Usage
+```python
+# Combine legacy cases with new multi-variable queries
+legacy_status = serial_mgr.get_case_data(0)      # Full system status
+motor_config = serial_mgr.send_command(':*!G C1,2,3,4#')  # Specific motor speeds
+real_time_pos = serial_mgr.send_command(':*!G X1,2#')     # Computed coordinates
+
+# Process mixed data types
+process_system_status(legacy_status)
+update_motor_display(motor_config)
+update_position_display(real_time_pos)
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Binary parsing fails**
-- Check format registration matches firmware output
-- Verify byte counts and field names in format string
-- Use `BinaryFormatError` exception details for debugging
+**Multi-variable parsing fails**
+- Check variable category/ID validity (T1-T31, C1-C25, etc.)
+- Verify firmware supports requested variables
+- Use single variable queries to isolate issues
 
-**Connection errors**  
-- Verify port permissions and device availability
-- Check cable connections and baud rate settings
-- Review `ConnectionError` messages for specific issues
+**Binary format registration errors**
+- Ensure format string matches expected data layout
+- Check field name count matches format values
+- Review `BinaryFormatError` details for specific validation failures
 
-**Parameter validation errors**
-- Ensure command format (starts with ':', ends with '#')
-- Validate case numbers (0-9) and format strings
-- Check `ValueError` messages for specific parameter issues
+**Matrix data corruption**
+- Verify 36-byte matrix size in responses
+- Check double precision handling in format registration
+- Ensure matrix variables (T30, T31) are properly aligned
+
+**Connection timeout with complex queries**  
+- Break large multi-variable queries into smaller chunks
+- Check firmware memory limits for variable count
+- Use timeout adjustments for compute-intensive variables (X1, X2)
+
+**:MS# command anomalies**
+- Returns '1' followed by additional data that must be cleared
+- Driver automatically handles this, but manual parsing requires extra read
+
+### Debug Techniques
+
+```python
+# Enable verbose logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Test individual variables
+for var_id in range(1, 32):
+    try:
+        result = serial_mgr.send_command(f':*!G T{var_id}#')
+        print(f"T{var_id}: {result}")
+    except Exception as e:
+        print(f"T{var_id} failed: {e}")
+
+# Validate binary format parsing
+raw_response = serial_mgr.send_command(':*!2#', CommandType.AUTO)
+manual_parse = BinaryParser.unpack_data(binary_format, raw_data)
+```
