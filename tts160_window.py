@@ -29,6 +29,8 @@ class TTS160Window(QMainWindow):
         # Initial UI state
         self.ui.pushStop.setEnabled(False)
         self.ui.labelStatus.setText("Driver Stopped")
+        self.ui.pushButtonStartData.setEnabled(False)
+        self.ui.pushButtonStopData.setEnabled(False)
 
         # Read configuration
         self.ui.plainTextEditPort.setPlainText(f"{Config.port}")
@@ -48,11 +50,19 @@ class TTS160Window(QMainWindow):
         self.ui.pushButtonDisconnect.clicked.connect(self.on_disconnect_clicked)
         self.ui.pushButtonSaveConfig.clicked.connect(self.on_save_config_clicked)
         self.ui.pushButtonReloadConfig.clicked.connect(self.on_reload_config_clicked)
+        self.ui.pushButtonStartData.clicked.connect(self.on_start_data_clicked)
+        self.ui.pushButtonStopData.clicked.connect(self.on_stop_data_clicked)
+        self.ui.verticalSliderUpdateRate.valueChanged.connect(self.on_slider_change)
 
-        #establish auto-refresh
+        #establish ui auto-refresh
         self.timer = QTimer()
         self.timer.timeout.connect(self.state_refresh)
         self.timer.start(500)
+
+        #establish data auto-refresh
+        self.timer_data = QTimer()
+        self.timer_data.timeout.connect(self.data_refresh)
+        self.timer_data.setInterval(self.ui.verticalSliderUpdateRate.value())
 
         # Items to disable/enable for config protection
         self.config_items = []
@@ -62,6 +72,18 @@ class TTS160Window(QMainWindow):
                         "plainTextEditSiteAltitude", "plainTextEditSlewSettleTime",
                         "plainTextEditPulseGuideMaxComp", "plainTextEditPulseGuideCompBuffer",
                         "comboBoxComPort", "pushButtonSaveConfig"]
+
+        # Items in pointing state box
+        self.pointing_items = []
+        self.pointing_items = ["labelRA", "labelDec",
+                               "labelAz", "labelAlt",
+                               "labelHTicks", "labelVTicks"]
+        
+        # Items in pointing state box
+        self.tracking_items = []
+        self.tracking_items = ["labelTargRA", "labelTargDec",
+                               "labelTargHTicks", "labelTargVTicks",
+                               "labelGuideHTicks", "labelGuideVTicks"]
 
     def populate_com_ports(self):
         self.ui.comboBoxComPort.clear()
@@ -134,24 +156,54 @@ class TTS160Window(QMainWindow):
                 self.ui.pushButtonConnect.setEnabled(False)
                 self.ui.pushButtonDisconnect.setEnabled(True)
                 enabled = False
-                #data = self.main_control.TTS160_dev._serial_manager.send_command(':*!G T17,18,1,2,30,M1#', CommandType.AUTO)
-                #self.ui.labelRA.setText(f"{data[0]}")
-                #self.ui.labelDec.setText(f"{data[1]}")
-                #self.ui.labelH.setText(f"{data[2]}")
-                #self.ui.labelH_2.setText(f"{data[3]}")
-                #data = self.main_control.TTS160_dev._serial_manager.send_command(':*!0#', CommandType.AUTO)
-                #self.ui.labelRA.setText(f"{data['h_ticks']}")
-                #self.ui.labelDec.setText(f"{data['e_ticks']}")
-                #self.ui.labelH.setText(f"{data['alt']}")
-                #self.ui.labelH_2.setText(f"{data['az']}")
         else:
             self.ui.pushButtonConnect.setEnabled(False)
             self.ui.pushButtonDisconnect.setEnabled(False)
             enabled = True
 
+        if self.timer_data.isActive():
+            self.ui.pushButtonStartData.setEnabled(False)
+            self.ui.pushButtonStopData.setEnabled(True)
+        elif count >= 1:
+            self.ui.pushButtonStartData.setEnabled(True)
+            self.ui.pushButtonStopData.setEnabled(False)
+
         for item in self.config_items:
             widget = getattr(self.ui, item)
             widget.setEnabled(enabled)
+
+    def data_refresh(self):
+        data = self.main_control.telescope.get_pointing_data()
+        i = 0
+        for item in self.pointing_items:
+            widget = getattr(self.ui, item)
+            widget.setText(f"{data[i]}")
+            i += 1
+
+        self.ui.labelH.setText(f"{data[4] / self.HTicksRound}")
+        self.ui.labelV.setText(f"{data[5] / self.ETicksRound}")
+
+        i = 0
+        for item in self.tracking_items:
+            widget = getattr(self.ui, item)
+            widget.setText(f"{data[i]}")
+            i += 1    
+
+    def on_start_data_clicked(self):
+        self.ui.pushButtonStartData.setEnabled(False)
+        self.ui.pushButtonStopData.setEnabled(True)
+        self.ui.labelClockFrequency.setText(f"{self.main_control.telescope.get_clock_frequency()}")
+        self.timer_data.start(self.ui.verticalSliderUpdateRate.value())
+        self.HTicksRound, self.ETicksRound = self.main_control.telescope.GetValue("M12,13")
+
+    def on_stop_data_clicked(self):
+        self.timer_data.stop()
+        self.ui.pushButtonStartData.setEnabled(True)
+        self.ui.pushButtonStopData.setEnabled(False)
+
+    def on_slider_change(self):
+        self.ui.labelUpdateRate.setText(f"{self.ui.verticalSliderUpdateRate.value()}")
+        self.timer_data.setInterval(self.ui.verticalSliderUpdateRate.value())
 
     def on_start_clicked(self):
         """Handle start button click."""

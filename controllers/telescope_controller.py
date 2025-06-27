@@ -3,6 +3,7 @@
 import threading
 import time
 import app as driver_app
+from tts160_types import CommandType
 
 
 class TelescopeController:
@@ -57,6 +58,21 @@ class TelescopeController:
 
         return telescope_config
 
+    def get_clock_frequency(self):
+        data = self.main_control.TTS160_dev._serial_manager.send_command(':*!G M22#', CommandType.AUTO)
+        return data
+    
+    def get_pointing_data(self):
+        data = self.main_control.TTS160_dev._serial_manager.send_command(':*!G T17,18,X2,1,T1,2#', CommandType.AUTO)
+        return data
+    
+    def get_tracking_data(self):
+        data = self.main_control.TTS160_dev._serial_manager.send_command(':*!G T19,20,21,22,M5,5#', CommandType.AUTO)
+        return data
+    
+    def GetValue(self, value):
+        data = self.main_control.TTS160_dev._serial_manager.send_command(f":*!G {value}#", CommandType.AUTO)
+        return data
     
     """
     def set_status_callback(self, callback):
