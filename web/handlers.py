@@ -180,6 +180,46 @@ class ConfigurationHandler:
         """Initialize the configuration handler."""
         self.logger = log.logger or logging.getLogger(__name__)
     
+    def get_available_ports(self) -> list:
+        """
+        Get available COM ports for telescope connection.
+        
+        Returns:
+            list: Available COM port objects with device and description
+        """
+        try:
+            import serial.tools.list_ports
+            return list(serial.tools.list_ports.comports())
+        except Exception as e:
+            self.logger.error(f"Failed to get COM ports: {e}")
+            return []
+    
+    def format_coordinates(self, decimal_degrees: float) -> Dict[str, str]:
+        """
+        Convert decimal degrees to degrees, minutes, seconds format.
+        
+        Args:
+            decimal_degrees: Coordinate in decimal degrees
+            
+        Returns:
+            dict: Formatted coordinate components
+        """
+        try:
+            abs_degrees = abs(decimal_degrees)
+            degrees = int(abs_degrees)
+            minutes_float = (abs_degrees - degrees) * 60
+            minutes = int(minutes_float)
+            seconds = (minutes_float - minutes) * 60
+            
+            return {
+                'degrees': f"{degrees:02d}" if abs_degrees < 100 else f"{degrees:03d}",
+                'minutes': f"{minutes:02d}",
+                'seconds': f"{seconds:04.1f}"
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to format coordinates: {e}")
+            return {'degrees': '00', 'minutes': '00', 'seconds': '00.0'}
+    
     def get_server_config(self) -> Dict[str, Any]:
         """
         Get current server configuration data.
@@ -188,14 +228,6 @@ class ConfigurationHandler:
             dict: Server configuration parameters
         """
         try:
-            # Convert numeric log level to string name
-            log_level = Config.log_level
-            if isinstance(log_level, int):
-                level_names = {0: 'NONE', 10: 'DEBUG', 20: 'INFO'}
-                log_level_name = level_names.get(log_level, 'INFO')
-            else:
-                log_level_name = str(log_level).upper()
-            
             return {
                 'ip_address': Config.ip_address,
                 'port': Config.port,
@@ -205,7 +237,6 @@ class ConfigurationHandler:
                 'driver_version': getattr(Config, 'driver_version', '1.0.0'),
                 'interface_version': getattr(Config, 'interface_version', 1),
                 'location': getattr(Config, 'location', 'Unknown'),
-                'log_level': log_level_name,
                 'supported_actions': getattr(Config, 'supported_actions', [])
             }
         except Exception as e:
@@ -220,31 +251,36 @@ class ConfigurationHandler:
             dict: Telescope configuration parameters
         """
         try:
-            # This will need to be customized based on your telescope module
+            cfg = telescope.TTS160_cfg
             return {
-                'mount_type': getattr(Config, 'mount_type', 'German Equatorial'),
-                'aperture': getattr(Config, 'aperture', 0.0),
-                'focal_length': getattr(Config, 'focal_length', 0.0),
-                'can_find_home': getattr(Config, 'can_find_home', False),
-                'can_park': getattr(Config, 'can_park', True),
-                'can_pulse_guide': getattr(Config, 'can_pulse_guide', True),
-                'can_set_deck_temperature': getattr(Config, 'can_set_deck_temperature', False),
-                'can_set_guide_rates': getattr(Config, 'can_set_guide_rates', True),
-                'can_set_park': getattr(Config, 'can_set_park', True),
-                'can_set_pier_side': getattr(Config, 'can_set_pier_side', False),
-                'can_set_right_ascension_rate': getattr(Config, 'can_set_right_ascension_rate', True),
-                'can_set_declination_rate': getattr(Config, 'can_set_declination_rate', True),
-                'can_set_tracking': getattr(Config, 'can_set_tracking', True),
-                'can_slew': getattr(Config, 'can_slew', True),
-                'can_slew_altaz': getattr(Config, 'can_slew_altaz', False),
-                'can_slew_async': getattr(Config, 'can_slew_async', True),
-                'can_sync': getattr(Config, 'can_sync', True),
-                'can_sync_altaz': getattr(Config, 'can_sync_altaz', False),
-                'can_unpark': getattr(Config, 'can_unpark', True)
+                # Device section
+                'dev_port': cfg.dev_port,
+                # Site section  
+                'site_elevation': cfg.site_elevation,
+                'site_latitude': cfg.site_latitude,
+                'site_longitude': cfg.site_longitude,
+                # Driver section
+                'sync_time_on_connect': cfg.sync_time_on_connect,
+                'pulse_guide_equatorial_frame': cfg.pulse_guide_equatorial_frame,
+                'pulse_guide_altitude_compensation': cfg.pulse_guide_altitude_compensation,
+                'pulse_guide_max_compensation': cfg.pulse_guide_max_compensation,
+                'pulse_guide_compensation_buffer': cfg.pulse_guide_compensation_buffer,
+                'slew_settle_time': cfg.slew_settle_time
             }
         except Exception as e:
             self.logger.error(f"Failed to get telescope config: {e}")
-            return {}
+            return {
+                'dev_port': 'COM1',
+                'site_elevation': 0.0,
+                'site_latitude': 0.0,
+                'site_longitude': 0.0,
+                'sync_time_on_connect': True,
+                'pulse_guide_equatorial_frame': True,
+                'pulse_guide_altitude_compensation': True,
+                'pulse_guide_max_compensation': 1000,
+                'pulse_guide_compensation_buffer': 20,
+                'slew_settle_time': 1
+            }
     
     def validate_server_config(self, form_data: Dict[str, Any]) -> Dict[str, str]:
         """
@@ -292,21 +328,42 @@ class ConfigurationHandler:
         """
         errors = {}
         
-        # Validate aperture
-        try:
-            aperture = float(form_data.get('aperture', 0))
-            if aperture < 0:
-                errors['aperture'] = 'Aperture must be positive'
-        except (ValueError, TypeError):
-            errors['aperture'] = 'Aperture must be a valid number'
+        # Validate device port
+        dev_port = form_data.get('dev_port', '').strip()
+        if not dev_port:
+            errors['dev_port'] = 'Device port is required'
         
-        # Validate focal length
+        # Validate site elevation
         try:
-            focal_length = float(form_data.get('focal_length', 0))
-            if focal_length < 0:
-                errors['focal_length'] = 'Focal length must be positive'
+            elevation = float(form_data.get('site_elevation', 0))
+            if elevation < -500 or elevation > 9000:
+                errors['site_elevation'] = 'Elevation must be between -500 and 9000 meters'
         except (ValueError, TypeError):
-            errors['focal_length'] = 'Focal length must be a valid number'
+            errors['site_elevation'] = 'Elevation must be a valid number'
+        
+        # Validate pulse guide max compensation
+        try:
+            max_comp = int(form_data.get('pulse_guide_max_compensation', 1000))
+            if max_comp < 100 or max_comp > 10000:
+                errors['pulse_guide_max_compensation'] = 'Max compensation must be between 100 and 10000 ms'
+        except (ValueError, TypeError):
+            errors['pulse_guide_max_compensation'] = 'Max compensation must be a valid integer'
+        
+        # Validate pulse guide compensation buffer
+        try:
+            buffer = int(form_data.get('pulse_guide_compensation_buffer', 20))
+            if buffer < 5 or buffer > 500:
+                errors['pulse_guide_compensation_buffer'] = 'Compensation buffer must be between 5 and 500 ms'
+        except (ValueError, TypeError):
+            errors['pulse_guide_compensation_buffer'] = 'Compensation buffer must be a valid integer'
+        
+        # Validate slew settle time
+        try:
+            settle_time = int(form_data.get('slew_settle_time', 1))
+            if settle_time < 0 or settle_time > 30:
+                errors['slew_settle_time'] = 'Slew settle time must be between 0 and 30 seconds'
+        except (ValueError, TypeError):
+            errors['slew_settle_time'] = 'Slew settle time must be a valid integer'
         
         return errors
     
@@ -340,10 +397,27 @@ class ConfigurationHandler:
             bool: True if saved successfully
         """
         try:
-            # This would update telescope configuration
-            # Implementation depends on your telescope module
+            cfg = telescope.TTS160_cfg
+            
+            # Update configuration values
+            cfg.dev_port = form_data.get('dev_port', cfg.dev_port)
+            cfg.site_elevation = float(form_data.get('site_elevation', cfg.site_elevation))
+            
+            # Boolean values from checkboxes
+            cfg.sync_time_on_connect = form_data.get('sync_time_on_connect') == 'true'
+            cfg.pulse_guide_equatorial_frame = form_data.get('pulse_guide_equatorial_frame') == 'true'
+            cfg.pulse_guide_altitude_compensation = form_data.get('pulse_guide_altitude_compensation') == 'true'
+            
+            # Integer values
+            cfg.pulse_guide_max_compensation = int(form_data.get('pulse_guide_max_compensation', cfg.pulse_guide_max_compensation))
+            cfg.pulse_guide_compensation_buffer = int(form_data.get('pulse_guide_compensation_buffer', cfg.pulse_guide_compensation_buffer))
+            cfg.slew_settle_time = int(form_data.get('slew_settle_time', cfg.slew_settle_time))
+            
+            # Save to file
+            cfg.save()
             self.logger.info("Telescope configuration saved")
             return True
+            
         except Exception as e:
             self.logger.error(f"Failed to save telescope config: {e}")
             return False
@@ -371,8 +445,9 @@ class StatusHandler:
         try:
             # This would interface with your telescope module
             # to get real-time status information
+            
             return {
-                'connected': getattr(telescope, 'connected', False),
+                'connected': telescope.TTS160_dev.Connected if hasattr(telescope, 'TTS160_dev') else False,
                 'name': getattr(telescope, 'name', 'Unknown Telescope'),
                 'description': getattr(telescope, 'description', 'Alpaca Telescope'),
                 'driver_info': getattr(telescope, 'driver_info', 'v1.0.0'),

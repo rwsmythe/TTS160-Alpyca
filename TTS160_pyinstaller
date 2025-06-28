@@ -3,7 +3,8 @@ import shutil
 import certifi
 
 PyInstaller.__main__.run([
-    'TTS160Control.py',
+    'app.py',
+    '--name', 'TTS160Alpaca',
     '--add-data', f'{certifi.where()};.',
     '--exclude-module', 'win32com',
     '--exclude-module', 'win32api',
@@ -13,5 +14,5 @@ PyInstaller.__main__.run([
     '--clean',
 ])
 
-shutil.copy2('TTS160config.toml', './dist/TTS160Control/')
-shutil.copy2('config.toml', './dist/TTS160Control/')
+shutil.copy2('TTS160config.toml', './dist/app/')
+shutil.copy2('config.toml', './dist/app/')

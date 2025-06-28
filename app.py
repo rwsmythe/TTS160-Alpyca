@@ -294,7 +294,6 @@ def main():
     falc_app.add_route(f'/management/v{API_VERSION}/description', management.description())
     falc_app.add_route(f'/management/v{API_VERSION}/configureddevices', management.configureddevices())
     falc_app.add_route('/static/{path:path}', setup.StaticFileHandler())
-    print("Static route registered")
     falc_app.add_route(f'/setup/v{API_VERSION}/telescope/{{devnum}}/setup', setup.devsetup())
     falc_app.add_route('/shutdown', setup.ShutdownHandler())
     register_all_routes(falc_app)       #register the setup routes

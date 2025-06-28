@@ -14,6 +14,7 @@ Classes:
 
 from typing import Dict, Any
 from falcon import Request, Response
+import logging
 
 # Import handlers for business logic
 try:
@@ -42,7 +43,7 @@ class DashboardResource:
     
     def __init__(self):
         """Initialize the dashboard resource."""
-        self.logger = log.logger
+        self.logger = log.logger or logging.getLogger(__name__)
     
     def on_get(self, req: Request, resp: Response) -> None:
         """
@@ -88,7 +89,7 @@ class ServerConfigResource:
     
     def __init__(self):
         """Initialize the server configuration resource."""
-        self.logger = log.logger
+        self.logger = log.logger or logging.getLogger(__name__)
     
     def on_get(self, req: Request, resp: Response) -> None:
         """
@@ -215,7 +216,7 @@ class TelescopeConfigResource:
     
     def __init__(self):
         """Initialize the telescope configuration resource."""
-        self.logger = log.logger
+        self.logger = log.logger or logging.getLogger(__name__)
     
     def on_get(self, req: Request, resp: Response) -> None:
         """
@@ -225,11 +226,18 @@ class TelescopeConfigResource:
             req: Falcon request object
             resp: Falcon response object
         """
+        config = config_handler.get_telescope_config()
+        
         try:
             context = {
                 'page_title': 'Telescope Configuration',
                 'current_page': 'telescope_config',
                 'config': config_handler.get_telescope_config(),
+                'telescope_status': status_handler.get_telescope_status(),
+                'available_ports': config_handler.get_available_ports(),
+                'lat_formatted': config_handler.format_coordinates(config['site_latitude']),
+                'lon_formatted': config_handler.format_coordinates(config['site_longitude']),
+                'errors': {},
                 'navigation_items': [
                     {'name': 'Dashboard', 'url': '/', 'active': False},
                     {'name': 'Server Configuration', 'url': '/server-config', 'active': False},
@@ -340,7 +348,7 @@ class TelescopeStatusResource:
     
     def __init__(self):
         """Initialize the telescope status resource."""
-        self.logger = log.logger
+        self.logger = log.logger or logging.getLogger(__name__)
     
     def on_get(self, req: Request, resp: Response) -> None:
         """
@@ -364,7 +372,8 @@ class TelescopeStatusResource:
             context = {
                 'page_title': 'Telescope Status',
                 'current_page': 'telescope_status',
-                'status': telescope_status,
+                'config': config_handler.get_telescope_config(),
+                'status': status_handler.get_telescope_status(),
                 'refresh_interval': 2000,  # 2 seconds for auto-refresh
                 'navigation_items': [
                     {'name': 'Dashboard', 'url': '/', 'active': False},

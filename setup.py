@@ -52,10 +52,6 @@ class StaticFileHandler:
             resp.status = '403 Forbidden'
             return
 
-        print(f"Requested file: {path}")
-        print(f"Full path: {os.path.join('static', path)}")
-        print(f"File exists: {os.path.exists(os.path.join('static', path))}")
-
         file_path = os.path.join('static', path)
         if os.path.exists(file_path):
             with open(file_path, 'rb') as f:
@@ -108,11 +104,14 @@ class ShutdownHandler:
         # Return shutdown confirmation
         resp.text = """
         <script>
-        setTimeout(() => {
-            window.close();
-        }, 500);
+        document.body.innerHTML = `
+        <div style="text-align: center; padding: 40px; font-family: Arial, sans-serif;">
+            <h2 style="color: #dc3545;">Server Shutdown Complete</h2>
+            <p>The Alpaca telescope driver has been stopped successfully.</p>
+            <p><strong>You may now safely close this browser tab.</strong></p>
+        </div>
+        `;
         </script>
-        <p>Server shutting down...</p>
         """
 
 
