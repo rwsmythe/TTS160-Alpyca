@@ -92,17 +92,7 @@ class Config:
     # Server Section
     # --------------
     location: str = get_toml('server', 'location')
-    verbose_driver_exceptions: bool = get_toml('server', 'verbose_driver_exceptions')
-    # --------------
-    # Device Section
-    # --------------
-    
-    #dev_port: str = get_toml('device', 'dev_port')
-    #can_reverse: bool = get_toml('device', 'can_reverse')
-    #step_size: float = get_toml('device', 'step_size')
-    #steps_per_sec: int = get_toml('device', 'steps_per_sec')
-    #sync_write_connected: bool = get_toml('device', 'sync_write_connected')
-    
+    verbose_driver_exceptions: bool = get_toml('server', 'verbose_driver_exceptions')   
     # ---------------
     # Logging Section
     # ---------------

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ page_title | default('Alpaca Telescope Driver') }}{% endblock %}</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header .server-info {
+            margin-left: auto;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Navigation Panel */
+        .nav-panel {
+            width: 250px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            margin-top: 60px;
+            position: fixed;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin: 0;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 15px 25px;
+            color: #555;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link:hover {
+            background-color: #f8f9fa;
+            color: #667eea;
+            border-left-color: #667eea;
+        }
+
+        .nav-link.active {
+            background-color: #667eea;
+            color: white;
+            border-left-color: #5a67d8;
+        }
+
+        .nav-link .icon {
+            display: inline-block;
+            width: 20px;
+            margin-right: 10px;
+            text-align: center;
+        }
+
+        /* Stop Server Button */
+        .nav-item.stop-server {
+            margin-top: auto;
+            border-top: 1px solid #e9ecef;
+            padding-top: 20px;
+        }
+
+        .nav-link.stop-server {
+            color: #dc3545;
+            font-weight: 500;
+        }
+
+        .nav-link.stop-server:hover {
+            background-color: #fff5f5;
+            border-left-color: #dc3545;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            margin-top: 60px;
+            padding: 30px;
+            min-height: calc(100vh - 60px);
+        }
+
+        .content-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Page Title */
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Status Messages */
+        .alert {
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffecb5;
+            color: #856404;
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .htmx-indicator {
+            display: none;
+        }
+
+        .htmx-request .htmx-indicator {
+            display: inline;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-panel {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .nav-panel.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .header {
+                padding: 0 15px;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+            }
+        }
+
+        /* Utility Classes */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .mb-20 { margin-bottom: 20px; }
+        .mt-20 { margin-top: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>{{ page_title | default('Alpaca Telescope Driver') }}</h1>
+            <div class="server-info">
+                {% if get_server_info %}
+                    {{ get_server_info().ip }}:{{ get_server_info().port }}
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Navigation Panel -->
+        <nav class="nav-panel">
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/" class="nav-link {% if current_page == 'dashboard' %}active{% endif %}">
+                        <span class="icon">🏠</span>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/server-config" class="nav-link {% if current_page == 'server_config' %}active{% endif %}">
+                        <span class="icon">⚙️</span>
+                        Server Configuration
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/telescope-config" class="nav-link {% if current_page == 'telescope_config' %}active{% endif %}">
+                        <span class="icon">🔭</span>
+                        Telescope Configuration
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/telescope-status" class="nav-link {% if current_page == 'telescope_status' %}active{% endif %}">
+                        <span class="icon">📊</span>
+                        Telescope Status
+                    </a>
+                </li>
+                <li class="nav-item stop-server">
+                    <a href="#" class="nav-link stop-server" 
+                    hx-post="/shutdown" 
+                    hx-confirm="Are you sure you want to stop the server?"
+                    hx-target="#shutdown-modal">
+                        <span class="icon">🛑</span>
+                        Stop Server
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h2 class="page-title">{% block page_title %}{{ page_title | default('Dashboard') }}{% endblock %}</h2>
+                    <p class="page-subtitle">{% block page_subtitle %}{% endblock %}</p>
+                </div>
+
+                <!-- Status Messages -->
+                {% if success_message %}
+                <div class="alert alert-success">
+                    {{ success_message }}
+                </div>
+                {% endif %}
+
+                {% if error_message %}
+                <div class="alert alert-error">
+                    {{ error_message }}
+                </div>
+                {% endif %}
+
+                {% if warning_message %}
+                <div class="alert alert-warning">
+                    {{ warning_message }}
+                </div>
+                {% endif %}
+
+                <!-- Page Content -->
+                {% block content %}
+                <div class="text-center">
+                    <h3>Welcome to the Alpaca Telescope Driver</h3>
+                    <p>Select an option from the navigation menu to begin.</p>
+                </div>
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Shutdown Modal Container -->
+    <div id="shutdown-modal"></div>
+
+    <!-- HTMX Script -->
+    <script src="/static/js/htmx.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile navigation toggle (if needed)
+            const navPanel = document.querySelector('.nav-panel');
+            
+            // Add loading indicators for HTMX requests
+            document.body.addEventListener('htmx:beforeRequest', function(evt) {
+                evt.target.classList.add('loading');
+            });
+            
+            document.body.addEventListener('htmx:afterRequest', function(evt) {
+                evt.target.classList.remove('loading');
+            });
+
+            // Handle navigation link clicks
+            document.querySelectorAll('.nav-link:not(.stop-server)').forEach(link => {
+                link.addEventListener('click', function() {
+                    // Remove active class from all links
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    // Add active class to clicked link
+                    this.classList.add('active');
+                });
+            });
+        });
+    </script>
+
+    <!-- Additional Scripts Block -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

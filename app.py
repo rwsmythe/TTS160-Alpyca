@@ -70,9 +70,13 @@ from falcon import Request, Response, App, HTTPInternalServerError
 import management
 import setup
 import log
+import webbrowser
+import threading
+import time
 from config import Config
 from discovery import DiscoveryResponder
 from shr import set_shr_logger
+from web import register_all_routes
 
 ##############################
 # FOR EACH ASCOM DEVICE TYPE #
@@ -82,23 +86,6 @@ import telescope
 # Global reference for shutdown
 _httpd_server = None
 _DSC = None
-
-def shutdown_server():
-    """Shutdown the HTTP server and cleanup logging"""
-    global _httpd_server, _DSC
-    if _httpd_server:
-        _httpd_server.shutdown()
-    
-    # Stop discovery responder
-    if _DSC:
-        _DSC.shutdown()  # or whatever cleanup method it has
-    
-    # Close logging handlers
-    if hasattr(log, 'logger') and log.logger:
-        handlers = log.logger.handlers[:]
-        for handler in handlers:
-            handler.close()
-            log.logger.removeHandler(handler)
 
 #--------------
 API_VERSION = 1
@@ -306,8 +293,11 @@ def main():
     falc_app.add_route('/management/apiversions', management.apiversions())
     falc_app.add_route(f'/management/v{API_VERSION}/description', management.description())
     falc_app.add_route(f'/management/v{API_VERSION}/configureddevices', management.configureddevices())
-    falc_app.add_route('/setup', setup.svrsetup())
+    falc_app.add_route('/static/{path:path}', setup.StaticFileHandler())
+    print("Static route registered")
     falc_app.add_route(f'/setup/v{API_VERSION}/telescope/{{devnum}}/setup', setup.devsetup())
+    falc_app.add_route('/shutdown', setup.ShutdownHandler())
+    register_all_routes(falc_app)       #register the setup routes
 
     #
     # Install the unhandled exception processor. See above,
@@ -321,6 +311,14 @@ def main():
     with make_server(Config.ip_address, Config.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
         _httpd_server = httpd  # Store reference
         logger.info(f'==STARTUP== Serving on {Config.ip_address}:{Config.port}. Time stamps are UTC.')
+        
+        # Open browser to setup page
+        def open_browser():
+            time.sleep(1)  # Wait for server startup
+            webbrowser.open(f'http://localhost:{Config.port}/')
+
+        threading.Thread(target=open_browser, daemon=True).start()
+
         # Serve until process is killed
         httpd.serve_forever()
 
