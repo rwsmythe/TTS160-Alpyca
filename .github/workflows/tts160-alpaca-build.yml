@@ -51,15 +51,18 @@ jobs:
           cd dist
           zip -r TTS160Alpaca-${{ runner.os }}.zip .
       
-      - name: Verify archive created
+      - name: Verify archive created (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Get-ChildItem dist/
+          Write-Output "Windows archive created"
+        shell: powershell
+      
+      - name: Verify archive created (Unix)
+        if: runner.os != 'Windows'
         run: |
           ls -la dist/
-          echo "Archive contents:"
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            echo "Windows archive created"
-          else
-            echo "Unix archive created"
-          fi
+          echo "Unix archive created"
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
