@@ -1,11 +1,17 @@
 import PyInstaller.__main__
 import shutil
 import certifi
+import os
+
+PROGRAM_NAME = 'TTS160Alpaca'
+
+# Use correct separator for --add-data (Windows uses ';', Linux/macOS use ':')
+data_separator = ';' if os.name == 'nt' else ':'
 
 PyInstaller.__main__.run([
     'app.py',
-    '--name', 'TTS160Alpaca',
-    '--add-data', f'{certifi.where()};.',
+    '--name', f'{PROGRAM_NAME}',
+    '--add-data', f'{certifi.where()}{data_separator}.',
     '--exclude-module', 'win32com',
     '--exclude-module', 'win32api',
     '--exclude-module', 'win32gui',
@@ -14,5 +20,5 @@ PyInstaller.__main__.run([
     '--clean',
 ])
 
-shutil.copy2('TTS160config.toml', './dist/app/')
-shutil.copy2('config.toml', './dist/app/')
+shutil.copy2('TTS160config.toml', f'./dist/{PROGRAM_NAME}/')
+shutil.copy2('config.toml', f'./dist/{PROGRAM_NAME}/')
