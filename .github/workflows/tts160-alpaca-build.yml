@@ -27,20 +27,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt pyinstaller
       
-      - name: Debug - List files
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Files in current directory:"
-          ls -la
-          echo "Python files:"
-          ls -la *.py
-      
       - name: Test requirements
         run: python -c "import app"
       
       - name: Build with PyInstaller
-        run: python TTS160_pyinstaller.py
+        run: python TTS160_pyinstaller
       
       - name: Set executable permissions (Linux/macOS)
         if: runner.os != 'Windows'
