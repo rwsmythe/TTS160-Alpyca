@@ -18,13 +18,16 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            arch: x64
+            platform: windows
+            is_pi: false
           - os: ubuntu-latest  
-            arch: x64
+            platform: linux
+            is_pi: false
           - os: macos-latest
-            arch: x64
+            platform: macos
+            is_pi: false
           - os: ubuntu-latest
-            arch: arm64
+            platform: raspberrypi
             is_pi: true
     runs-on: ${{ matrix.os }}
     
@@ -50,12 +53,11 @@ jobs:
         run: python -c "import app"
       
       - name: Build with PyInstaller (ARM64)
-        if: matrix.is_pi
+        if: matrix.is_pi == true
         run: |
           docker run --rm --platform linux/arm64 \
             -v $PWD:/workspace \
             -w /workspace \
-            --user $(id -u):$(id -g) \
             python:3.11-slim \
             bash -c "
               apt-get update && apt-get install -y build-essential zip &&
@@ -64,53 +66,77 @@ jobs:
               cd dist &&
               zip -r TTS160Alpaca-RaspberryPi.zip .
             "
+          # Fix ownership after Docker container exits
+          sudo chown -R $(id -u):$(id -g) dist/ || true
       
       - name: Build with PyInstaller (Native)
-        if: '!matrix.is_pi'
+        if: matrix.is_pi != true
         run: python TTS160_pyinstaller
       
-      - name: Set executable permissions (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Set executable permissions (Linux/macOS/Pi)
+        if: matrix.platform != 'windows'
         run: |
           find dist -name "TTS160Alpaca" -type f -exec chmod +x {} \;
       
       - name: Create release archive (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.platform == 'windows'
         run: |
           cd dist
           Compress-Archive -Path . -DestinationPath TTS160Alpaca-Windows.zip
         shell: powershell
       
-      - name: Create release archive (Unix)
-        if: runner.os != 'Windows' && !matrix.is_pi
+      - name: Create release archive (Unix - not Pi)
+        if: matrix.platform == 'linux' || matrix.platform == 'macos'
         run: |
           cd dist
-          zip -r TTS160Alpaca-${{ runner.os }}.zip .
-      
-      - name: Create release archive (Raspberry Pi)
-        if: matrix.is_pi
-        run: |
-          # Archive already created inside Docker container
-          ls -la dist/
+          if [ "${{ matrix.platform }}" == "linux" ]; then
+            zip -r TTS160Alpaca-Linux.zip .
+          elif [ "${{ matrix.platform }}" == "macos" ]; then
+            zip -r TTS160Alpaca-macOS.zip .
+          fi
       
       - name: Verify archive created (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.platform == 'windows'
         run: |
           Get-ChildItem dist/
-          Write-Output "Windows archive created"
+          if (!(Test-Path "dist/TTS160Alpaca-Windows.zip")) {
+            Write-Error "Windows archive not created"
+            exit 1
+          }
+          Write-Output "Windows archive verified"
         shell: powershell
       
       - name: Verify archive created (Unix)
-        if: runner.os != 'Windows'
+        if: matrix.platform == 'linux' || matrix.platform == 'macos'
         run: |
           ls -la dist/
-          echo "Unix archive created"
+          if [ "${{ matrix.platform }}" == "linux" ]; then
+            ARCHIVE_NAME="TTS160Alpaca-Linux.zip"
+          elif [ "${{ matrix.platform }}" == "macos" ]; then
+            ARCHIVE_NAME="TTS160Alpaca-macOS.zip"
+          fi
+          if [ ! -f "dist/$ARCHIVE_NAME" ]; then
+            echo "ERROR: $ARCHIVE_NAME not created"
+            exit 1
+          fi
+          echo "$ARCHIVE_NAME verified"
+      
+      - name: Verify archive created (Raspberry Pi)
+        if: matrix.platform == 'raspberrypi'
+        run: |
+          ls -la dist/
+          if [ ! -f dist/TTS160Alpaca-RaspberryPi.zip ]; then
+            echo "ERROR: Raspberry Pi archive not created"
+            exit 1
+          fi
+          echo "Raspberry Pi archive verified"
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TTS160Alpaca-${{ matrix.is_pi && 'RaspberryPi' || runner.os }}
+          name: TTS160Alpaca-${{ matrix.platform }}
           path: dist/TTS160Alpaca-*.zip
+          if-no-files-found: error
 
   release:
     needs: build
