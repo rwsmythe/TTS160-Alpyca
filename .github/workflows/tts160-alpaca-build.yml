@@ -55,11 +55,14 @@ jobs:
           docker run --rm --platform linux/arm64 \
             -v $PWD:/workspace \
             -w /workspace \
+            --user $(id -u):$(id -g) \
             python:3.11-slim \
             bash -c "
-              apt-get update && apt-get install -y build-essential &&
+              apt-get update && apt-get install -y build-essential zip &&
               pip install -r requirements.txt pyinstaller &&
-              python TTS160_pyinstaller
+              python TTS160_pyinstaller &&
+              cd dist &&
+              zip -r TTS160Alpaca-RaspberryPi.zip .
             "
       
       - name: Build with PyInstaller (Native)
@@ -87,8 +90,8 @@ jobs:
       - name: Create release archive (Raspberry Pi)
         if: matrix.is_pi
         run: |
-          cd dist
-          zip -r TTS160Alpaca-RaspberryPi.zip .
+          # Archive already created inside Docker container
+          ls -la dist/
       
       - name: Verify archive created (Windows)
         if: runner.os == 'Windows'
