@@ -29,6 +29,8 @@ from telescope import (
     AlignmentModes, TelescopeAxes, GuideDirections, Rate
 )
 
+import TTS160Global
+
 """
 AstroPy Coordinate Frame Caching Mixin
 
@@ -1363,7 +1365,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         
         self._logger = logger
         self._logger.info("Initializing TTS160Device instance")
-        
+        self.TTS160_cache = TTS160Global.get_cache()
+
         try:
             # Thread safety and async execution setup
             self._lock = threading.RLock()
@@ -1494,7 +1497,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         self._CanSetPierSide = False
         self._CanSetRightAscensionRate = True
         self._CanSetTracking = True
-        self._CanSlew = False
+        self._CanSlew = True
         self._CanSlewAltAz = False
         self._CanSlewAltAzAsync = True
         self._CanSlewAsync = True
@@ -1672,14 +1675,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         with self._lock:
             # Handle already connected (ASCOM shared connection pattern)
             if self._Connected:
-                self._serial_manager.connection_count += 1
-                self._logger.info(f"Already connected, reference count: {self._serial_manager.connection_count}")
+                self._serial_manager._connection_count += 1
+                self._logger.info(f"Already connected, reference count: {self._serial_manager._connection_count}")
                 return
             
             # Handle connection in progress
             if self._Connecting:
-                self._serial_manager.connection_count += 1
-                self._logger.info(f"Connection already in progress, reference count: {self._serial_manager.connection_count}")
+                self._serial_manager._connection_count += 1
+                self._logger.info(f"Connection already in progress, reference count: {self._serial_manager._connection_count}")
                 return
 
             # Start new connection
@@ -1770,7 +1773,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             with self._lock:
                 self._Connected = True
                 self._Connecting = False
-                
+            
+            # Start cache thread
+            self.TTS160_cache.start_cache_thread()
+
             self._logger.info("TTS160 mount connection completed successfully")
             
         except Exception as ex:
@@ -1951,9 +1957,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 return
 
             # Handle shared connection - decrement reference count
-            if self._serial_manager.connection_count > 1:
-                self._serial_manager.connection_count -= 1
-                self._logger.info(f"Decremented connection reference count to {self._serial_manager.connection_count}")
+            if self._serial_manager._connection_count > 1:
+                self._serial_manager._connection_count -= 1
+                self._logger.info(f"Decremented connection reference count to {self._serial_manager._connection_count}")
                 return
 
             # Last client disconnecting - perform physical disconnect
@@ -1974,6 +1980,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             except Exception as ex:
                 self._logger.warning(f"Configuration save failed during disconnect: {ex}")
             
+            # Stop cache thread
+            self.TTS160_cache.stop_cache_thread()
+
             # Check connection state before attempting disconnect
             was_connected = False
             try:
@@ -2241,7 +2250,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         """ASCOM Connected property."""
         try:
             with self._lock:
-                self._logger.debug(f"Reporting Connected as: {self._Connected}")
+                #self._logger.debug(f"Reporting Connected as: {self._Connected}")   #<---SO MUCH SPAM
                 return self._Connected
         except Exception as ex:
             raise RuntimeError("Reading Connected property failed", ex)
@@ -2320,6 +2329,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             result = self._send_command(":*GA#", CommandType.STRING).rstrip('#')
             altitude_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
             self._logger.debug(f"Current altitude: {altitude_deg:.3f}°")
+            self.TTS160_cache.update_property('Altitude', altitude_deg)
             return altitude_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve altitude: {ex}, retrying")
@@ -2358,6 +2368,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             result = self._send_command(":*GZ#", CommandType.STRING).rstrip('#')
             azimuth_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
             self._logger.debug(f"Current azimuth: {azimuth_deg:.3f}°")
+            self.TTS160_cache.update_property('Azimuth', azimuth_deg)
             return azimuth_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve azimuth: {ex}")
@@ -2396,6 +2407,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             result = self._send_command(":*GD#", CommandType.STRING).rstrip('#')
             declination_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
             self._logger.debug(f"Current declination: {declination_deg:.3f}°")
+            self.TTS160_cache.update_property('Declination', declination_deg)
             return declination_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve declination: {ex}")
@@ -2426,6 +2438,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             ra = float(result) * (180 / math.pi) / 15  # Convert radians to hours
             ra = ra % 24  # Normalize to 0-24 hours
             self._logger.debug(f"Current right ascension: {ra:.3f}h")
+            self.TTS160_cache.update_property('RightAscension', ra)
             return ra
         except Exception as ex:
             self._logger.error(f"Failed to retrieve right ascension: {ex}")
@@ -2461,6 +2474,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             lst = (gmst + longitude_hours) % 24
             
             self._logger.debug(f"Sidereal time - GMST: {gmst:.3f}h, LST: {lst:.3f}h")
+            self.TTS160_cache.update_property('SiderealTime', lst)
             return lst
         except Exception as ex:
             self._logger.error(f"Failed to retrieve sidereal time: {ex}")
@@ -2556,6 +2570,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._config.site_latitude = latitude_deg
 
             self._logger.info(f"Site latitude: {latitude_deg:.6f}°")
+            self.TTS160_cache.update_property('SiteLatitude', latitude_deg )
             return latitude_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve site latitude: {ex}")
@@ -2599,6 +2614,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._config.site_longitude = longitude_deg
 
             self._logger.info(f"Site longitude: {longitude_deg:.6f}°")
+            self.TTS160_cache.update_property('SiteLongitude', longitude_deg )
             return longitude_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve site longitude: {ex}")
@@ -2612,6 +2628,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     @property
     def SiteElevation(self) -> float:
         """Site elevation in meters."""
+        self.TTS160_cache.update_property('SiteElevation', self._site_location.height.value )
         return self._site_location.height.value
     
     #TODO: Ibid.  If I do want this implemented, it needs to feed back to the configuration object
@@ -2628,6 +2645,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         
         try:
             with self._lock:
+                self.TTS160_cache.update_property('AtHome', self._is_at_home)
                 return self._is_at_home
         except Exception as ex:
             raise RuntimeError("Failed to retrieve AtHome", ex)
@@ -2649,6 +2667,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             with self._lock:
                 self._is_parked = self._send_command(":*Pq#", CommandType.BOOL)
                 self._logger.debug(f"Returning self._is_parked as: {self._is_parked}.  It is a {type(self._is_parked)}")
+                self.TTS160_cache.update_property('AtPark', self._is_parked)
                 return self._is_parked
         except Exception as ex:
             raise RuntimeError("Failed to retrieve AtPark", ex)
@@ -2670,22 +2689,31 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         try:
             self._logger.debug("Assembling device state information")
             
+            vars = "X1,C5,X2,T18,17"
+            cmd = ":*!G " + vars + "#"
+
+            self._logger.debug(f'Sending {cmd} as {CommandType.AUTO}')
+
+            data = self._send_command(cmd,CommandType.AUTO)
+
+            timestamp = datetime.utcnow().isoformat() + 'Z'
+
             device_state: List[dict] = [
-                {"name": "Altitude", "value": self.Altitude},
+                {"name": "Altitude", "value": data[0] * 180 / math.pi},
                 {"name": "AtHome", "value": self.AtHome},
-                {"name": "AtPark", "value": self.AtPark},
-                {"name": "Azimuth", "value": self.Azimuth},
-                {"name": "Declination", "value": self.Declination},
+                {"name": "AtPark", "value": bool( data[1] )},
+                {"name": "Azimuth", "value": data[2] * 180 / math.pi},
+                {"name": "Declination", "value": data[3] * 180 / math.pi},
                 {"name": "IsPulseGuiding", "value": self.IsPulseGuiding},
-                {"name": "RightAscension", "value": self.RightAscension},
+                {"name": "RightAscension", "value": ( data[4] * (180 / math.pi) / 15 ) % 24 },
                 {"name": "SideOfPier", "value": self.SideOfPier},
                 {"name": "SiderealTime", "value": self.SiderealTime},
                 {"name": "Slewing", "value": self.Slewing},
                 {"name": "Tracking", "value": self.Tracking},
                 {"name": "UTCDate", "value": self.UTCDate},
-                {"name": "TimeStamp", "value": datetime.now}
+                {"name": "TimeStamp", "value": timestamp}
             ]
-            
+
             self._logger.debug(f"Device state assembled with {len(device_state)} parameters")
             return device_state
 
@@ -2739,6 +2767,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             rate = guide_rates.get(rate_index, 0)
             self._logger.debug(f"Declination guide rate: {rate:.6f} deg/sec (index {rate_index})")
+            self.TTS160_cache.update_property('GuideRateDeclination', rate)
             return rate
             
         except Exception as ex:
@@ -2803,6 +2832,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             rate = guide_rates.get(rate_index, 0)
             self._logger.debug(f"Right ascension guide rate: {rate:.6f} deg/sec (index {rate_index})")
+            self.TTS160_cache.update_property('GuideRateRightAscension', rate)
             return rate
             
         except Exception as ex:
@@ -2881,7 +2911,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     @property
     def SideOfPier(self) -> PierSide:
         """Calculates and returns SideofPier"""
-        return self._calculate_side_of_pier(self.RightAscension)
+        sideofpier = self._calculate_side_of_pier(self.RightAscension)
+        self.TTS160_cache.update_property('SideOfPier', sideofpier)
+        return sideofpier
 
     @property
     def Slewing(self) -> bool:
@@ -2893,6 +2925,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             #Atomic Snapshot provides protection
             slew_future = self._slew_in_progress
+            self.TTS160_cache.update_property('Slewing', (slew_future and not slew_future.done()) or self._slewing_hold)
             return (slew_future and not slew_future.done()) or self._slewing_hold
                 
         except Exception as ex:
@@ -2906,6 +2939,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         
         try:
             result = self._send_command(":GW#", CommandType.STRING)
+            self.TTS160_cache.update_property('Tracking', result[1] == 'T' if len(result) > 1 else False)
             return result[1] == 'T' if len(result) > 1 else False
         except Exception as ex:
             raise RuntimeError(0x500, "Failed to get tracking state", ex)
@@ -3181,7 +3215,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 for axis in ['ns', 'ew']:
                     if self._is_axis_pulse_active(axis, current_time):
                         active_pulses.append(axis)
-                        
+                self.TTS160_cache.update_property('IsPulseGuiding', len(active_pulses) > 0 ) 
                 return len(active_pulses) > 0
                 
         except Exception as ex:
@@ -3251,6 +3285,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             command = ":*Gd#"
             declination_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
             declination_deg = declination_rad * 180 / math.pi
+            self.TTS160_cache.update_property('TargetDeclination', declination_deg)
             return declination_deg
         except Exception as ex:
             self._logger.info(f"Failed to get TargetDeclination: {ex}")
@@ -3306,6 +3341,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             command = ":*Gr#"
             right_ascension_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
             right_ascension_hr = (right_ascension_rad * 180 / math.pi * 24 / 360) % 24
+            self.TTS160_cache.update_property('TargetRightAscension', right_ascension_hr)
             return right_ascension_hr
         except Exception as ex:
             self._logger.info(f"Failed to get TargetRightAscension: {ex}")
@@ -4448,7 +4484,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.info(f"Mount UTC time: {utc}")
             self._logger.debug(f"Mount UTC time as ISO 8601 string: {utc.isoformat().replace('+00:00', 'Z')}")
 
-            return utc.isoformat().replace('+00:00', 'Z')
+            value = utc.isoformat().replace('+00:00', 'Z')
+            self.TTS160_cache.update_property('UTCDate',value)
+            return value
             
         except Exception as ex:
             self._logger.error(f"Failed to get UTC date: {ex}")

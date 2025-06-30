@@ -73,10 +73,14 @@ import log
 import webbrowser
 import threading
 import time
+import TTS160Global
 from config import Config
 from discovery import DiscoveryResponder
 from shr import set_shr_logger
-from web import register_all_routes
+#from web import register_all_routes
+from datetime import datetime
+
+from telescope_gui import start_gui_thread
 
 ##############################
 # FOR EACH ASCOM DEVICE TYPE #
@@ -86,6 +90,10 @@ import telescope
 # Global reference for shutdown
 _httpd_server = None
 _DSC = None
+server_cfg = None
+
+# Misc Variables
+APP_START_TIME = datetime.now()
 
 #--------------
 API_VERSION = 1
@@ -224,7 +232,7 @@ def custom_excepthook(exc_type, exc_value, exc_traceback):
     log.logger.error(f'An uncaught {exc_type.__name__} exception occurred:')
     log.logger.error(exc_value)
 
-    if Config.verbose_driver_exceptions and exc_traceback:
+    if server_cfg.verbose_driver_exceptions and exc_traceback:
         format_exception = traceback.format_tb(exc_traceback)
         for line in format_exception:
             log.logger.error(repr(line))
@@ -242,6 +250,20 @@ def falcon_uncaught_exception_handler(req: Request, resp: Response, ex: BaseExce
     custom_excepthook(exc[0], exc[1], exc[2])
     raise HTTPInternalServerError('Internal Server Error', 'Alpaca endpoint responder failed. See logfile.')
 
+def get_uptime():
+    """Get formatted uptime string"""
+    uptime_delta = datetime.now() - APP_START_TIME
+    days = uptime_delta.days
+    hours, remainder = divmod(uptime_delta.seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    
+    if days > 0:
+        return f"{days}d {hours}h {minutes}m"
+    elif hours > 0:
+        return f"{hours}h {minutes}m"
+    else:
+        return f"{minutes}m"
+
 # ===========
 # APP STARTUP
 # ===========
@@ -250,9 +272,12 @@ def main():
     
     global _DSC
     global _httpd_server
+    global _gui_thread
+    global server_cfg
 
     """ Application startup"""
 
+    server_cfg = TTS160Global.get_serverconfig()
     logger = log.init_logging()
     # Share this logger throughout
     log.logger = logger
@@ -274,7 +299,7 @@ def main():
     # ---------
     # DISCOVERY
     # ---------
-    _DSC = DiscoveryResponder(Config.ip_address, Config.port)
+    _DSC = DiscoveryResponder(server_cfg.ip_address, server_cfg.port)
 
     # ----------------------------------
     # MAIN HTTP/REST API ENGINE (FALCON)
@@ -296,7 +321,7 @@ def main():
     falc_app.add_route('/static/{path:path}', setup.StaticFileHandler())
     falc_app.add_route(f'/setup/v{API_VERSION}/telescope/{{devnum}}/setup', setup.devsetup())
     falc_app.add_route('/shutdown', setup.ShutdownHandler())
-    register_all_routes(falc_app)       #register the setup routes
+    #register_all_routes(falc_app)       #register the setup routes
 
     #
     # Install the unhandled exception processor. See above,
@@ -307,14 +332,29 @@ def main():
     # SERVER APPLICATION
     # ------------------
     # Using the lightweight built-in Python wsgi.simple_server
-    with make_server(Config.ip_address, Config.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
+    with make_server(server_cfg.ip_address, server_cfg.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
         _httpd_server = httpd  # Store reference
-        logger.info(f'==STARTUP== Serving on {Config.ip_address}:{Config.port}. Time stamps are UTC.')
+
+        gui_port = 8080  #Will be made configurable later
+        logger.info(f'==STARTUP== Starting GUI server on port {gui_port}')
+        try:
+            _gui_thread = start_gui_thread(logger, gui_port)
+            logger.info(f'==STARTUP== GUI server thread started successfully')
+        except Exception as e:
+            logger.error(f'==STARTUP== Failed to start GUI server: {e}')
+            logger.info('==STARTUP== Continuing without GUI...')
+            _gui_thread = None
+
+        logger.info(f'==STARTUP== Serving on {server_cfg.ip_address}:{server_cfg.port}. Time stamps are UTC.')
         
-        # Open browser to setup page
+        #O pen browser to setup page
         def open_browser():
             time.sleep(1)  # Wait for server startup
-            webbrowser.open(f'http://localhost:{Config.port}/')
+            if _gui_thread:
+                webbrowser.open(f'http://localhost:{gui_port}')
+            else:
+                # Fallback to original setup page
+                webbrowser.open(f'http://localhost:{server_cfg.port}/')
 
         threading.Thread(target=open_browser, daemon=True).start()
 

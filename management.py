@@ -44,13 +44,15 @@
 #
 from falcon import Request, Response
 from shr import PropertyResponse, DeviceMetadata
-from config import Config
 from logging import Logger
 # For each *type* of device served
 from telescope import TelescopeMetadata
+import TTS160Global
 
 logger: Logger = None
 #logger = None                   # Safe on Python 3.7 but no intellisense in VSCode etc.
+
+server_cfg = TTS160Global.get_serverconfig()
 
 def set_management_logger(lgr):
     global logger
@@ -73,7 +75,7 @@ class description:
             'ServerName'   : DeviceMetadata.Description,
             'Manufacturer' : DeviceMetadata.Manufacturer,
             'Version'      : DeviceMetadata.Version,
-            'Location'     : Config.location
+            'Location'     : server_cfg.location
             }
         resp.text = PropertyResponse(desc, req).json
 

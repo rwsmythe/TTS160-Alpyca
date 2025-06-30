@@ -24,6 +24,7 @@ import TTS160Global
 logger: Logger = None
 TTS160_dev = None
 TTS160_cfg = None
+TTS160_cache = None
 
 ALPACA_EXCEPTIONS = {
     'NotImplementedException': NotImplementedException,
@@ -55,7 +56,7 @@ maxdev = 0                      # Single instance
 ## EDIT FOR YOUR DEVICE ##
 class TelescopeMetadata:
     """ Metadata describing the Telescope Device. Edit for your device"""
-    Name = 'TTS-160'
+    Name = 'TTS160'
     Version = '356.0.0'
     Description = 'TTS160 Alpaca Driver'
     DeviceType = 'Telescope'
@@ -69,8 +70,10 @@ def start_TTS160_dev(logger: Logger):
     try:
         global TTS160_cfg
         global TTS160_dev
+        global TTS160_cache
         TTS160_cfg = TTS160Global.get_config()          #Instantiate a single configuration object
         TTS160_dev = TTS160Global.get_device(logger)    #Instantiate a single device object
+        TTS160_cache = TTS160Global.get_cache()         #Instantiate a single cache object
         logger.info("TTS160 device initialized successfully")
     except Exception as ex:
         logger.error(f"Failed to initialize TTS160 device: {ex}")
@@ -230,20 +233,22 @@ class devicestate:
             return
         try:
             # ----------------------
+            value = TTS160_dev.DeviceState
+            val_dict = {item['name']: item['value'] for item in value}
             val = []
-            val.append(StateValue('Altitude', TTS160_dev.Altitude))
-            val.append(StateValue('AtHome', TTS160_dev.AtHome))
-            val.append(StateValue('AtPark', TTS160_dev.AtPark))
-            val.append(StateValue('Azimuth', TTS160_dev.Azimuth))
-            val.append(StateValue('Declination', TTS160_dev.Declination))
-            val.append(StateValue('IsPulseGuiding', TTS160_dev.IsPulseGuiding))
-            val.append(StateValue('RightAscension', TTS160_dev.RightAscension))
-            val.append(StateValue('SideOfPier', TTS160_dev.SideOfPier))
-            val.append(StateValue('SiderealTime', TTS160_dev.SiderealTime))
-            val.append(StateValue('Slewing', TTS160_dev.Slewing))
-            val.append(StateValue('Tracking', TTS160_dev.Tracking))
-            val.append(StateValue('UTCDate', TTS160_dev.UTCDate))
-            val.append(StateValue('TimeStamp', datetime.now().isoformat()))  #System or telescope??
+            val.append(StateValue('Altitude', val_dict['Altitude']))
+            val.append(StateValue('AtHome', val_dict['AtHome']))
+            val.append(StateValue('AtPark', val_dict['AtPark']))
+            val.append(StateValue('Azimuth', val_dict['Azimuth']))
+            val.append(StateValue('Declination', val_dict['Declination']))
+            val.append(StateValue('IsPulseGuiding', val_dict['IsPulseGuiding']))
+            val.append(StateValue('RightAscension', val_dict['RightAscension']))
+            val.append(StateValue('SideOfPier', val_dict['SideOfPier']))
+            val.append(StateValue('SiderealTime', val_dict['SiderealTime']))
+            val.append(StateValue('Slewing', val_dict['Slewing']))
+            val.append(StateValue('Tracking', val_dict['Tracking']))
+            val.append(StateValue('UTCDate', val_dict['UTCDate']))
+            val.append(StateValue('TimeStamp', val_dict['TimeStamp']))
             # val.append(StateValue('## NAME ##', ## GET VAL ##))
             # Repeat for each of the operational states per the device spec
             # ----------------------
