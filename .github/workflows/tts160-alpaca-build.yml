@@ -8,16 +8,35 @@ on:
         required: true
         default: 'v0.2.0-beta'
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: ubuntu-latest  
+            arch: x64
+          - os: macos-latest
+            arch: x64
+          - os: ubuntu-latest
+            arch: arm64
+            is_pi: true
     runs-on: ${{ matrix.os }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Set up QEMU (for ARM builds)
+        if: matrix.is_pi
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,7 +49,21 @@ jobs:
       - name: Test requirements
         run: python -c "import app"
       
-      - name: Build with PyInstaller
+      - name: Build with PyInstaller (ARM64)
+        if: matrix.is_pi
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v $PWD:/workspace \
+            -w /workspace \
+            python:3.11-slim \
+            bash -c "
+              apt-get update && apt-get install -y build-essential &&
+              pip install -r requirements.txt pyinstaller &&
+              python TTS160_pyinstaller
+            "
+      
+      - name: Build with PyInstaller (Native)
+        if: '!matrix.is_pi'
         run: python TTS160_pyinstaller
       
       - name: Set executable permissions (Linux/macOS)
@@ -46,10 +79,16 @@ jobs:
         shell: powershell
       
       - name: Create release archive (Unix)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && !matrix.is_pi
         run: |
           cd dist
           zip -r TTS160Alpaca-${{ runner.os }}.zip .
+      
+      - name: Create release archive (Raspberry Pi)
+        if: matrix.is_pi
+        run: |
+          cd dist
+          zip -r TTS160Alpaca-RaspberryPi.zip .
       
       - name: Verify archive created (Windows)
         if: runner.os == 'Windows'
@@ -67,7 +106,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TTS160Alpaca-${{ runner.os }}
+          name: TTS160Alpaca-${{ matrix.is_pi && 'RaspberryPi' || runner.os }}
           path: dist/TTS160Alpaca-*.zip
 
   release:
