@@ -17,10 +17,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       
@@ -31,7 +31,7 @@ jobs:
         run: python -c "import app"
       
       - name: Build with PyInstaller
-        run: python build_script.py
+        run: python TTS160_pyinstaller
       
       - name: Set executable permissions (Linux/macOS)
         if: runner.os != 'Windows'
@@ -51,18 +51,21 @@ jobs:
           cd dist
           zip -r TTS160Alpaca-${{ runner.os }}.zip .
       
-      - name: Verify archive created
+      - name: Verify archive created (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Get-ChildItem dist/
+          Write-Output "Windows archive created"
+        shell: powershell
+      
+      - name: Verify archive created (Unix)
+        if: runner.os != 'Windows'
         run: |
           ls -la dist/
-          echo "Archive contents:"
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            echo "Windows archive created"
-          else
-            echo "Unix archive created"
-          fi
+          echo "Unix archive created"
       
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: TTS160Alpaca-${{ runner.os }}
           path: dist/TTS160Alpaca-*.zip
@@ -74,7 +77,7 @@ jobs:
     
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
       
