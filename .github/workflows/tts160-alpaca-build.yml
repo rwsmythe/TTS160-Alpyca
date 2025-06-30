@@ -31,7 +31,7 @@ jobs:
         run: python -c "import app"
       
       - name: Build with PyInstaller
-        run: python build_script.py
+        run: python TTS150_pyinstaller.py
       
       - name: Set executable permissions (Linux/macOS)
         if: runner.os != 'Windows'
