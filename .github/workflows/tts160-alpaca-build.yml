@@ -1,0 +1,106 @@
+name: Build TTS160Alpaca
+
+on: 
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v0.2.1-beta)'
+        required: true
+        default: 'v0.2.0-beta'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+      
+      - name: Test requirements
+        run: python -c "import app"
+      
+      - name: Build with PyInstaller
+        run: python build_script.py
+      
+      - name: Set executable permissions (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          find dist -name "TTS160Alpaca" -type f -exec chmod +x {} \;
+      
+      - name: Create release archive (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd dist
+          Compress-Archive -Path . -DestinationPath TTS160Alpaca-Windows.zip
+        shell: powershell
+      
+      - name: Create release archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd dist
+          zip -r TTS160Alpaca-${{ runner.os }}.zip .
+      
+      - name: Verify archive created
+        run: |
+          ls -la dist/
+          echo "Archive contents:"
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            echo "Windows archive created"
+          else
+            echo "Unix archive created"
+          fi
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: TTS160Alpaca-${{ runner.os }}
+          path: dist/TTS160Alpaca-*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          echo "Downloaded artifacts structure:"
+          find artifacts -type f -name "*.zip" | head -10
+          # Copy all zip files from artifact directories
+          find artifacts -name "*.zip" -exec cp {} release/ \;
+          # Verify we have files
+          echo "Release files prepared:"
+          ls -la release/
+          if [ $(ls -1 release/*.zip 2>/dev/null | wc -l) -eq 0 ]; then
+            echo "ERROR: No zip files found for release"
+            exit 1
+          fi
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          files: release/*.zip
+          draft: false
+          prerelease: ${{ contains(github.event.inputs.version, 'beta') || contains(github.event.inputs.version, 'alpha') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
