@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 from dateutil import parser
 from typing import List, Tuple, Any, Union, Optional
 from logging import Logger
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import ThreadPoolExecutor
 
 # AstroPy imports for coordinate transformations
 from astropy.coordinates import SkyCoord, AltAz, ICRS, EarthLocation, GCRS
@@ -20,10 +20,6 @@ from astropy.utils import iers
 
 # Local imports
 from tts160_types import CommandType
-#from exceptions import (
-#    DriverException, InvalidValueException, InvalidOperationException,
-#    NotImplementedException, ParkedException, NotConnectedException
-#)
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
     AlignmentModes, TelescopeAxes, GuideDirections, Rate

@@ -5,11 +5,8 @@ Handles all device operations, configuration changes, and system commands.
 Provides a clean interface between the UI and the underlying telescope systems.
 """
 
-import sys
-import os
 import serial.tools.list_ports
 import TTS160Global
-from nicegui import ui
 
 class TelescopeCommands:
     """Handles all telescope and system commands from the GUI."""

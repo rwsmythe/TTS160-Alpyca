@@ -37,7 +37,7 @@ import os
 import threading
 import time
 from falcon import Request, Response
-from shr import PropertyResponse, DeviceMetadata, log_request
+from shr import log_request
 import app
 import log
 

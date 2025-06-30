@@ -77,7 +77,6 @@ import TTS160Global
 from config import Config
 from discovery import DiscoveryResponder
 from shr import set_shr_logger
-#from web import register_all_routes
 from datetime import datetime
 
 from telescope_gui import start_gui_thread

@@ -8,7 +8,7 @@ both by ALPACA operations and a background refresh thread.
 
 import time
 import threading
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import TTS160Global
 
 # Configuration constants

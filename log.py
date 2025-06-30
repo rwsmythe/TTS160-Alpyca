@@ -44,7 +44,6 @@ import TTS160Global
 
 global logger
 global server_cfg
-#logger: logging.Logger = None  # Master copy (root) of the logger
 logger = None                   # Safe on Python 3.7 but no intellisense in VSCode etc.
 
 def init_logging():

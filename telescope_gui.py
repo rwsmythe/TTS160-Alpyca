@@ -6,7 +6,6 @@ Runs in a separate thread alongside the main ALPACA server.
 """
 
 import threading
-import webbrowser
 from nicegui import ui, app
 from telescope_data import DataManager
 from telescope_commands import TelescopeCommands
