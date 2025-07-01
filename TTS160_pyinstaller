@@ -12,6 +12,8 @@ PyInstaller.__main__.run([
     'app.py',
     '--name', f'{PROGRAM_NAME}',
     '--add-data', f'{certifi.where()}{data_separator}.',
+    '--collect-data', 'nicegui',
+    '--collect-all', 'nicegui',
     '--exclude-module', 'win32com',
     '--exclude-module', 'win32api',
     '--exclude-module', 'win32gui',
