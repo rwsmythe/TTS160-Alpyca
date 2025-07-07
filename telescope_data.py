@@ -108,7 +108,8 @@ class DataManager:
                 'can_pulse_guide': False,
                 'can_find_home': False,
                 'utc_date': 'Unknown',
-                'sidereal_time': 0.0
+                'sidereal_time': 0.0,
+                'alignment_matrix': [0,0,0,0,0,0,0,0,0]
             }
             
             if device:
@@ -131,6 +132,7 @@ class DataManager:
                         status['guide_rate_right_ascension'] = cache.get_property_value('GuideRateRightAscension', 0.0)
                         status['utc_date'] = cache.get_property_value('UTCDate', 'Unknown')
                         status['sidereal_time'] = cache.get_property_value('SiderealTime', 0.0)
+                        status['alignment_matrix'] = cache.get_property_value('_AlignmentMatrix', [0,0,0,0,0,0,0,0,0])
                         
                     except Exception as e:
                         self.logger.debug(f"Error reading telescope status properties: {e}")

@@ -32,6 +32,8 @@ CACHED_PROPERTIES = [
     # Site information (low frequency but hardware-dependent)
     'SiteElevation', 'SiteLatitude', 'SiteLongitude',
     
+    # Other stuff
+    '_AlignmentMatrix'
 ]
 
 

@@ -4550,3 +4550,28 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.error(f"Failed to set UTC date: {ex}")
             raise RuntimeError("Failed to set UTC date", ex)
 
+    # AlignmentMatrix Property
+    @property
+    def _AlignmentMatrix(self) -> List[float]:
+        """
+        Mount's Alignment Matrix.
+        
+        Returns:
+            array of 9 floats: flattened alignment matrix from mount
+            
+        Raises:
+            NotConnectedException: If device not connected
+            DriverException: If date/time retrieval fails
+        """
+        if not self._Connected and not self._Connecting:
+            raise ConnectionError("Device not connected")
+        
+        try:
+            # Get matrix data
+            value = self._send_command(":*!G T32#", CommandType.AUTO)
+        
+            return value
+            
+        except Exception as ex:
+            self._logger.error(f"Failed to get _AlignmentMatrix: {ex}")
+            raise RuntimeError("Failed to get _AlignmentMatrix", ex)

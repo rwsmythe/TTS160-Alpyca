@@ -101,9 +101,6 @@ tracking = serial_mgr.send_command(':GS#', CommandType.BOOL)
 # String command
 ra = serial_mgr.send_command(':GR#', CommandType.STRING)
 
-# Legacy case data
-case_data = serial_mgr.send_command(':*!2#', CommandType.AUTO)
-
 # Multi-variable query
 data = serial_mgr.send_command(':*!G T1,2,C5#', CommandType.AUTO)
 ```
@@ -148,15 +145,6 @@ serial_mgr.register_binary_format(
 ```
 
 #### Convenience Methods
-
-##### get_case_data(case_number: int) -> Union[List[Any], Dict[str, Any]]
-
-Retrieves legacy binary case data using the `:*!n#` command format.
-
-```python
-# Get case 2 binary data (motor speeds and park info)
-case_data = serial_mgr.get_case_data(2)
-```
 
 ##### clear_buffers() -> None
 
@@ -215,26 +203,9 @@ Unpacks binary data according to format specification.
 
 ## Binary Response Protocols
 
-The TTS160 firmware implements dual binary protocols for different use cases:
+The TTS160 firmware implements a binary protocol for sending arbitrary data elements:
 
-### 1. Legacy Case-Based Protocol
-
-Fixed predefined data sets accessed via `:*!n#` commands where n = 0-8.
-
-```
-Command: ":*!2#"
-Response: "CASE:2\n" + [28 bytes of binary data]
-```
-
-**Firmware Implementation:**
-```c
-// Handles predefined case data in GF_Lx200_Custom_Status()
-printf("CASE:%d\n", case_number);
-fwrite(binary_data, 1, data_size, stdout);
-fflush(stdout);
-```
-
-### 2. Multi-Variable Protocol (New)
+### Multi-Variable Protocol
 
 Flexible variable queries via `:*!G <variables>#` commands.
 
@@ -251,7 +222,6 @@ Response: "BINARY:2i1B\n" + [9 bytes of binary data]
 - **L**: LX200 subsystem (protocol state)
 - **O**: Motor subsystem (control parameters)
 - **D**: Display subsystem (UI state)
-- **P**: PEC subsystem (periodic error correction)
 - **X**: Computed variables (real-time calculations)
 
 **Command Format:**
@@ -310,7 +280,7 @@ ERROR:RESPONSE_TOO_LARGE\n
 - Headers must end with '\n'  
 - String responses must end with '#'
 - No mixing of binary and text in single response
-- Matrix data stored as 9 consecutive doubles (row-major)
+- Matrix data stored as 9 consecutive floats (row-major)
 
 ## Variable Reference
 
@@ -413,52 +383,11 @@ ERROR:RESPONSE_TOO_LARGE\n
 |----|------|------|-------------|
 | X1 | CURRENT_ALT | float | Current altitude ⚠️ **Triggers position update** |
 | X2 | CURRENT_AZ | float | Current azimuth ⚠️ **Triggers position update** |
+| X3 | FreeMem | uint16 | RAM Available |
 
 **Performance Note**: Computed variables execute `GF_Force_Position_Update()` and coordinate transformations, adding ~10ms latency per query.
 
-*Note: Additional variable categories (A, L, O, D, P) available - see firmware source for complete listings.*
-
-## Legacy Case Data Formats
-
-### Predefined Binary Formats
-
-| Case | Size | Format | Description |
-|------|------|--------|-------------|
-| 0 | 76 bytes | 13i4f | Position/status data |
-| 1 | 48 bytes | 3i9f | Tracking/coordinate data |
-| 2 | 28 bytes | 5i2f | Motor speeds/park data |
-| 3 | 42 bytes | 6i3f | Date/time/location data |
-| 4 | 28 bytes | 7i | Mount configuration |
-| 5 | 36 bytes | 9d | Alignment matrix (T_Alignment) |
-| 6 | 36 bytes | 9d | Inverse matrix (Tinv) |
-| 7 | 68 bytes | 13i4f | Motor control data |
-| 8 | 28 bytes | 5i2f | Rotator data |
-
-### Case 0: System Status
-```python
-case_data = serial_mgr.get_case_data(0)
-# Returns dict with keys:
-# h_ticks, e_ticks, tracking, h_motor_on, e_motor_on, 
-# h_motor_moving, e_motor_moving, h_dir, e_dir, 
-# align_status, error, slewing, collision, ra, dec, az, alt
-```
-
-### Case 1: Tracking Data  
-```python
-case_data = serial_mgr.get_case_data(1)
-# Returns dict with keys:
-# tracking_mode, tracking_rate, custom_track_rate, align_time,
-# lx200_object_ra, lx200_object_dec, last_goto_ra, last_goto_dec,
-# custom_rate_ra, custom_rate_dec, current_obj_ra, current_obj_de
-```
-
-### Case 2: Motor Configuration
-```python
-case_data = serial_mgr.get_case_data(2)
-# Returns dict with keys:
-# goto_speed_h, goto_speed_e, guide_speed_h, guide_speed_e,
-# park_flag, park_az, park_alt
-```
+*Note: Additional variable categories (A, L, O, D) available - see firmware source for complete listings.*
 
 ## Error Handling
 
@@ -486,16 +415,13 @@ case_data = serial_mgr.get_case_data(2)
 3. **Register formats once** during initialization
 4. **Handle connection cleanup** with context managers
 5. **Leverage computed variables** (X1, X2) for real-time coordinate transforms
-6. **Cache transformation matrices** (T30, T31) rather than repeated queries
+6. **Cache transformation matrices** (T32, T33) rather than repeated queries
 
 ## Migration Guide
 
 ### From Legacy Case System
 
 ```python
-# Old approach
-case_2_data = serial_mgr.get_case_data(2)
-
 # New flexible approach  
 motor_data = serial_mgr.send_command(':*!G C1,2,3,4,5#')
 # Gets goto_speed_h, goto_speed_e, guide_speed_h, guide_speed_e, park_flag
@@ -514,10 +440,6 @@ try:
         
         # Multi-variable query
         tracking_data = serial_mgr.send_command(':*!G T1,2,4,17,18#')
-        
-        # Legacy case fallback
-        if not tracking_data:
-            tracking_data = serial_mgr.get_case_data(0)
             
 except BinaryFormatError as e:
     logger.error(f"Format error: {e}")
@@ -564,13 +486,9 @@ with SerialManager(logger) as serial_mgr:
 ### Matrix Data Access
 ```python
 # Get alignment transformation matrices
-matrices = serial_mgr.send_command(':*!G T30,31#')
+matrices = serial_mgr.send_command(':*!G T32,33#')
 alignment_matrix = matrices[0]  # 9-element transformation matrix
 inverse_matrix = matrices[1]    # 9-element inverse matrix
-
-# Alternative: use legacy case commands
-alignment_matrix = serial_mgr.get_case_data(5)
-inverse_matrix = serial_mgr.get_case_data(6)
 ```
 
 ### Custom Format Registration
@@ -586,20 +504,6 @@ serial_mgr.register_binary_format(
 pos_data = serial_mgr.send_command(':*!G T1,2,17,18,4#')
 # Returns: {'h_ticks': 12345, 'e_ticks': 67890, 'ra': 1.23, 'dec': 0.45, 'tracking': 1}
 ```
-
-### Mixed Protocol Usage
-```python
-# Combine legacy cases with new multi-variable queries
-legacy_status = serial_mgr.get_case_data(0)      # Full system status
-motor_config = serial_mgr.send_command(':*!G C1,2,3,4#')  # Specific motor speeds
-real_time_pos = serial_mgr.send_command(':*!G X1,2#')     # Computed coordinates
-
-# Process mixed data types
-process_system_status(legacy_status)
-update_motor_display(motor_config)
-update_position_display(real_time_pos)
-```
-
 ## Troubleshooting
 
 ### Common Issues
@@ -617,7 +521,7 @@ update_position_display(real_time_pos)
 **Matrix data corruption**
 - Verify 36-byte matrix size in responses
 - Check double precision handling in format registration
-- Ensure matrix variables (T30, T31) are properly aligned
+- Ensure matrix variables (T32, T33) are properly aligned
 
 **Connection timeout with complex queries**  
 - Break large multi-variable queries into smaller chunks

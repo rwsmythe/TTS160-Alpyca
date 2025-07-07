@@ -40,7 +40,7 @@ from falcon import Request, Response
 from shr import log_request
 import app
 import log
-
+import webbrowser
 
 class StaticFileHandler:
     """Handler for serving static files (CSS, JS, images, etc.)"""
@@ -118,20 +118,26 @@ class ShutdownHandler:
 class devsetup:
     """Legacy device setup endpoint - redirects to web interface"""
     
-    def on_get(self, req: Request, resp: Response, devnum: str):
-        """Redirect to new web interface"""
-        resp.content_type = 'text/html'
-        log_request(req)
-        resp.text = '''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Device Setup</title>
-            <meta http-equiv="refresh" content="0; url=/">
-        </head>
-        <body>
-            <h2>Redirecting to new web interface...</h2>
-            <p><a href="/">Click here if not redirected automatically</a></p>
-        </body>
-        </html>
-        '''
+    def on_get(self, req: Request, resp: Response, devnum: str):      
+        # Open browser to setup page
+        def open_browser():
+            webbrowser.open(f'http://localhost:{gui_port}')
+
+        threading.Thread(target=open_browser, daemon=True).start()
+        
+        #"""Redirect to new web interface"""
+        #resp.content_type = 'text/html'
+        #log_request(req)
+        #resp.text = '''
+        #<!DOCTYPE html>
+        #<html>
+        #<head>
+        #    <title>Device Setup</title>
+        #    <meta http-equiv="refresh" content="0; url=/">
+        #</head>
+        #<body>
+        #    <h2>Redirecting to new web interface...</h2>
+        #    <p><a href="/">Click here if not redirected automatically</a></p>
+        #</body>
+        #</html>
+        #'''

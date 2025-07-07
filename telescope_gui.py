@@ -10,6 +10,7 @@ from nicegui import ui, app
 from telescope_data import DataManager
 from telescope_commands import TelescopeCommands
 from telescope import TelescopeMetadata
+import numpy as np
 
 
 class TelescopeInterface:
@@ -293,6 +294,20 @@ class TelescopeInterface:
                         self.ui_components['telescope_status']['at_home'] = ui.label()
                         self.ui_components['telescope_status']['pier_side'] = ui.label()
                         self.ui_components['telescope_status']['guide_rate'] = ui.label()
+
+            # Alignment Matrix
+            ui.label('Alignment Matrix').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
+            with ui.card().classes('w-full mb-6'):
+                with ui.card_section():
+                    ui.label('3×3 Transformation Matrix').classes('text-lg font-semibold mb-3 text-center')
+                    with ui.row().classes('gap-4 items-start'):
+                        # Matrix display
+                        self.ui_components['telescope_status']['alignment_matrix'] = ui.grid(columns=3).classes('gap-2 justify-center')
+                        # Condition number box
+                        with ui.card().classes('min-w-48'):
+                            with ui.card_section():
+                                ui.label('Condition Numer').classes('text-md font-semibold mb-2 text-center')
+                                self.ui_components['telescope_status']['condition_number'] = ui.label().style('font-family: monospace; font-size: 1.2rem; text-align: center')
             
             # Control panel
             ui.label('Telescope Control').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
@@ -388,6 +403,24 @@ class TelescopeInterface:
                             btn.set_text('🔌 Connect')
                             btn._props['color'] = 'green'
             
+            if 'alignment_matrix' in self.ui_components['telescope_status']:
+                self.ui_components['telescope_status']['alignment_matrix'].clear()
+                with self.ui_components['telescope_status']['alignment_matrix']:
+                    for value in telescope_data.get('alignment_matrix',[0,0,0,0,0,0,0,0,0]):
+                        ui.label(f'{value:.6f}').style('font-family: monospace; text-align: center; padding: 4px')
+                
+                alignment_matrix = np.array(telescope_data.get('alignment_matrix',[0,0,0,0,0,0,0,0,0])).reshape(3,3)
+                try:
+                    cond_num = np.linalg.cond(alignment_matrix)
+                    if np.isinf(cond_num):
+                        cond_text = "∞ (Zero Matrix)"
+                    else:
+                        cond_text = f'{cond_num:.2e}'
+                except:
+                    cond_text = "Error"
+
+            self.ui_components['telescope_status']['condition_number'].set_text(cond_text)
+            
             # Update position displays
             if position_data and 'ra' in self.ui_components['position_displays']:
                 self.ui_components['position_displays']['ra'].set_text(f"RA: {position_data.get('ra_formatted', '--:--:--')}")
@@ -396,6 +429,7 @@ class TelescopeInterface:
                 self.ui_components['position_displays']['az'].set_text(f"Az: {position_data.get('azimuth', 0):.4f}°")
                 #self.ui_components['position_displays']['ra_ticks'].set_text(f"RA Ticks: {position_data.get('ra_ticks', '--')}")
                 #self.ui_components['position_displays']['dec_ticks'].set_text(f"Dec Ticks: {position_data.get('dec_ticks', '--')}")
+
             
             # Update mount status
             if telescope_data and 'tracking' in self.ui_components['telescope_status']:
