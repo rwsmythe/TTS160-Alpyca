@@ -243,13 +243,16 @@ class DataManager:
             # Get telescope connection status
             telescope_connected = self.is_telescope_connected()
             
+            client_count, client_list = self._get_connected_clients_count()
+
             status = {
                 'server_running': self._is_alpaca_server_running(),
                 'discovery_active': self._is_discovery_active(),
                 'telescope_connected': telescope_connected,
                 'config_valid': True,  # Assume valid unless we detect otherwise
                 'uptime': uptime_str,
-                'connected_clients': self._get_connected_clients_count(),
+                'connected_clients': client_count,
+                'connected_client_list': client_list,
                 'total_requests': self._get_total_requests(),
                 'memory_usage': memory_usage,
                 'last_config_change': 'Unknown',
@@ -429,9 +432,9 @@ class DataManager:
     def _get_connected_clients_count(self):
         """Get count of connected clients."""
         try:
-            return self.telescope_device._serial_manager._connection_count
+            return self.telescope_device._serial_manager._connection_count, self.telescope_device._serial_manager._client_list
         except Exception:
-            return 0
+            return 0, []
     
     def _get_total_requests(self):
         """Get total request count."""

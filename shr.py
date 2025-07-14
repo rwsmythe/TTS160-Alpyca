@@ -86,7 +86,7 @@ def set_shr_logger(lgr):
 class DeviceMetadata:
     """ Metadata describing the Alpaca Device/Server """
     Version = '0.1'
-    Description = 'Alpaca TTS160 Server '
+    Description = 'Alpaca TTS160 Server'
     Manufacturer = 'Reid Smythe'
 
 # --------------------------------

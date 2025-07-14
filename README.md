@@ -13,9 +13,10 @@ Because this is written in python, it naturally lends itself to being multiplatf
 ## Firmware Compatibility
 This driver is intended to be compatible with firmware from **356** onward.
 
-## GUI - Planned
+## GUI
 There will be a GUI developed to handle driver settings (similar to the ASCOM driver setup window).  The intent will be for this GUI to provide insight into the current state of the mount as well.  This will enable the development of further advanced features for users to leverage.
-* GUI is web based, plan will be to allow user to choose with browser tab auto-opens on startup
+* GUI is web based, browser tab auto-opens on startup
+* TODO: provide a headless mode
 
 ## Distribution Packages
 The intent is for this driver to have a distribution package similar to the one for ASCOM driver.  Ideally, this will include for deployment on Linux/Raspbian and Mac OSes as well.
@@ -24,4 +25,3 @@ The intent is for this driver to have a distribution package similar to the one 
 * Need to figure out how to make macos and linux containers to create macos and linux distributables -> This came be done in github via GithubAction
 
 ## Things to Ponder
-1. How to ensure command response if from the latest command

@@ -74,7 +74,7 @@ import webbrowser
 import threading
 import time
 import TTS160Global
-from config import Config
+#from config import Config
 from discovery import DiscoveryResponder
 from shr import set_shr_logger
 from datetime import datetime
@@ -317,10 +317,8 @@ def main():
     falc_app.add_route('/management/apiversions', management.apiversions())
     falc_app.add_route(f'/management/v{API_VERSION}/description', management.description())
     falc_app.add_route(f'/management/v{API_VERSION}/configureddevices', management.configureddevices())
-    falc_app.add_route('/static/{path:path}', setup.StaticFileHandler())
     falc_app.add_route(f'/setup/v{API_VERSION}/telescope/{{devnum}}/setup', setup.devsetup())
     falc_app.add_route('/shutdown', setup.ShutdownHandler())
-    #register_all_routes(falc_app)       #register the setup routes
 
     #
     # Install the unhandled exception processor. See above,
@@ -334,7 +332,7 @@ def main():
     with make_server(server_cfg.ip_address, server_cfg.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
         _httpd_server = httpd  # Store reference
 
-        gui_port = 8080  #Will be made configurable later
+        gui_port = server_cfg.setup_port
         logger.info(f'==STARTUP== Starting GUI server on port {gui_port}')
         try:
             _gui_thread = start_gui_thread(logger, gui_port)
@@ -344,9 +342,9 @@ def main():
             logger.info('==STARTUP== Continuing without GUI...')
             _gui_thread = None
 
-        logger.info(f'==STARTUP== Serving on {server_cfg.ip_address}:{server_cfg.port}. Time stamps are UTC.')
+        logger.info(f'==STARTUP== Serving on {server_cfg.ip_address}:{gui_port}. Time stamps are UTC.')
         
-        #O pen browser to setup page
+        # Open browser to setup page
         def open_browser():
             time.sleep(1)  # Wait for server startup
             if _gui_thread:

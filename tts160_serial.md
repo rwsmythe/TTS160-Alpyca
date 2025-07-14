@@ -409,7 +409,6 @@ ERROR:RESPONSE_TOO_LARGE\n
 - Graceful fallback to string parsing on binary errors
 
 ## Best Practices
-
 1. **Use multi-variable queries** for related data to minimize round trips
 2. **Use AUTO detection** for mixed command sequences  
 3. **Register formats once** during initialization

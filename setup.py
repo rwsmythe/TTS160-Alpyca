@@ -41,38 +41,9 @@ from shr import log_request
 import app
 import log
 import webbrowser
+import TTS160Global
 
-class StaticFileHandler:
-    """Handler for serving static files (CSS, JS, images, etc.)"""
-    
-    def on_get(self, req: Request, resp: Response, path):
-        """Serve static files with security checks"""
-        # Prevent path traversal
-        if '..' in path or path.startswith('/'):
-            resp.status = '403 Forbidden'
-            return
-
-        file_path = os.path.join('static', path)
-        if os.path.exists(file_path):
-            with open(file_path, 'rb') as f:
-                resp.data = f.read()
-            
-            # Set MIME types
-            if path.endswith('.js'):
-                resp.content_type = 'application/javascript'
-            elif path.endswith('.css'):
-                resp.content_type = 'text/css'
-            elif path.endswith('.png'):
-                resp.content_type = 'image/png'
-            elif path.endswith('.jpg') or path.endswith('.jpeg'):
-                resp.content_type = 'image/jpeg'
-            elif path.endswith('.gif'):
-                resp.content_type = 'image/gif'
-            elif path.endswith('.svg'):
-                resp.content_type = 'image/svg+xml'
-        else:
-            resp.status = '404 Not Found'
-
+server_cfg = None
 
 class ShutdownHandler:
     """Handler for graceful server shutdown"""
@@ -118,26 +89,12 @@ class ShutdownHandler:
 class devsetup:
     """Legacy device setup endpoint - redirects to web interface"""
     
+    def __init__(self):
+        self.server_cfg = TTS160Global.get_serverconfig()
+
     def on_get(self, req: Request, resp: Response, devnum: str):      
         # Open browser to setup page
         def open_browser():
-            webbrowser.open(f'http://localhost:{gui_port}')
+            webbrowser.open(f'http://localhost:{self.server_cfg.setup_port}')
 
         threading.Thread(target=open_browser, daemon=True).start()
-        
-        #"""Redirect to new web interface"""
-        #resp.content_type = 'text/html'
-        #log_request(req)
-        #resp.text = '''
-        #<!DOCTYPE html>
-        #<html>
-        #<head>
-        #    <title>Device Setup</title>
-        #    <meta http-equiv="refresh" content="0; url=/">
-        #</head>
-        #<body>
-        #    <h2>Redirecting to new web interface...</h2>
-        #    <p><a href="/">Click here if not redirected automatically</a></p>
-        #</body>
-        #</html>
-        #'''

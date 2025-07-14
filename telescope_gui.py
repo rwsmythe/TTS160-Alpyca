@@ -12,7 +12,6 @@ from telescope_commands import TelescopeCommands
 from telescope import TelescopeMetadata
 import numpy as np
 
-
 class TelescopeInterface:
     """Main telescope GUI interface using NiceGUI."""
     
@@ -144,6 +143,12 @@ class TelescopeInterface:
                             self.ui_components['system_stats']['uptime_detail'] = ui.label()
                             self.ui_components['system_stats']['connected_clients_detail'] = ui.label()
                             self.ui_components['system_stats']['memory_detail'] = ui.label()
+
+                # Connected client detail
+                with ui.card().classes('flex-1'):
+                    with ui.card_section():
+                        ui.label('Connected Clients').classes('text-lg font-semibold mb-3')
+                        self.ui_components['system_stats']['client_list'] = ui.list().props('dense separator')
             
             # Configuration form
             ui.label('Configuration Settings').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
@@ -208,11 +213,10 @@ class TelescopeInterface:
                     ui.separator()
                     
                     # Site information
-                    ui.label('Site Information').classes('text-lg font-semibold mb-3')
-                    with ui.grid(columns=2).classes('w-full gap-4'):
-                        self.ui_components['telescope_config']['site_elevation'] = ui.number('Site Elevation (meters)', step=0.1)
-                           
-                        
+                    with ui.row().classes('gap-4 items-start'):
+                        ui.label('Site Information').classes('text-lg font-semibold mb-3')
+                        with ui.grid(columns=2).classes('w-full gap-4'):
+                            self.ui_components['telescope_config']['site_elevation'] = ui.number('Site Elevation (meters)', step=0.1)
                         # Read-only coordinates (for now)
                         with ui.column():
                             ui.label('Site Latitude').classes('font-medium text-sm')
@@ -223,15 +227,15 @@ class TelescopeInterface:
                             ui.label('Site Longitude').classes('font-medium text-sm')
                             lon_display = ui.label('Loading...').classes('p-2 bg-gray-100 rounded border')
                             self.ui_components['telescope_config']['longitude_display'] = lon_display
-                    
-                    ui.separator()
+                        
+                        ui.separator()
                     
                     # Driver options  
                     ui.label('Driver Options').classes('text-lg font-semibold mb-3')
                     with ui.column().classes('gap-3'):
                         self.ui_components['telescope_config']['sync_time_on_connect'] = ui.checkbox('Sync time on connect')
                         self.ui_components['telescope_config']['pulse_guide_equatorial_frame'] = ui.checkbox('Pulse guide in equatorial frame')
-                        self.ui_components['telescope_config']['pulse_guide_altitude_compensation'] = ui.checkbox('Pulse guide altitude compensation')
+                        self.ui_components['telescope_config']['pulse_guide_altitude_compensation'] = ui.checkbox('Pulse guide altitude compensation (Alt-Az frame only)')
                                                                                              
                     with ui.grid(columns=2).classes('w-full gap-4'):
                         self.ui_components['telescope_config']['pulse_guide_max_compensation'] = ui.number('Max Compensation (ms)', value=1000, min=100, max=10000, step=10)
@@ -494,7 +498,15 @@ class TelescopeInterface:
                     system_data.get('memory_usage', 'Unknown'))
                 self.ui_components['system_stats']['uptime'].set_text(
                     system_data.get('uptime', 'Unknown'))
-            
+                client_list = system_data.get('connected_client_list', [])
+                self.ui_components['system_stats']['client_list'].clear()
+                if client_list:
+                    for client_dict in client_list:
+                        client_id = list(client_dict.keys())[0]
+                        remote_addr = client_dict[client_id]
+                        with self.ui_components['system_stats']['client_list']:
+                            ui.item(f'Client ID: {client_id} ({remote_addr})')
+
             #Update server config page details
             if 'system_stats' in self.ui_components:
                 stats = self.ui_components['system_stats']

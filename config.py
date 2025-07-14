@@ -230,6 +230,15 @@ class Config:
     def verbose_driver_exceptions(self, value: bool) -> None:
         self._put_toml(self.SERVER_SECTION, 'verbose_driver_exceptions', value)
     
+    @property
+    def setup_port(self) -> int:
+        """Network port configuration."""
+        return self._get_toml(self.SERVER_SECTION, 'setup_port')
+    
+    @setup_port.setter
+    def setup_port(self, value: int) -> None:
+        self._put_toml(self.SERVER_SECTION, 'setup_port', value)
+    
     # ---------------
     # Logging Section
     # ---------------

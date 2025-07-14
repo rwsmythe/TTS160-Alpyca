@@ -237,6 +237,7 @@ class SerialManager:
         self._logger = logger or logging.getLogger(__name__)
         self._lock = threading.RLock()
         self._serial: Optional[serial.Serial] = None
+        self._client_list = None
         self._connection_count = 0
         self._max_retries = DEFAULT_MAX_RETRIES
         self._retry_timeout = DEFAULT_RETRY_TIMEOUT
@@ -383,6 +384,73 @@ class SerialManager:
                 if self._connection_count == 0:
                     self._close_connection()
     
+    def add_client(self, client: dict) -> None:
+        """
+        Add a client to the connection tracking.
+        
+        Args:
+            client: Dictionary containing client_id as key and remote_addr as value
+            
+        Raises:
+            ValueError: If client is invalid
+        """
+        if not isinstance(client, dict) or not client:
+            raise ValueError("Client must be a non-empty dictionary")
+        
+        client_id = list(client.keys())[0]
+        remote_addr = client[client_id]
+        
+        with self._lock:
+            if self._client_list is None:
+                self._client_list = []
+            if client not in self._client_list:
+                self._client_list.append(client)
+            self._connection_count = len(self._client_list)
+            self._logger.info(f"Added client {client_id} ({remote_addr}). Total clients: {len(self._client_list)}")
+
+    def remove_client(self, client: dict) -> None:
+        """
+        Remove a client from the connection tracking.
+        
+        Args:
+            client: Dictionary containing client_id as key and remote_addr as value
+            
+        Raises:
+            ValueError: If client is invalid or not found
+        """
+        if not isinstance(client, dict) or not client:
+            raise ValueError("Client must be a non-empty dictionary")
+        
+        client_id = list(client.keys())[0]
+        remote_addr = client[client_id]
+        
+        with self._lock:
+            if self._client_list and client in self._client_list:
+                self._client_list.remove(client)
+                self._logger.info(f"Removed client {client_id} ({remote_addr}). Remaining clients: {len(self._client_list)}")
+            else:
+                raise ValueError(f"Client {client_id} not found in client list")
+            self._connection_count = len(self._client_list)
+
+    def check_client(self, client: dict) -> bool:
+        """
+        Check if a client is currently connected.
+        
+        Args:
+            client: Dictionary containing client_id as key and remote_addr as value
+            
+        Returns:
+            True if client is connected, False otherwise
+            
+        Raises:
+            ValueError: If client is invalid
+        """
+        if not isinstance(client, dict) or not client:
+            raise ValueError("Client must be a non-empty dictionary")
+        
+        with self._lock:
+            return self._client_list is not None and client in self._client_list
+
     def cleanup(self) -> None:
         """Force immediate connection cleanup regardless of reference count."""
         with self._lock:

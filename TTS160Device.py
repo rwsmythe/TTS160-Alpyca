@@ -1635,7 +1635,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             pass
 
     # Connection Management
-    def Connect(self) -> None:
+    def Connect(self, client: dict) -> None:
         """
         Connect to the TTS160 mount asynchronously.
         
@@ -1672,12 +1672,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Handle already connected (ASCOM shared connection pattern)
             if self._Connected:
                 self._serial_manager._connection_count += 1
+                self._serial_manager.add_client(client)
                 self._logger.info(f"Already connected, reference count: {self._serial_manager._connection_count}")
                 return
             
             # Handle connection in progress
             if self._Connecting:
                 self._serial_manager._connection_count += 1
+                self._serial_manager.add_client(client)
                 self._logger.info(f"Connection already in progress, reference count: {self._serial_manager._connection_count}")
                 return
 
@@ -1697,7 +1699,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             
             # Submit connection task to thread pool
             try:
-                self._executor.submit(self._perform_mount_connection)
+                self._executor.submit(self._perform_mount_connection, client)
                 self._logger.debug("Connection task submitted to thread pool")
             except RuntimeError as ex:
                 with self._lock:
@@ -1724,7 +1726,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.error(f"Unexpected connection error: {ex}")
             raise RuntimeError("Unexpected connection failure", ex)
 
-    def _perform_mount_connection(self) -> None:
+    def _perform_mount_connection(self, client: dict) -> None:
         """
         Perform synchronous mount connection in background thread.
         
@@ -1770,6 +1772,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._Connected = True
                 self._Connecting = False
             
+            self._serial_manager.add_client(client)
+
             # Start cache thread
             self.TTS160_cache.start_cache_thread()
 
@@ -1911,7 +1915,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.warning(f"Site coordinate synchronization failed: {ex}")
             raise RuntimeError("Failed to synchronize site coordinates from mount", ex)
     
-    def Disconnect(self) -> None:
+    def Disconnect(self, client: dict) -> None:
         """
         Disconnect from the TTS160 mount using ASCOM shared connection semantics.
         
@@ -1955,6 +1959,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Handle shared connection - decrement reference count
             if self._serial_manager._connection_count > 1:
                 self._serial_manager._connection_count -= 1
+                self._serial_manager.remove_client(client)
                 self._logger.info(f"Decremented connection reference count to {self._serial_manager._connection_count}")
                 return
 
@@ -1995,6 +2000,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.error(f"Serial manager disconnect failed: {ex}")
                 # Continue with cleanup despite serial disconnect failure
             
+            self._serial_manager.remove_client(client)
             ## Clear serial manager reference -> Handled in the __del__ method
             #try:
             #    self._serial_manager = None
@@ -2251,18 +2257,18 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         except Exception as ex:
             raise RuntimeError("Reading Connected property failed", ex)
         
-    @Connected.setter  
-    def Connected(self, value: bool) -> None:
+    #@Connected.setter  
+    def ConnectedSet(self, value: bool, client: dict) -> None:
         """ASCOM Connected property setter."""
         self._logger.debug(f"Set Connected {value}, deprecated connection method, simulating sync methods")
         try:
             if value:
-                self.Connect()
+                self.Connect( client )
                 #simulate synchronous execution
                 while not self._Connected:
                     time.sleep(0.1)
             else:
-                self.Disconnect()
+                self.Disconnect( client )
         except Exception as ex:
             raise RuntimeError(f"Setting Connected to: {value} failed", ex)
     

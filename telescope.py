@@ -4,7 +4,7 @@
 # -----------------------------------------------------------------------------
 # telescope.py - Alpaca API responders for Telescope
 #
-# Author:   Your R. Smythe <rwsmythe@gmail.com> (abc)
+# Author:   R. Smythe <rwsmythe@gmail.com> (rws)
 #
 # -----------------------------------------------------------------------------
 # Edit History:
@@ -64,7 +64,6 @@ class TelescopeMetadata:
     Info = 'Alpaca telescope\nImplements ITelescope\nASCOM Initiative'
     MaxDeviceNumber = maxdev
     InterfaceVersion = 4   ##YOUR DEVICE INTERFACE VERSION##        # ITelescopeV4 (ASCOM platform 7)
-
 
 def start_TTS160_dev(logger: Logger):
     try:
@@ -135,7 +134,7 @@ class TelescopeAxes(IntEnum):
 # RESOURCE CONTROLLERS
 # --------------------
 
-#TODO: action is likely no implemented correctly, must review and fix
+#TODO: action is likely not implemented correctly, must review and fix
 @before(PreProcessRequest(maxdev))
 class action:
     def on_put(self, req: Request, resp: Response, devnum: int):
@@ -173,7 +172,13 @@ class connect:
             # ------------------------
             ### CONNECT THE DEVICE ###
             # ------------------------
-            TTS160_dev.Connect()
+            remote_addr = req.remote_addr
+            if 'ClientID' in req.params:
+                client_id = int(req.params['ClientID']) 
+            else:
+                client_id = int(req.media['ClientID'])
+            client = {client_id: remote_addr}
+            TTS160_dev.Connect( client )
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
@@ -183,8 +188,14 @@ class connect:
 class connected:
     def on_get(self, req: Request, resp: Response, devnum: int):
         try:
+            remote_addr = req.remote_addr
+            if 'ClientID' in req.params:
+                client_id = int(req.params['ClientID']) 
+            else:
+                client_id = int(req.media['ClientID'])
+            client = {client_id: remote_addr}
             # -------------------------------------
-            is_conn = TTS160_dev.Connected  ### READ CONN STATE ###
+            is_conn = (TTS160_dev.Connected and TTS160_dev._serial_manager.check_client(client)) ### READ HARDWARE CONN STATE ###
             # -------------------------------------
             resp.text = PropertyResponse(is_conn, req).json
         except Exception as ex:
@@ -198,8 +209,13 @@ class connected:
             # --------------------------------------
             ### CONNECT OR DISCONNECT THE DEVICE ###
             # --------------------------------------
-           
-            TTS160_dev.Connected = conn
+            remote_addr = req.remote_addr
+            if 'ClientID' in req.params:
+                client_id = int(req.params['ClientID']) 
+            else:
+                client_id = int(req.media['ClientID'])
+            client = {client_id: remote_addr}
+            TTS160_dev.ConnectedSet( conn, client ) 
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req, # Put is actually like a method :-(
@@ -265,7 +281,7 @@ class disconnect:
             # ---------------------------
             ### DISCONNECT THE DEVICE ###
             # ---------------------------
-            TTS160_dev.Disconnect()
+            TTS160_dev.Disconnect( int(req.params['ClientID']) )
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,
