@@ -14,20 +14,27 @@ import numpy as np
 
 class TelescopeInterface:
     """Main telescope GUI interface using NiceGUI."""
-    
-    def __init__(self, logger, port=8080):
+
+    def __init__(self, logger, port: int = 8080, bind_address: str = '0.0.0.0',
+                 theme: str = 'dark', refresh_interval: float = 1.0):
         """
         Initialize the telescope interface.
-        
+
         Args:
             logger: Shared logger instance
             port: Port number for GUI server (default: 8080)
+            bind_address: Address to bind GUI server (default: '0.0.0.0')
+            theme: Color theme - 'dark' or 'light' (default: 'dark')
+            refresh_interval: Status update interval in seconds (default: 1.0)
         """
         self.logger = logger
         self.port = port
+        self.bind_address = bind_address
+        self.theme = theme
+        self.refresh_interval = refresh_interval
         self.data_manager = DataManager(logger)
         self.commands = TelescopeCommands(logger, self.data_manager, self.force_status_update)
-        
+
         # UI component storage for updates
         self.ui_components = {
             'health_cards': {},
@@ -36,18 +43,24 @@ class TelescopeInterface:
             'connection_status': {},
             'system_stats': {}
         }
-        
+
     def start_gui_server(self):
         """Start the NiceGUI server in current thread."""
         self.create_interface()
-        
+
         # Start NiceGUI server (browser opening handled by app.py)
-        ui.run(port=self.port, show=False, reload=False)
+        ui.run(port=self.port, host=self.bind_address, show=False, reload=False)
         
     def create_interface(self):
         """Create the main interface layout."""
         # Configure page
         ui.page_title('Alpaca Telescope Driver')
+
+        # Apply theme
+        if self.theme == 'dark':
+            ui.dark_mode(True)
+        else:
+            ui.dark_mode(False)
         
         # Header
         with ui.header(elevated=True).style('background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)'):
@@ -378,10 +391,10 @@ class TelescopeInterface:
     def start_update_timers(self):
         """Start the data update timers."""
         # High frequency updates (telescope position/status)
-        ui.timer(0.5, self.update_telescope_data)
-        
-        # Low frequency updates (system stats)  
-        ui.timer(10.0, self.update_system_data)
+        ui.timer(self.refresh_interval, self.update_telescope_data)
+
+        # Low frequency updates (system stats) - 10x slower than position updates
+        ui.timer(self.refresh_interval * 10, self.update_system_data)
     
     def update_telescope_data(self):
         """Update high-frequency telescope data."""
@@ -407,12 +420,13 @@ class TelescopeInterface:
                             btn.set_text('🔌 Connect')
                             btn._props['color'] = 'green'
             
+            cond_text = "N/A"
             if 'alignment_matrix' in self.ui_components['telescope_status']:
                 self.ui_components['telescope_status']['alignment_matrix'].clear()
                 with self.ui_components['telescope_status']['alignment_matrix']:
                     for value in telescope_data.get('alignment_matrix',[0,0,0,0,0,0,0,0,0]):
                         ui.label(f'{value:.6f}').style('font-family: monospace; text-align: center; padding: 4px')
-                
+
                 alignment_matrix = np.array(telescope_data.get('alignment_matrix',[0,0,0,0,0,0,0,0,0])).reshape(3,3)
                 try:
                     cond_num = np.linalg.cond(alignment_matrix)
@@ -420,7 +434,7 @@ class TelescopeInterface:
                         cond_text = "∞ (Zero Matrix)"
                     else:
                         cond_text = f'{cond_num:.2e}'
-                except:
+                except (np.linalg.LinAlgError, ValueError):
                     cond_text = "Error"
 
             self.ui_components['telescope_status']['condition_number'].set_text(cond_text)

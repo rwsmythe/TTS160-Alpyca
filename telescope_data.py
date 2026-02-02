@@ -423,12 +423,12 @@ class DataManager:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(1.0)
             result = sock.connect_ex((host, port))
-            sock.close
+            sock.close()
 
             return result == 0
         except Exception:
             return False
-    
+
     def _get_connected_clients_count(self):
         """Get count of connected clients."""
         try:
@@ -564,12 +564,12 @@ class DataManager:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(1.0)
             result = sock.connect_ex((host, port))
-            sock.close
+            sock.close()
 
             return result == 0
         except Exception:
             return False
-    
+
     def set_alpaca_server_stopping(self):
         """Mark ALPACA server as stopping."""
         self._alpaca_server_running = False

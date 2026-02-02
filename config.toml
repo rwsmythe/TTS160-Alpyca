@@ -8,7 +8,14 @@ threads = 4                 # Number of WSGI worker threads
 [server]
 location = 'Hawaii!'  # Anything you want here
 verbose_driver_exceptions = true
-setup_port = 8080   #port for NiceGUI to serve the setup page
+
+[gui]
+enabled = true              # false = headless mode (API only)
+auto_open_browser = true    # Open browser on startup
+port = 8080                 # GUI web server port
+bind_address = "0.0.0.0"    # "" = localhost only, "0.0.0.0" = all interfaces
+theme = "dark"              # "dark" or "light"
+refresh_interval = 1.0      # Status update interval in seconds
 
 [logging]
 log_level = 'DEBUG'

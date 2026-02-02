@@ -185,6 +185,7 @@ class Config:
     NETWORK_SECTION = 'network'
     SERVER_SECTION = 'server'
     LOGGING_SECTION = 'logging'
+    GUI_SECTION = 'gui'
     
     # ---------------
     # Network Section
@@ -242,13 +243,82 @@ class Config:
     
     @property
     def setup_port(self) -> int:
-        """Network port configuration."""
-        return self._get_toml(self.SERVER_SECTION, 'setup_port')
-    
+        """Legacy GUI port configuration. Use gui_port instead."""
+        # Backward compatibility: check old location first, then new
+        old_value = self._get_toml(self.SERVER_SECTION, 'setup_port')
+        if old_value:
+            return old_value
+        return self.gui_port
+
     @setup_port.setter
     def setup_port(self, value: int) -> None:
-        self._put_toml(self.SERVER_SECTION, 'setup_port', value)
-    
+        """Legacy setter. Use gui_port instead."""
+        self.gui_port = value
+
+    # -----------
+    # GUI Section
+    # -----------
+
+    @property
+    def gui_enabled(self) -> bool:
+        """Whether GUI is enabled (False = headless mode)."""
+        value = self._get_toml(self.GUI_SECTION, 'enabled')
+        return value if value != '' else True  # Default to enabled
+
+    @gui_enabled.setter
+    def gui_enabled(self, value: bool) -> None:
+        self._put_toml(self.GUI_SECTION, 'enabled', value)
+
+    @property
+    def gui_auto_open_browser(self) -> bool:
+        """Whether to auto-open browser on startup."""
+        value = self._get_toml(self.GUI_SECTION, 'auto_open_browser')
+        return value if value != '' else True  # Default to True
+
+    @gui_auto_open_browser.setter
+    def gui_auto_open_browser(self, value: bool) -> None:
+        self._put_toml(self.GUI_SECTION, 'auto_open_browser', value)
+
+    @property
+    def gui_port(self) -> int:
+        """GUI web server port."""
+        value = self._get_toml(self.GUI_SECTION, 'port')
+        return value if value else 8080  # Default to 8080
+
+    @gui_port.setter
+    def gui_port(self, value: int) -> None:
+        self._put_toml(self.GUI_SECTION, 'port', value)
+
+    @property
+    def gui_bind_address(self) -> str:
+        """GUI bind address ('' for localhost, '0.0.0.0' for all interfaces)."""
+        value = self._get_toml(self.GUI_SECTION, 'bind_address')
+        return value if value != '' else '0.0.0.0'  # Default to all interfaces
+
+    @gui_bind_address.setter
+    def gui_bind_address(self, value: str) -> None:
+        self._put_toml(self.GUI_SECTION, 'bind_address', value)
+
+    @property
+    def gui_theme(self) -> str:
+        """GUI color theme ('dark' or 'light')."""
+        value = self._get_toml(self.GUI_SECTION, 'theme')
+        return value if value else 'dark'  # Default to dark
+
+    @gui_theme.setter
+    def gui_theme(self, value: str) -> None:
+        self._put_toml(self.GUI_SECTION, 'theme', value)
+
+    @property
+    def gui_refresh_interval(self) -> float:
+        """GUI status update interval in seconds."""
+        value = self._get_toml(self.GUI_SECTION, 'refresh_interval')
+        return float(value) if value else 1.0  # Default to 1 second
+
+    @gui_refresh_interval.setter
+    def gui_refresh_interval(self, value: float) -> None:
+        self._put_toml(self.GUI_SECTION, 'refresh_interval', value)
+
     # ---------------
     # Logging Section
     # ---------------

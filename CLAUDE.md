@@ -81,12 +81,30 @@ GitHub Actions builds for Windows, Linux, macOS, and Raspberry Pi automatically 
 
 ## Configuration
 
-**Server Config (`config.toml`):**
+### Server Config (`config.toml`)
 
-- Network: IP address, API port (5555), GUI port (8080)
-- Logging: level, rotation, stdout output
+```toml
+[network]
+ip_address = ''             # Any address ('' = 0.0.0.0)
+port = 5555                 # Alpaca API port
+threads = 4                 # WSGI worker threads
 
-**Telescope Config (`TTS160config.toml`):**
+[gui]
+enabled = true              # false = headless mode (API only)
+auto_open_browser = true    # Open browser on startup
+port = 8080                 # GUI web server port
+bind_address = "0.0.0.0"    # "" = localhost only, "0.0.0.0" = all interfaces
+theme = "dark"              # "dark" or "light"
+refresh_interval = 1.0      # Status update interval in seconds
+
+[logging]
+log_level = 'DEBUG'
+log_to_stdout = false
+max_size_mb = 5
+num_keep_logs = 10
+```
+
+### Telescope Config (`TTS160config.toml`)
 
 - Device: serial port (e.g., "COM5" or "/dev/ttyUSB0")
 - Site: latitude, longitude, elevation
@@ -94,8 +112,61 @@ GitHub Actions builds for Windows, Linux, macOS, and Raspberry Pi automatically 
 
 ## Running
 
+### Operating Modes
+
+The driver supports three operating modes:
+
+#### Full GUI Mode (Default)
+
 ```bash
 python app.py
+```
+
+- Starts Alpaca API server on port 5555
+- Starts NiceGUI web server on port 8080
+- Opens browser automatically to GUI
+
+#### Headless Mode
+
+```bash
+python app.py --headless
+# or
+python app.py --no-gui
+```
+
+- Starts Alpaca API server only
+- No GUI dependencies loaded
+- Ideal for remote observatories, Raspberry Pi, Docker
+
+#### GUI-Available Mode
+
+```bash
+python app.py --gui-available
+```
+
+- Starts both servers but doesn't open browser
+- Good for service/daemon deployments
+
+### Command Line Arguments
+
+| Argument                 | Description                                  |
+| ------------------------ | -------------------------------------------- |
+| `--headless`, `--no-gui` | Run without GUI (API only)                   |
+| `--gui-available`        | Start GUI but don't open browser             |
+| `--port`, `-p`           | Alpaca API port (default: 5555)              |
+| `--gui-port`             | GUI web server port (default: 8080)          |
+| `--bind`, `-b`           | Bind address (default: 0.0.0.0)              |
+| `--log-level`            | Logging level (DEBUG, INFO, WARNING, ERROR)  |
+| `--config`               | Path to config.toml file                     |
+
+### Examples
+
+```bash
+python app.py                        # Normal desktop use with GUI
+python app.py --headless             # Remote observatory / Raspberry Pi
+python app.py --gui-available        # Service mode
+python app.py --port 5556            # Custom API port
+python app.py --gui-port 8081        # Custom GUI port
 ```
 
 Access GUI at `http://localhost:8080`, Alpaca API at `http://localhost:5555`
@@ -228,6 +299,45 @@ Repeat steps 1-4 on the corrected code:
 
 ## Testing
 
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Run unit tests only
+python -m pytest tests/unit/ -v
+
+# Run integration tests
+python -m pytest tests/integration/ -v
+
+# Run specific test file
+python -m pytest tests/unit/test_config.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=. --cov-report=html
+```
+
+### Test Structure
+
+```text
+tests/
+├── conftest.py              # Shared fixtures
+├── unit/                    # Unit tests (no hardware)
+│   ├── test_config.py       # Configuration tests (including GUI config)
+│   ├── test_cache.py        # Cache mechanism tests
+│   ├── test_serial_parsing.py
+│   ├── test_telescope_cache.py
+│   └── test_priority_queue.py
+├── integration/             # Integration tests
+│   ├── test_api_endpoints.py
+│   ├── test_device.py
+│   └── test_cache_integration.py
+└── benchmarks/              # Performance benchmarks
+    ├── benchmark_api.py
+    └── benchmark_concurrent.py
+```
+
 ### Manual Testing
 
 - Use ConformU (ASCOM validation tool) to validate Alpaca compliance
@@ -238,15 +348,9 @@ Repeat steps 1-4 on the corrected code:
 
 ```bash
 python -c "import app"
+python -c "from telescope_gui import TelescopeInterface"
+python -c "from config import Config"
 ```
-
-### No Formal Test Suite
-
-Currently, no automated test suite exists. Consider adding:
-
-- Unit tests for coordinate transformations
-- Mock-based tests for serial communication
-- Integration tests for Alpaca endpoints
 
 ---
 

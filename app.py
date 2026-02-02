@@ -59,6 +59,7 @@
 import sys
 import traceback
 import inspect
+import argparse
 from enum import IntEnum
 
 from waitress import serve as waitress_serve
@@ -75,12 +76,11 @@ import webbrowser
 import threading
 import time
 import TTS160Global
-#from config import Config
 from discovery import DiscoveryResponder
 from shr import set_shr_logger
 from datetime import datetime
 
-from telescope_gui import start_gui_thread
+# Note: telescope_gui is imported lazily to support headless mode
 
 ##############################
 # FOR EACH ASCOM DEVICE TYPE #
@@ -101,6 +101,123 @@ API_VERSION = 1
 
 # Note: LoggingWSGIRequestHandler removed in favor of waitress production server
 # Waitress provides its own logging and multi-threaded request handling
+
+
+def parse_arguments():
+    """Parse command line arguments for operating mode and configuration.
+
+    Returns:
+        argparse.Namespace: Parsed command line arguments
+    """
+    parser = argparse.ArgumentParser(
+        description='TTS160 Alpaca Driver - ASCOM Alpaca telescope driver for TTS-160 mount',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Operating Modes:
+  Default         Start with GUI, open browser automatically
+  --headless      API only, no GUI (for remote/automated use)
+  --gui-available Start GUI server but don't open browser
+
+Examples:
+  python app.py                    # Normal desktop use with GUI
+  python app.py --headless         # Remote observatory / Raspberry Pi
+  python app.py --gui-available    # Service mode, GUI accessible but no browser
+  python app.py --port 5556        # Custom API port
+  python app.py --gui-port 8081    # Custom GUI port
+'''
+    )
+
+    # Operating mode
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        '--headless', '--no-gui',
+        action='store_true',
+        dest='headless',
+        help='Run without GUI (API server only)'
+    )
+    mode_group.add_argument(
+        '--gui-available',
+        action='store_true',
+        dest='gui_available',
+        help='Start GUI server but do not open browser'
+    )
+
+    # Port configuration
+    parser.add_argument(
+        '--port', '-p',
+        type=int,
+        default=None,
+        help='Alpaca API port (default: from config, typically 5555)'
+    )
+    parser.add_argument(
+        '--gui-port',
+        type=int,
+        default=None,
+        dest='gui_port',
+        help='GUI web server port (default: from config, typically 8080)'
+    )
+
+    # Network binding
+    parser.add_argument(
+        '--bind', '-b',
+        type=str,
+        default=None,
+        help='Bind address (default: 0.0.0.0 for all interfaces)'
+    )
+
+    # Logging
+    parser.add_argument(
+        '--log-level',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+        default=None,
+        dest='log_level',
+        help='Override logging level'
+    )
+
+    # Config file
+    parser.add_argument(
+        '--config',
+        type=str,
+        default=None,
+        help='Path to config.toml file (default: ./config.toml)'
+    )
+
+    return parser.parse_args()
+
+
+def start_gui_thread_lazy(logger, port: int, bind: str = '0.0.0.0',
+                          theme: str = 'dark', refresh_interval: float = 1.0):
+    """Start GUI in separate thread with lazy import.
+
+    This function imports telescope_gui only when called, allowing
+    headless mode to avoid loading NiceGUI dependencies entirely.
+
+    Args:
+        logger: Logger instance
+        port: GUI server port
+        bind: Bind address for GUI server
+        theme: Color theme - 'dark' or 'light'
+        refresh_interval: Status update interval in seconds
+
+    Returns:
+        threading.Thread: The GUI thread (already started)
+    """
+    def run_gui():
+        try:
+            # Import GUI modules only when needed
+            from telescope_gui import TelescopeInterface
+            interface = TelescopeInterface(
+                logger, port, bind_address=bind,
+                theme=theme, refresh_interval=refresh_interval
+            )
+            interface.start_gui_server()
+        except Exception as e:
+            logger.error(f"GUI server error: {e}")
+
+    gui_thread = threading.Thread(target=run_gui, daemon=True)
+    gui_thread.start()
+    return gui_thread
+
 
 #-----------------------
 # Magic routing function
@@ -213,99 +330,109 @@ def get_uptime():
 # APP STARTUP
 # ===========
 def main():
-    """ Global variables """
-    
+    """Application entry point with command line argument support.
+
+    Supports three operating modes:
+    - Full GUI mode (default): Starts API server + GUI server, opens browser
+    - Headless mode (--headless): API server only, no GUI dependencies loaded
+    - GUI-available mode (--gui-available): Both servers, but no browser auto-open
+    """
     global _DSC
     global _httpd_server
     global _gui_thread
     global server_cfg
 
-    """ Application startup"""
+    # Parse command line arguments
+    args = parse_arguments()
 
+    # Load configuration
     server_cfg = TTS160Global.get_serverconfig()
+
+    # Override config with command line arguments
+    if args.port is not None:
+        server_cfg.port = args.port
+    if args.gui_port is not None:
+        server_cfg.gui_port = args.gui_port
+    if args.bind is not None:
+        server_cfg.ip_address = args.bind
+
+    # Initialize logging
     logger = log.init_logging()
-    # Share this logger throughout
     log.logger = logger
     exceptions.logger = logger
-    telescope.start_TTS160_dev(logger) #return telescope object for use
     discovery.logger = logger
     set_shr_logger(logger)
 
-    #########################
-    # FOR EACH ASCOM DEVICE #
-    #########################
+    # Initialize telescope device
+    telescope.start_TTS160_dev(logger)
     telescope.logger = logger
 
-    # -----------------------------
     # Last-Chance Exception Handler
-    # -----------------------------
     sys.excepthook = custom_excepthook
 
-    # ---------
-    # DISCOVERY
-    # ---------
+    # Alpaca Discovery Responder
     _DSC = DiscoveryResponder(server_cfg.ip_address, server_cfg.port)
 
-    # ----------------------------------
-    # MAIN HTTP/REST API ENGINE (FALCON)
-    # ----------------------------------
-    # falcon.App instances are callable WSGI apps
+    # Initialize Falcon WSGI application
     falc_app = App()
-    #
-    # Initialize routes for each endpoint the magic way
-    #
-    #########################
-    # FOR EACH ASCOM DEVICE #
-    #########################
     init_routes(falc_app, 'telescope', telescope)
-    #
-    # Initialize routes for Alpaca support endpoints
+
+    # Alpaca management endpoints
     falc_app.add_route('/management/apiversions', management.apiversions())
     falc_app.add_route(f'/management/v{API_VERSION}/description', management.description())
     falc_app.add_route(f'/management/v{API_VERSION}/configureddevices', management.configureddevices())
     falc_app.add_route(f'/setup/v{API_VERSION}/telescope/{{devnum}}/setup', setup.devsetup())
     falc_app.add_route('/shutdown', setup.ShutdownHandler())
 
-    #
-    # Install the unhandled exception processor. See above,
-    #
+    # Install unhandled exception processor
     falc_app.add_error_handler(Exception, falcon_uncaught_exception_handler)
 
-    # ------------------
-    # SERVER APPLICATION
-    # ------------------
-    # Using waitress production WSGI server with multi-threading support
-    gui_port = server_cfg.setup_port
-    logger.info(f'==STARTUP== Starting GUI server on port {gui_port}')
-    try:
-        _gui_thread = start_gui_thread(logger, gui_port)
-        logger.info(f'==STARTUP== GUI server thread started successfully')
-    except Exception as e:
-        logger.error(f'==STARTUP== Failed to start GUI server: {e}')
-        logger.info('==STARTUP== Continuing without GUI...')
-        _gui_thread = None
+    # Determine operating mode
+    # Priority: command line args > config file settings
+    gui_enabled = not args.headless and server_cfg.gui_enabled
+    auto_open_browser = (
+        gui_enabled
+        and not args.gui_available
+        and server_cfg.gui_auto_open_browser
+    )
 
-    # Determine host binding
+    # Get port configuration
+    gui_port = server_cfg.gui_port
     host = server_cfg.ip_address if server_cfg.ip_address else '0.0.0.0'
     port = server_cfg.port
     threads = server_cfg.threads
 
+    # Start GUI server if enabled
+    _gui_thread = None
+    if gui_enabled:
+        logger.info(f'==STARTUP== Starting GUI server on port {gui_port}')
+        try:
+            _gui_thread = start_gui_thread_lazy(
+                logger, gui_port, server_cfg.gui_bind_address,
+                theme=server_cfg.gui_theme,
+                refresh_interval=server_cfg.gui_refresh_interval
+            )
+            logger.info('==STARTUP== GUI server thread started successfully')
+        except Exception as e:
+            logger.error(f'==STARTUP== Failed to start GUI server: {e}')
+            logger.info('==STARTUP== Continuing without GUI...')
+    else:
+        logger.info('==STARTUP== Running in headless mode (no GUI)')
+
+    # Log startup information
     logger.info(f'==STARTUP== Starting Alpaca API server on {host}:{port} with {threads} worker threads')
-    logger.info(f'==STARTUP== GUI available at http://localhost:{gui_port}. Time stamps are UTC.')
+    if gui_enabled:
+        logger.info(f'==STARTUP== GUI available at http://localhost:{gui_port}')
+    logger.info('==STARTUP== Time stamps are UTC')
 
-    # Open browser to setup page
-    def open_browser():
-        time.sleep(1)  # Wait for server startup
-        if _gui_thread:
+    # Open browser if configured
+    if auto_open_browser and _gui_thread:
+        def open_browser():
+            time.sleep(1.5)  # Wait for servers to start
             webbrowser.open(f'http://localhost:{gui_port}')
-        else:
-            # Fallback to original setup page
-            webbrowser.open(f'http://localhost:{port}/')
+        threading.Thread(target=open_browser, daemon=True).start()
 
-    threading.Thread(target=open_browser, daemon=True).start()
-
-    # Serve using waitress with configurable thread pool
-    # waitress handles concurrent requests properly unlike wsgiref
+    # Start Alpaca API server (blocking)
     waitress_serve(falc_app, host=host, port=port, threads=threads)
 
 # ========================

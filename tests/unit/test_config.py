@@ -407,6 +407,193 @@ num_keep_logs = 10
             assert 'config_file' in repr_str
 
 
+class TestConfigGUISection:
+    """Test GUI configuration properties."""
+
+    @pytest.fixture
+    def loaded_config(self, tmp_path):
+        """Create a loaded config instance with GUI section for testing."""
+        config_content = """
+[network]
+ip_address = ''
+port = 5555
+threads = 4
+
+[server]
+location = 'Test'
+verbose_driver_exceptions = true
+
+[gui]
+enabled = true
+auto_open_browser = false
+port = 9000
+bind_address = "127.0.0.1"
+theme = "light"
+refresh_interval = 2.5
+
+[logging]
+log_level = 'DEBUG'
+log_to_stdout = false
+max_size_mb = 5
+num_keep_logs = 10
+"""
+        config_file = tmp_path / 'config.toml'
+        config_file.write_text(config_content)
+
+        with patch.object(Config, 'get_config_dir', return_value=tmp_path):
+            return Config()
+
+    @pytest.mark.unit
+    def test_gui_enabled_property(self, loaded_config):
+        """gui_enabled property should return configured value."""
+        assert loaded_config.gui_enabled is True
+
+    @pytest.mark.unit
+    def test_gui_auto_open_browser_property(self, loaded_config):
+        """gui_auto_open_browser property should return configured value."""
+        assert loaded_config.gui_auto_open_browser is False
+
+    @pytest.mark.unit
+    def test_gui_port_property(self, loaded_config):
+        """gui_port property should return configured value."""
+        assert loaded_config.gui_port == 9000
+
+    @pytest.mark.unit
+    def test_gui_bind_address_property(self, loaded_config):
+        """gui_bind_address property should return configured value."""
+        assert loaded_config.gui_bind_address == "127.0.0.1"
+
+    @pytest.mark.unit
+    def test_gui_theme_property(self, loaded_config):
+        """gui_theme property should return configured value."""
+        assert loaded_config.gui_theme == "light"
+
+    @pytest.mark.unit
+    def test_gui_refresh_interval_property(self, loaded_config):
+        """gui_refresh_interval property should return configured value."""
+        assert loaded_config.gui_refresh_interval == 2.5
+
+
+class TestConfigGUIDefaults:
+    """Test GUI configuration default values."""
+
+    @pytest.fixture
+    def config_without_gui(self, tmp_path):
+        """Create a loaded config without GUI section for testing defaults."""
+        config_content = """
+[network]
+ip_address = ''
+port = 5555
+threads = 4
+
+[server]
+location = 'Test'
+verbose_driver_exceptions = true
+
+[logging]
+log_level = 'DEBUG'
+log_to_stdout = false
+max_size_mb = 5
+num_keep_logs = 10
+"""
+        config_file = tmp_path / 'config.toml'
+        config_file.write_text(config_content)
+
+        with patch.object(Config, 'get_config_dir', return_value=tmp_path):
+            return Config()
+
+    @pytest.mark.unit
+    def test_gui_enabled_default(self, config_without_gui):
+        """gui_enabled should default to True."""
+        assert config_without_gui.gui_enabled is True
+
+    @pytest.mark.unit
+    def test_gui_auto_open_browser_default(self, config_without_gui):
+        """gui_auto_open_browser should default to True."""
+        assert config_without_gui.gui_auto_open_browser is True
+
+    @pytest.mark.unit
+    def test_gui_port_default(self, config_without_gui):
+        """gui_port should default to 8080."""
+        assert config_without_gui.gui_port == 8080
+
+    @pytest.mark.unit
+    def test_gui_bind_address_default(self, config_without_gui):
+        """gui_bind_address should default to '0.0.0.0'."""
+        assert config_without_gui.gui_bind_address == '0.0.0.0'
+
+    @pytest.mark.unit
+    def test_gui_theme_default(self, config_without_gui):
+        """gui_theme should default to 'dark'."""
+        assert config_without_gui.gui_theme == 'dark'
+
+    @pytest.mark.unit
+    def test_gui_refresh_interval_default(self, config_without_gui):
+        """gui_refresh_interval should default to 1.0."""
+        assert config_without_gui.gui_refresh_interval == 1.0
+
+
+class TestConfigGUISetters:
+    """Test GUI configuration property setters."""
+
+    @pytest.fixture
+    def loaded_config(self, tmp_path):
+        """Create a loaded config instance for testing setters."""
+        config_content = """
+[network]
+ip_address = ''
+port = 5555
+threads = 4
+
+[server]
+location = 'Test'
+verbose_driver_exceptions = true
+
+[gui]
+enabled = true
+auto_open_browser = true
+port = 8080
+bind_address = "0.0.0.0"
+theme = "dark"
+refresh_interval = 1.0
+
+[logging]
+log_level = 'DEBUG'
+log_to_stdout = false
+max_size_mb = 5
+num_keep_logs = 10
+"""
+        config_file = tmp_path / 'config.toml'
+        config_file.write_text(config_content)
+
+        with patch.object(Config, 'get_config_dir', return_value=tmp_path):
+            return Config()
+
+    @pytest.mark.unit
+    def test_set_gui_enabled(self, loaded_config):
+        """Setting gui_enabled should update the value."""
+        loaded_config.gui_enabled = False
+        assert loaded_config.gui_enabled is False
+
+    @pytest.mark.unit
+    def test_set_gui_port(self, loaded_config):
+        """Setting gui_port should update the value."""
+        loaded_config.gui_port = 9999
+        assert loaded_config.gui_port == 9999
+
+    @pytest.mark.unit
+    def test_set_gui_theme(self, loaded_config):
+        """Setting gui_theme should update the value."""
+        loaded_config.gui_theme = 'light'
+        assert loaded_config.gui_theme == 'light'
+
+    @pytest.mark.unit
+    def test_set_gui_refresh_interval(self, loaded_config):
+        """Setting gui_refresh_interval should update the value."""
+        loaded_config.gui_refresh_interval = 0.5
+        assert loaded_config.gui_refresh_interval == 0.5
+
+
 class TestConfigConstants:
     """Test configuration class constants."""
 
@@ -421,3 +608,4 @@ class TestConfigConstants:
         assert Config.NETWORK_SECTION == 'network'
         assert Config.SERVER_SECTION == 'server'
         assert Config.LOGGING_SECTION == 'logging'
+        assert Config.GUI_SECTION == 'gui'
