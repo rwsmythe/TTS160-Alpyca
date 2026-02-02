@@ -12,6 +12,8 @@
 #
 # 05Apr2025   rws Initial edit
 
+import time
+
 from falcon import Request, Response, HTTPBadRequest, before
 from logging import Logger
 from shr import PropertyResponse, MethodResponse, PreProcessRequest, \
@@ -77,6 +79,65 @@ def start_TTS160_dev(logger: Logger):
     except Exception as ex:
         logger.error(f"Failed to initialize TTS160 device: {ex}")
         raise
+
+# -----------------------
+# CACHE HELPER FUNCTIONS
+# -----------------------
+# Per-property staleness thresholds (seconds)
+# Lower values = more frequent device reads, higher accuracy
+# Higher values = better performance, slightly stale data
+PROPERTY_STALENESS = {
+    'RightAscension': 0.5,   # High-frequency during slews
+    'Declination': 0.5,      # High-frequency during slews
+    'Altitude': 0.5,         # High-frequency during slews
+    'Azimuth': 0.5,          # High-frequency during slews
+    'Slewing': 0.3,          # Critical for slew completion detection
+    'IsPulseGuiding': 0.3,   # Critical for guiding status
+    'Tracking': 1.0,         # Changes infrequently
+    'SideOfPier': 1.0,       # Changes only at meridian flip
+    'SiderealTime': 1.0,     # Changes slowly
+    'AtPark': 2.0,           # Changes only on park/unpark
+    'AtHome': 2.0,           # Changes only on home operations
+}
+
+def get_cached_or_fresh(property_name: str, fresh_getter, staleness_threshold: float = None):
+    """Get property value from cache if fresh, otherwise fetch from device.
+
+    This function reduces serial I/O by returning cached values when they
+    are sufficiently recent. If the cache is stale or unavailable, it
+    fetches fresh data from the device and updates the cache.
+
+    Args:
+        property_name: Name of the telescope property (e.g., 'RightAscension')
+        fresh_getter: Callable that returns the fresh value from the device
+        staleness_threshold: Max age in seconds before considered stale.
+                           If None, uses PROPERTY_STALENESS or default of 5.0
+
+    Returns:
+        The property value (from cache if fresh, otherwise from device)
+    """
+    # Use property-specific staleness if not explicitly provided
+    if staleness_threshold is None:
+        staleness_threshold = PROPERTY_STALENESS.get(property_name, 5.0)
+
+    # Try cache first if available
+    if TTS160_cache is not None:
+        entry = TTS160_cache.get_property(property_name)
+        if entry and entry.get('error') is None:
+            age = time.time() - entry['timestamp']
+            if age < staleness_threshold:
+                logger.debug(f"Cache hit for {property_name} (age={age:.3f}s)")
+                return entry['value']
+
+    # Cache miss or stale - fetch from device
+    logger.debug(f"Cache miss for {property_name}, fetching from device")
+    value = fresh_getter()
+
+    # Update cache with fresh value
+    if TTS160_cache is not None:
+        TTS160_cache.update_property(property_name, value)
+
+    return value
 
 # ------------
 # DATA CLASSES
@@ -369,10 +430,11 @@ class altitude:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            val = TTS160_dev.Altitude       ## GET PROPERTY ##
+            # Use cache for high-frequency property
+            val = get_cached_or_fresh('Altitude', lambda: TTS160_dev.Altitude)
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -423,12 +485,12 @@ class athome:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for park/home status
+            val = get_cached_or_fresh('AtHome', lambda: TTS160_dev.AtHome)
             # ----------------------
-            val = TTS160_dev.AtHome 
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -442,12 +504,12 @@ class atpark:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for park/home status
+            val = get_cached_or_fresh('AtPark', lambda: TTS160_dev.AtPark)
             # ----------------------
-            val = TTS160_dev.AtPark
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -493,10 +555,11 @@ class azimuth:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            val = TTS160_dev.Azimuth    ## GET PROPERTY ##
+            # Use cache for high-frequency property
+            val = get_cached_or_fresh('Azimuth', lambda: TTS160_dev.Azimuth)
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
@@ -846,12 +909,12 @@ class declination:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for high-frequency property
+            val = get_cached_or_fresh('Declination', lambda: TTS160_dev.Declination)
             # ----------------------
-            val = TTS160_dev.Declination
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1153,12 +1216,12 @@ class ispulseguiding:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for guiding status (low staleness for accuracy)
+            val = get_cached_or_fresh('IsPulseGuiding', lambda: TTS160_dev.IsPulseGuiding)
             # ----------------------
-            val = TTS160_dev.IsPulseGuiding
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1298,12 +1361,12 @@ class rightascension:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for high-frequency property
+            val = get_cached_or_fresh('RightAscension', lambda: TTS160_dev.RightAscension)
             # ----------------------
-            val = TTS160_dev.RightAscension
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1384,12 +1447,12 @@ class sideofpier:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for pier side status
+            val = get_cached_or_fresh('SideOfPier', lambda: TTS160_dev.SideOfPier)
             # ----------------------
-            val = TTS160_dev.SideOfPier
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1431,12 +1494,12 @@ class siderealtime:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for sidereal time
+            val = get_cached_or_fresh('SiderealTime', lambda: TTS160_dev.SiderealTime)
             # ----------------------
-            val = TTS160_dev.SiderealTime
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1580,12 +1643,12 @@ class slewing:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            ## GET PROPERTY ##
+            # Use cache for slewing status (low staleness for accuracy)
+            val = get_cached_or_fresh('Slewing', lambda: TTS160_dev.Slewing)
             # ----------------------
-            val = TTS160_dev.Slewing
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:
             resp.text = PropertyResponse(None, req,
@@ -1664,16 +1727,10 @@ class slewtoaltaz:
                             InvalidValueException(f'Altitude {altitudestr} not a valid number.')).json
             return
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
-        try:
-            # -----------------------------
-            ### DEVICE OPERATION(PARAM) ###
-            # -----------------------------
-            #TTS160_dev.SlewToAltAz(azimuth, altitude)
-            #resp.text = MethodResponse(req).json
-            resp.text = MethodResponse(req, NotImplementedException()).json
-        except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtoaltaz failed', ex)).json
+        # Synchronous SlewToAltAz is deprecated per ASCOM V4
+        resp.text = MethodResponse(req, NotImplementedException(
+            "Synchronous SlewToAltAz is deprecated per ASCOM V4. Use SlewToAltAzAsync instead."
+        )).json
 
 @before(PreProcessRequest(maxdev))
 class slewtoaltazasync:
@@ -1746,17 +1803,10 @@ class slewtocoordinates:
                             InvalidValueException(f'Declination {declinationstr} not a valid number.')).json
             return
         ### RANGE CHECK AS NEEDED ###  # Raise Alpaca InvalidValueException with details!
-        try:
-            # -----------------------------
-            ### DEVICE OPERATION(PARAM) ###
-            # -----------------------------
-            #TTS160_dev.SlewToCoordinates(rightascension, declination)
-            #resp.text = MethodResponse(req).json
-            resp.text = MethodResponse(req,
-                            NotImplementedException()).json
-        except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtocoordinates failed', ex)).json
+        # Synchronous SlewToCoordinates is deprecated per ASCOM V4
+        resp.text = MethodResponse(req, NotImplementedException(
+            "Synchronous SlewToCoordinates is deprecated per ASCOM V4. Use SlewToCoordinatesAsync instead."
+        )).json
 
 @before(PreProcessRequest(maxdev))
 class slewtocoordinatesasync:
@@ -1808,17 +1858,10 @@ class slewtotarget:
                             NotConnectedException()).json
             return
         
-        try:
-            # -----------------------------
-            ### DEVICE OPERATION(PARAM) ###
-            # -----------------------------
-            #TTS160_dev.SlewToTarget()
-            #resp.text = MethodResponse(req).json
-            resp.text = MethodResponse(req,
-                            NotImplementedException()).json
-        except Exception as ex:
-            resp.text = MethodResponse(req,
-                            DriverException(0x500, 'Telescope.Slewtotarget failed', ex)).json
+        # Synchronous SlewToTarget is deprecated per ASCOM V4
+        resp.text = MethodResponse(req, NotImplementedException(
+            "Synchronous SlewToTarget is deprecated per ASCOM V4. Use SlewToTargetAsync instead."
+        )).json
 
 @before(PreProcessRequest(maxdev))
 class slewtotargetasync:
@@ -2062,10 +2105,11 @@ class tracking:
             resp.text = PropertyResponse(None, req,
                             NotConnectedException()).json
             return
-        
+
         try:
             # ----------------------
-            val = TTS160_dev.Tracking   ## GET PROPERTY ##
+            # Use cache for tracking status
+            val = get_cached_or_fresh('Tracking', lambda: TTS160_dev.Tracking)
             # ----------------------
             resp.text = PropertyResponse(val, req).json
         except Exception as ex:

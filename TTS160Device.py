@@ -19,11 +19,25 @@ from astropy import units as u
 from astropy.utils import iers
 
 # Local imports
-from tts160_types import CommandType
+from tts160_types import (
+    CommandType,
+    V357Category,
+    TrackingVar,
+    ControlVar,
+    LX200Var,
+    ComputedVar,
+    SetCommand,
+    SlewType,
+    GuideDirection,
+    TrackingRate,
+    QUERY_GROUPS,
+)
+from tts160_serial import V357Protocol
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
     AlignmentModes, TelescopeAxes, GuideDirections, Rate
 )
+from exceptions import NotImplementedException
 
 import TTS160Global
 
@@ -2168,8 +2182,222 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Wrap unexpected exceptions with context
             self._logger.error(f"Communication error executing command '{safe_command}': {ex}")
             raise RuntimeError(f"Command execution failed: {command}", ex)
-        
-   
+
+    # -------------------------
+    # V357 PROTOCOL METHODS
+    # -------------------------
+
+    def _query_v357(self, variables: List[str]) -> dict:
+        """Query v357 binary variables from the mount.
+
+        Args:
+            variables: List of variable IDs (e.g., ['T16', 'T17', 'C5'])
+
+        Returns:
+            Dictionary mapping variable IDs to their values
+
+        Raises:
+            ConnectionError: If device not connected
+            RuntimeError: If query fails
+        """
+        if not self._Connected and not self._Connecting:
+            raise ConnectionError("Device not connected")
+
+        try:
+            return self._serial_manager.query_variables(variables)
+        except Exception as ex:
+            self._logger.error(f"v357 query failed for {variables}: {ex}")
+            raise RuntimeError(f"v357 query failed: {ex}") from ex
+
+    def _get_position_v357(self) -> Tuple[float, float, float, float]:
+        """Get all position coordinates using v357 protocol.
+
+        Returns single batched query for efficiency.
+
+        Returns:
+            Tuple of (ra_hours, dec_degrees, alt_degrees, az_degrees)
+        """
+        try:
+            # Query all position variables in single command
+            result = self._query_v357(['T16', 'T17', 'X1', 'X2'])
+
+            # Convert from radians to user units
+            ra_rad = result.get('T16', 0.0)
+            dec_rad = result.get('T17', 0.0)
+            alt_rad = result.get('X1', 0.0)
+            az_rad = result.get('X2', 0.0)
+
+            ra_hours = V357Protocol.rad_to_hours(ra_rad)
+            dec_deg = V357Protocol.rad_to_deg(dec_rad)
+            alt_deg = V357Protocol.rad_to_deg(alt_rad)
+            az_deg = V357Protocol.rad_to_deg(az_rad)
+
+            self._logger.debug(
+                f"Position: RA={ra_hours:.4f}h, Dec={dec_deg:.4f}°, "
+                f"Alt={alt_deg:.4f}°, Az={az_deg:.4f}°"
+            )
+
+            return ra_hours, dec_deg, alt_deg, az_deg
+
+        except Exception as ex:
+            self._logger.error(f"Failed to get position via v357: {ex}")
+            raise
+
+    def _get_status_v357(self) -> dict:
+        """Get mount status flags using v357 protocol.
+
+        Returns:
+            Dictionary with keys: 'tracking', 'slewing', 'goto_active', 'parked'
+        """
+        try:
+            result = self._query_v357(['T4', 'L5', 'L6', 'C5'])
+
+            status = {
+                'tracking': bool(result.get('T4', 0)),
+                'slewing': bool(result.get('L5', 0)),
+                'goto_active': bool(result.get('L6', 0)),
+                'parked': bool(result.get('C5', 0)),
+            }
+
+            self._logger.debug(f"Status: {status}")
+            return status
+
+        except Exception as ex:
+            self._logger.error(f"Failed to get status via v357: {ex}")
+            raise
+
+    def _get_target_v357(self) -> Tuple[float, float]:
+        """Get target coordinates using v357 protocol.
+
+        Returns:
+            Tuple of (target_ra_hours, target_dec_degrees)
+        """
+        try:
+            result = self._query_v357(['T18', 'T19'])
+
+            ra_rad = result.get('T18', 0.0)
+            dec_rad = result.get('T19', 0.0)
+
+            ra_hours = V357Protocol.rad_to_hours(ra_rad)
+            dec_deg = V357Protocol.rad_to_deg(dec_rad)
+
+            return ra_hours, dec_deg
+
+        except Exception as ex:
+            self._logger.error(f"Failed to get target via v357: {ex}")
+            raise
+
+    def _execute_v357_set(self, cmd_id: int, data: bytes = b'') -> bool:
+        """Execute a v357 SET command.
+
+        Args:
+            cmd_id: SetCommand enum value
+            data: Binary parameter data
+
+        Returns:
+            True if command succeeded
+
+        Raises:
+            ConnectionError: If device not connected
+            RuntimeError: If command fails
+        """
+        if not self._Connected:
+            raise ConnectionError("Device not connected")
+
+        try:
+            result = self._serial_manager.execute_set_command(cmd_id, data)
+            success = len(result) > 0 and result[0][1] == 0
+            self._logger.debug(f"v357 SET 0x{cmd_id:02X} result: {result}, success={success}")
+            return success
+        except Exception as ex:
+            self._logger.error(f"v357 SET command 0x{cmd_id:02X} failed: {ex}")
+            raise RuntimeError(f"v357 SET command failed: {ex}") from ex
+
+    def _halt_v357(self) -> bool:
+        """Emergency stop using v357 protocol."""
+        try:
+            return self._execute_v357_set(SetCommand.HALT_ALL)
+        except Exception as ex:
+            self._logger.error(f"v357 halt failed: {ex}")
+            return False
+
+    def _set_tracking_v357(self, enabled: bool) -> bool:
+        """Enable or disable tracking using v357 protocol."""
+        import struct
+        data = struct.pack('<B', 1 if enabled else 0)
+        return self._execute_v357_set(SetCommand.SET_TRACKING, data)
+
+    def _slew_to_coords_v357(self, ra_hours: float, dec_deg: float) -> bool:
+        """Start slew to RA/Dec coordinates using v357 protocol.
+
+        Args:
+            ra_hours: Right ascension in hours
+            dec_deg: Declination in degrees
+
+        Returns:
+            True if slew started successfully
+        """
+        ra_rad = V357Protocol.hours_to_rad(ra_hours)
+        dec_rad = V357Protocol.deg_to_rad(dec_deg)
+        data = V357Protocol.pack_slew_target(ra_rad, dec_rad)
+        return self._execute_v357_set(SetCommand.SLEW_TO_TARGET, data)
+
+    def _set_target_v357(self, ra_hours: float, dec_deg: float) -> bool:
+        """Set target coordinates without slewing using v357 protocol."""
+        ra_rad = V357Protocol.hours_to_rad(ra_hours)
+        dec_rad = V357Protocol.deg_to_rad(dec_deg)
+        data = V357Protocol.pack_target_coords(ra_rad, dec_rad)
+        return self._execute_v357_set(SetCommand.SET_TARGET, data)
+
+    def _pulse_guide_v357(self, direction: int, duration_ms: int) -> bool:
+        """Send pulse guide command using v357 protocol.
+
+        Args:
+            direction: GuideDirection enum value (0=N, 1=S, 2=E, 3=W)
+            duration_ms: Duration in milliseconds
+
+        Returns:
+            True if command accepted
+        """
+        data = V357Protocol.pack_guide_command(direction, duration_ms)
+        return self._execute_v357_set(SetCommand.GUIDE, data)
+
+    def _park_v357(self) -> bool:
+        """Park the mount using v357 protocol."""
+        import struct
+        data = struct.pack('<B', 0)  # 0 = park
+        return self._execute_v357_set(SetCommand.PARK_UNPARK, data)
+
+    def _unpark_v357(self) -> bool:
+        """Unpark the mount using v357 protocol."""
+        import struct
+        data = struct.pack('<B', 1)  # 1 = unpark
+        return self._execute_v357_set(SetCommand.PARK_UNPARK, data)
+
+    def _set_tracking_rate_v357(self, rate: int) -> bool:
+        """Set tracking rate using v357 protocol.
+
+        Args:
+            rate: TrackingRate enum value (0=Sidereal, 1=Lunar, 2=Solar)
+        """
+        import struct
+        data = struct.pack('<B', rate)
+        return self._execute_v357_set(SetCommand.SET_TRACK_RATE, data)
+
+    def _get_alignment_quaternion_v357(self) -> Tuple[float, float, float, float]:
+        """Get alignment quaternion from mount.
+
+        Returns:
+            Quaternion as (w, x, y, z) tuple
+        """
+        try:
+            result = self._query_v357(['T31'])
+            quat = result.get('T31', (1.0, 0.0, 0.0, 0.0))
+            return quat
+        except Exception as ex:
+            self._logger.error(f"Failed to get alignment quaternion: {ex}")
+            return (1.0, 0.0, 0.0, 0.0)  # Identity quaternion
+
     def _altaz_to_radec(self, azimuth: float, altitude: float) -> Tuple[float, float]:
         """
         Convert Alt/Az coordinates to RA/Dec in mount's equatorial system.
@@ -2312,103 +2540,86 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def Altitude(self) -> float:
         """
         Current altitude in degrees above horizon.
-        
-        Returns mount's current altitude using LX200 extended precision command.
+
+        Returns mount's current altitude using v357 binary protocol.
         Response is in radians and converted to degrees per ASCOM standard.
-        
+
         Returns:
             float: Altitude in degrees (-90 to +90, positive above horizon)
-            
+
         Raises:
             NotConnectedException: If device not connected
             DriverException: If command fails or mount communication error
         """
         if not self._Connected:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving current altitude from mount")
-            result = self._send_command(":*GA#", CommandType.STRING).rstrip('#')
-            altitude_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
-            self._logger.debug(f"Current altitude: {altitude_deg:.3f}°")
+            self._logger.debug("Retrieving current altitude via v357")
+            result = self._query_v357(['X1'])
+            alt_rad = result.get('X1', 0.0)
+            altitude_deg = V357Protocol.rad_to_deg(alt_rad)
+            self._logger.debug(f"Current altitude: {altitude_deg:.4f}°")
             self.TTS160_cache.update_property('Altitude', altitude_deg)
             return altitude_deg
         except Exception as ex:
-            self._logger.error(f"Failed to retrieve altitude: {ex}, retrying")
-            try:
-                self._serial_manager.clear_buffers()
-                self._logger.debug("Retrieving current altitude from mount")
-                result = self._send_command(":*GA#", CommandType.STRING).rstrip('#')
-                altitude_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
-                self._logger.debug(f"Current altitude: {altitude_deg:.3f}°")
-                return altitude_deg
-            except Exception as ex:
-                self._logger.error(f"Retry failed to retrieve altitude: {ex}")
-                raise RuntimeError("Failed to get altitude", ex)
-
+            self._logger.error(f"Failed to retrieve altitude: {ex}")
+            raise RuntimeError("Failed to get altitude", ex)
 
     @property
     def Azimuth(self) -> float:
         """
         Current azimuth in degrees (North-referenced, positive East).
-        
-        Returns mount's current azimuth using LX200 extended precision command.
+
+        Returns mount's current azimuth using v357 binary protocol.
         Response is in radians and converted to degrees per ASCOM standard.
-        
+
         Returns:
             float: Azimuth in degrees (0-360, North=0°, East=90°)
-            
+
         Raises:
             NotConnectedException: If device not connected
             DriverException: If command fails or mount communication error
         """
         if not self.Connected:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving current azimuth from mount")
-            result = self._send_command(":*GZ#", CommandType.STRING).rstrip('#')
-            azimuth_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
-            self._logger.debug(f"Current azimuth: {azimuth_deg:.3f}°")
+            self._logger.debug("Retrieving current azimuth via v357")
+            result = self._query_v357(['X2'])
+            az_rad = result.get('X2', 0.0)
+            azimuth_deg = V357Protocol.rad_to_deg(az_rad) % 360.0
+            self._logger.debug(f"Current azimuth: {azimuth_deg:.4f}°")
             self.TTS160_cache.update_property('Azimuth', azimuth_deg)
             return azimuth_deg
         except Exception as ex:
             self._logger.error(f"Failed to retrieve azimuth: {ex}")
-            try:
-                self._serial_manager.clear_buffers()
-                self._logger.debug("Retrieving current azimuth from mount")
-                result = self._send_command(":*GZ#", CommandType.STRING).rstrip('#')
-                azimuth_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
-                self._logger.debug(f"Current azimuth: {azimuth_deg:.3f}°")
-                return azimuth_deg
-            except Exception as ex:
-                self._logger.error(f"Retry failed to retrieve azimuth: {ex}")
             raise RuntimeError("Failed to get azimuth", ex)
-
 
     @property
     def Declination(self) -> float:
         """
         Current declination in degrees in mount's equatorial system.
-        
-        Returns mount's current declination using LX200 extended precision command.
+
+        Returns mount's current declination using v357 binary protocol.
         Coordinate system matches mount's EquatorialSystem property.
-        
+
         Returns:
             float: Declination in degrees (-90 to +90, positive North)
-            
+
         Raises:
             NotConnectedException: If device not connected
             DriverException: If command fails or mount communication error
         """
         if not self.Connected:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving current declination from mount")
-            result = self._send_command(":*GD#", CommandType.STRING).rstrip('#')
-            declination_deg = float(result) * (180 / math.pi)  # Convert radians to degrees
-            self._logger.debug(f"Current declination: {declination_deg:.3f}°")
+            self._logger.debug("Retrieving current declination via v357")
+            result = self._query_v357(['T17'])
+            dec_rad = result.get('T17', 0.0)
+            declination_deg = V357Protocol.rad_to_deg(dec_rad)
+            self._logger.debug(f"Current declination: {declination_deg:.4f}°")
             self.TTS160_cache.update_property('Declination', declination_deg)
             return declination_deg
         except Exception as ex:
@@ -2420,26 +2631,26 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def RightAscension(self) -> float:
         """
         Current right ascension in hours in mount's equatorial system.
-        
-        Returns mount's current RA using LX200 extended precision command.
+
+        Returns mount's current RA using v357 binary protocol.
         Coordinate system matches mount's EquatorialSystem property.
-        
+
         Returns:
             float: Right ascension in hours (0-24)
-            
+
         Raises:
             NotConnectedException: If device not connected
             DriverException: If command fails or mount communication error
         """
         if not self._Connected:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving current right ascension from mount")
-            result = self._send_command(":*GR#", CommandType.STRING).rstrip('#')
-            ra = float(result) * (180 / math.pi) / 15  # Convert radians to hours
-            ra = ra % 24  # Normalize to 0-24 hours
-            self._logger.debug(f"Current right ascension: {ra:.3f}h")
+            self._logger.debug("Retrieving current right ascension via v357")
+            result = self._query_v357(['T16'])
+            ra_rad = result.get('T16', 0.0)
+            ra = V357Protocol.rad_to_hours(ra_rad)
+            self._logger.debug(f"Current right ascension: {ra:.4f}h")
             self.TTS160_cache.update_property('RightAscension', ra)
             return ra
         except Exception as ex:
@@ -2661,14 +2872,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     @property
     def AtPark(self) -> bool:
         """True if mount is parked."""
-
         if not self._Connected:
             raise ConnectionError("Mount not connected")
-    
+
         try:
             with self._lock:
-                self._is_parked = self._send_command(":*Pq#", CommandType.BOOL)
-                self._logger.debug(f"Returning self._is_parked as: {self._is_parked}.  It is a {type(self._is_parked)}")
+                result = self._query_v357(['C5'])
+                self._is_parked = bool(result.get('C5', 0))
+                self._logger.debug(f"AtPark via v357: {self._is_parked}")
                 self.TTS160_cache.update_property('AtPark', self._is_parked)
                 return self._is_parked
         except Exception as ex:
@@ -2938,29 +3149,29 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         """True if mount is tracking."""
         if not self.Connected:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            result = self._send_command(":GW#", CommandType.STRING)
-            self.TTS160_cache.update_property('Tracking', result[1] == 'T' if len(result) > 1 else False)
-            return result[1] == 'T' if len(result) > 1 else False
+            result = self._query_v357(['T4'])
+            tracking = bool(result.get('T4', 0))
+            self.TTS160_cache.update_property('Tracking', tracking)
+            return tracking
         except Exception as ex:
-            raise RuntimeError(0x500, "Failed to get tracking state", ex)
-    
+            raise RuntimeError("Failed to get tracking state", ex)
+
     @Tracking.setter
     def Tracking(self, value: bool) -> None:
         """Set tracking state."""
         if not self.Connected:
             raise ConnectionError("Device not connected")
-        
+
         if self.Slewing:
             raise RuntimeError("Cannot change tracking while slewing")
-        
+
         if self.AtPark:
             raise RuntimeError("Cannot change tracking state while parked")
 
         try:
-            command = ":T1#" if value else ":T0#" 
-            self._send_command(command, CommandType.BLIND)
+            self._set_tracking_v357(value)
             with self._lock:
                 self._tracking = value
         except Exception as ex:
@@ -2970,10 +3181,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def TrackingRate(self) -> DriveRates:
         """
         The current sidereal tracking rate of the mount.
-        
+
         Returns:
             DriveRates: Current tracking rate (Sidereal, Lunar, Solar, King)
-            
+
         Raises:
             InvalidValueException: If mount returns unknown tracking rate
             NotConnectedException: If device not connected
@@ -2981,37 +3192,37 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         """
         if not self.Connected:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving current tracking rate from mount")
-            command = ":*TRG#"
-            result = int(self._send_command(command, CommandType.STRING).rstrip("#"))
-            
-            if result == 0:
+            self._logger.debug("Retrieving current tracking rate via v357")
+            result = self._query_v357(['T14'])
+            rate_value = result.get('T14', 0)
+
+            if rate_value == 0:
                 rate = DriveRates.driveSidereal
-            elif result == 1:
+            elif rate_value == 1:
                 rate = DriveRates.driveLunar
-            elif result == 2:
+            elif rate_value == 2:
                 rate = DriveRates.driveSolar
             else:
-                self._logger.error(f"Unknown tracking rate value from mount: {result}")
-                raise RuntimeError(f"TrackingRate get failed due to unknown value received: {result}")
-            
+                self._logger.error(f"Unknown tracking rate value: {rate_value}")
+                raise RuntimeError(f"TrackingRate get failed: unknown value {rate_value}")
+
             self._logger.debug(f"Current tracking rate: {rate.name}")
             return rate
-            
+
         except Exception as ex:
             self._logger.error(f"Failed to retrieve tracking rate: {ex}")
-            raise RuntimeError(f"Unknown error", ex)
+            raise RuntimeError("Failed to get tracking rate", ex)
 
     @TrackingRate.setter
     def TrackingRate(self, rate: DriveRates) -> None:
         """
         Set the current sidereal tracking rate of the mount.
-        
+
         Args:
             rate: Desired tracking rate (Sidereal, Lunar, Solar)
-            
+
         Raises:
             InvalidValueException: If unsupported tracking rate specified
             NotConnectedException: If device not connected
@@ -3024,28 +3235,30 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             rate = DriveRates(rate)
         except ValueError:
             raise ValueError(f"Invalid tracking rate: {rate}")
-        
+
         # Check if supported
         if rate not in [DriveRates.driveSidereal, DriveRates.driveLunar, DriveRates.driveSolar]:
             raise ValueError(f"Unsupported tracking rate: {rate}")
-        
+
         try:
             self._logger.info(f"Setting tracking rate to: {rate.name}")
+
+            # Map DriveRates to v357 TrackingRate
             if rate == DriveRates.driveSidereal:
-                command = ":TQ#"
+                rate_index = TrackingRate.SIDEREAL
             elif rate == DriveRates.driveLunar:
-                command = ":TL#"
+                rate_index = TrackingRate.LUNAR
             elif rate == DriveRates.driveSolar:
-                command = ":TS#"
+                rate_index = TrackingRate.SOLAR
             else:
                 raise ValueError(f"Unsupported tracking rate: {rate}")
-            
-            self._send_command(command, CommandType.BLIND)
+
+            self._set_tracking_rate_v357(rate_index)
             self._logger.info(f"Tracking rate successfully set to: {rate.name}")
 
         except Exception as ex:
             self._logger.error(f"Failed to set tracking rate to {rate.name}: {ex}")
-            raise RuntimeError(f"Set Tracking Rate Failed", ex)
+            raise RuntimeError("Set Tracking Rate Failed", ex)
 
 
     @property
@@ -3380,14 +3593,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     
     # Operation Methods
     def AbortSlew(self) -> None:
-        """Abort any current slewing."""
+        """Abort any current slewing using v357 HALT_ALL command."""
         try:
-            
-            #TODO: Look how to verify monitor threads are appropriately closed
-            self._logger.info("Abort command initiated")
+            self._logger.info("Abort command initiated via v357")
             self._goto_in_progress = False
-            self._send_command(":Q#", CommandType.BLIND)
-            
+            self._halt_v357()
         except Exception as ex:
             raise RuntimeError("AbortSlew failed", ex)
     
@@ -3803,8 +4013,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
 
     def SlewToAltAz(self, azimuth: float, altitude: float) -> None:
-        """Slew to given altaz coordinates (synchronous)."""
-        raise NotImplementedError()
+        """Slew to given altaz coordinates (synchronous).
+
+        Deprecated: Use SlewToAltAzAsync instead.
+        """
+        raise NotImplementedException(
+            "Synchronous SlewToAltAz is deprecated per ASCOM V4. Use SlewToAltAzAsync instead."
+        )
     
     def SlewToAltAzAsync(self, azimuth: float, altitude: float) -> None:
         """
@@ -3850,8 +4065,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             raise RuntimeError(f"Alt/Az slew initiation failed", ex)
 
     def SlewToCoordinates(self, rightAscension: float, declination: float) -> None:
-        """Slew to given equatorial coordinates (synchronous)."""
-        raise NotImplementedError()
+        """Slew to given equatorial coordinates (synchronous).
+
+        Deprecated: Use SlewToCoordinatesAsync instead.
+        """
+        raise NotImplementedException(
+            "Synchronous SlewToCoordinates is deprecated per ASCOM V4. Use SlewToCoordinatesAsync instead."
+        )
     
     def SlewToCoordinatesAsync(self, right_ascension: float, declination: float) -> None:
         """
@@ -3895,8 +4115,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             raise RuntimeError(0x500, f"Coordinate slew initiation failed: {ex}")
     
     def SlewToTarget(self) -> None:
-        """Slew to current target coordinates (synchronous)."""
-        raise NotImplementedError()        
+        """Slew to current target coordinates (synchronous).
+
+        Deprecated: Use SlewToTargetAsync instead.
+        """
+        raise NotImplementedException(
+            "Synchronous SlewToTarget is deprecated per ASCOM V4. Use SlewToTargetAsync instead."
+        )        
 
     
     def SlewToTargetAsync(self) -> None:
@@ -4383,8 +4608,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
     def Park(self) -> None:
         """
-        Park the mount at its designated park position.
-        
+        Park the mount at its designated park position using v357 protocol.
+
         Raises:
             NotConnectedException: If device not connected
             InvalidOperationException: If already parked
@@ -4392,19 +4617,19 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         """
         if not self._Connected:
             raise ConnectionError("Device not connected")
-        
+
         if self.AtPark:
             self._logger.info("Mount already parked")
             raise RuntimeError("Mount is already parked")
-        
+
         try:
-            self._logger.info("Parking mount")
-            self._send_command(":hP#", CommandType.BLIND)           
+            self._logger.info("Parking mount via v357")
+            self._park_v357()
             self._executor.submit(self._park_arrival_monitor)
             self._slew_in_progress = self._executor.submit(self._slew_status_monitor)
 
             self._logger.info("Mount initiated park successfully")
-            
+
         except Exception as ex:
             self._logger.error(f"Park operation failed: {ex}")
             raise RuntimeError("Park failed", ex)

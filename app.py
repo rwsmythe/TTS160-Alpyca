@@ -59,8 +59,9 @@
 import sys
 import traceback
 import inspect
-from wsgiref.simple_server import WSGIRequestHandler, make_server, ServerHandler
 from enum import IntEnum
+
+from waitress import serve as waitress_serve
 
 # -- isort wants the above line to be blank --
 # Controller classes (for routing)
@@ -98,63 +99,8 @@ APP_START_TIME = datetime.now()
 API_VERSION = 1
 #--------------
 
-class LoggingWSGIRequestHandler(WSGIRequestHandler):
-    """Subclass of  WSGIRequestHandler allowing us to control WSGI server's logging"""
-    
-    def handle(self):
-        # Copy the parent method but override ServerHandler
-        self.raw_requestline = self.rfile.readline(65537)
-        if len(self.raw_requestline) > 65536:
-            self.requestline = ''
-            self.request_version = ''
-            self.command = ''
-            self.send_error(414)
-            return
-
-        if not self.parse_request():
-            return
-
-        handler = ServerHandler(
-            self.rfile, self.wfile, self.get_stderr(), self.get_environ(),
-            multithread=False,
-        )
-        handler.http_version = "1.1"  # Override here
-        handler.request_handler = self
-        handler.run(self.server.get_app())
-    
-    def log_message(self, format: str, *args):
-        """Log a message from within the Python **wsgiref** simple server
-
-        Logging elsewhere logs the incoming request *before*
-        processing in the responder, making it easier to read
-        the overall log. The wsgi server calls this function
-        at the end of processing. Normally the request would not
-        need to be logged again. However, in order to assure
-        logging of responses with HTTP status other than
-        200 OK, we log the request again here.
-
-        For more info see
-        `this article <https://stackoverflow.com/questions/31433682/control-wsgiref-simple-server-log>`_
-
-        Args:
-            format  (str):   Unused, old-style format (see notes)
-            args[0] (str):   HTTP Method and URI ("request")
-            args[1] (str):   HTTP response status code
-            args[2] (str):   HTTP response content-length
-
-
-        Notes:
-            * Logs using :py:mod:`log`, our rotating file logger ,
-              rather than using stdout.
-            * The **format** argument is an old C-style format for
-              for producing NCSA Commmon Log Format web server logging.
-
-        """
-
-        ##TODO## If I enable this, the server occasionally fails to respond
-        ##TODO## on non-200s, per Wireshark. So crazy!
-        #if args[1] != '200':  # Log this only on non-200 responses
-        #    log.logger.info(f'{self.client_address[0]} <- {format%args}')
+# Note: LoggingWSGIRequestHandler removed in favor of waitress production server
+# Waitress provides its own logging and multi-threaded request handling
 
 #-----------------------
 # Magic routing function
@@ -328,35 +274,39 @@ def main():
     # ------------------
     # SERVER APPLICATION
     # ------------------
-    # Using the lightweight built-in Python wsgi.simple_server
-    with make_server(server_cfg.ip_address, server_cfg.port, falc_app, handler_class=LoggingWSGIRequestHandler) as httpd:
-        _httpd_server = httpd  # Store reference
+    # Using waitress production WSGI server with multi-threading support
+    gui_port = server_cfg.setup_port
+    logger.info(f'==STARTUP== Starting GUI server on port {gui_port}')
+    try:
+        _gui_thread = start_gui_thread(logger, gui_port)
+        logger.info(f'==STARTUP== GUI server thread started successfully')
+    except Exception as e:
+        logger.error(f'==STARTUP== Failed to start GUI server: {e}')
+        logger.info('==STARTUP== Continuing without GUI...')
+        _gui_thread = None
 
-        gui_port = server_cfg.setup_port
-        logger.info(f'==STARTUP== Starting GUI server on port {gui_port}')
-        try:
-            _gui_thread = start_gui_thread(logger, gui_port)
-            logger.info(f'==STARTUP== GUI server thread started successfully')
-        except Exception as e:
-            logger.error(f'==STARTUP== Failed to start GUI server: {e}')
-            logger.info('==STARTUP== Continuing without GUI...')
-            _gui_thread = None
+    # Determine host binding
+    host = server_cfg.ip_address if server_cfg.ip_address else '0.0.0.0'
+    port = server_cfg.port
+    threads = server_cfg.threads
 
-        logger.info(f'==STARTUP== Serving on {server_cfg.ip_address}:{gui_port}. Time stamps are UTC.')
-        
-        # Open browser to setup page
-        def open_browser():
-            time.sleep(1)  # Wait for server startup
-            if _gui_thread:
-                webbrowser.open(f'http://localhost:{gui_port}')
-            else:
-                # Fallback to original setup page
-                webbrowser.open(f'http://localhost:{server_cfg.port}/')
+    logger.info(f'==STARTUP== Starting Alpaca API server on {host}:{port} with {threads} worker threads')
+    logger.info(f'==STARTUP== GUI available at http://localhost:{gui_port}. Time stamps are UTC.')
 
-        threading.Thread(target=open_browser, daemon=True).start()
+    # Open browser to setup page
+    def open_browser():
+        time.sleep(1)  # Wait for server startup
+        if _gui_thread:
+            webbrowser.open(f'http://localhost:{gui_port}')
+        else:
+            # Fallback to original setup page
+            webbrowser.open(f'http://localhost:{port}/')
 
-        # Serve until process is killed
-        httpd.serve_forever()
+    threading.Thread(target=open_browser, daemon=True).start()
+
+    # Serve using waitress with configurable thread pool
+    # waitress handles concurrent requests properly unlike wsgiref
+    waitress_serve(falc_app, host=host, port=port, threads=threads)
 
 # ========================
 if __name__ == '__main__':

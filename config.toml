@@ -3,6 +3,7 @@ title = "TTS160 Alpaca Driver"
 [network]
 ip_address = ''             # Any address
 port = 5555
+threads = 4                 # Number of WSGI worker threads
 
 [server]
 location = 'Hawaii!'  # Anything you want here

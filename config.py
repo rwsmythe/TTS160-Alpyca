@@ -203,11 +203,21 @@ class Config:
     def port(self) -> int:
         """Network port configuration."""
         return self._get_toml(self.NETWORK_SECTION, 'port')
-    
+
     @port.setter
     def port(self, value: int) -> None:
         self._put_toml(self.NETWORK_SECTION, 'port', value)
-    
+
+    @property
+    def threads(self) -> int:
+        """Number of WSGI worker threads for concurrent request handling."""
+        value = self._get_toml(self.NETWORK_SECTION, 'threads')
+        return value if value else 4  # Default to 4 threads
+
+    @threads.setter
+    def threads(self, value: int) -> None:
+        self._put_toml(self.NETWORK_SECTION, 'threads', value)
+
     # --------------
     # Server Section
     # --------------

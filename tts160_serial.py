@@ -15,16 +15,99 @@ Example:
 """
 
 import logging
+import queue
 import re
 import struct
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import serial
 
-from tts160_types import CommandType
+from tts160_types import (
+    CommandType,
+    BINARY_TYPE_SPECS,
+    VARIABLE_TYPES,
+    QUERY_GROUPS,
+    BINARY_MAX_VARS_PER_COMMAND,
+    SetCommand,
+    SlewType,
+    GuideDirection,
+    BinaryError,
+    CmdResponseType,
+)
+import math
+
+
+# -----------------
+# COMMAND PRIORITY
+# -----------------
+class CommandPriority(IntEnum):
+    """Priority levels for serial commands.
+
+    Lower values = higher priority. Commands are processed in priority order,
+    allowing critical operations to preempt background tasks.
+    """
+    CRITICAL = 0   # Abort, emergency stop - never wait
+    HIGH = 1       # Position queries during active slew
+    NORMAL = 2     # Regular API operations
+    LOW = 3        # Background cache updates
+
+
+@dataclass(order=True)
+class _PendingCommand:
+    """Internal class for queued commands with priority ordering.
+
+    The order=True makes instances sortable by priority (lowest first).
+    """
+    priority: int
+    sequence: int  # Tie-breaker for same priority (FIFO within priority)
+    command: str = field(compare=False)
+    command_type: 'CommandType' = field(compare=False)
+    result_event: threading.Event = field(compare=False)
+    result: Any = field(default=None, compare=False)
+    error: Optional[Exception] = field(default=None, compare=False)
+
+
+# Thread-local storage for default priority context
+_priority_context = threading.local()
+
+
+class LowPriorityContext:
+    """Context manager for executing commands with LOW priority.
+
+    Use this in background threads (like cache updates) to ensure their
+    commands don't block higher-priority operations.
+
+    Example:
+        with LowPriorityContext():
+            # All serial commands in this block use LOW priority
+            device.RightAscension  # Uses LOW priority
+    """
+
+    def __enter__(self):
+        self._previous = getattr(_priority_context, 'default_priority', None)
+        _priority_context.default_priority = CommandPriority.LOW
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._previous is None:
+            if hasattr(_priority_context, 'default_priority'):
+                del _priority_context.default_priority
+        else:
+            _priority_context.default_priority = self._previous
+        return False
+
+
+def get_default_priority() -> CommandPriority:
+    """Get the current thread's default command priority.
+
+    Returns:
+        The default priority from thread-local context, or NORMAL if not set.
+    """
+    return getattr(_priority_context, 'default_priority', CommandPriority.NORMAL)
 
 
 # Constants
@@ -36,9 +119,7 @@ BUFFER_CLEAR_TIMEOUT = 0.1
 MAX_BUFFER_CLEAR_ATTEMPTS = 100
 BINARY_HEADER_READ_SIZE = 50
 BINARY_HEADER_TIMEOUT = 0.2
-MIN_CASE_NUMBER = 0
-MAX_CASE_NUMBER = 9
-BINARY_COMMAND_PREFIX = ":*!"
+# Legacy LX200 :MS# command still used for slew start
 MS_COMMAND = ":MS#"
 
 
@@ -214,8 +295,408 @@ class BinaryParser:
         # Return named dictionary if field names provided
         if binary_format.field_names:
             return dict(zip(binary_format.field_names, values))
-        
+
         return values
+
+
+class V357Protocol:
+    """v357 binary variable protocol handler.
+
+    Provides methods for building GET/SET commands and parsing binary responses
+    for the v357 binary variable protocol.
+
+    Protocol Overview:
+        - GET: `:*!G <vars>#` returns `BINARY:<format>\n<data>`
+        - SET: `:*!S <cmd>[,<cmd>];<data>#` returns binary response
+
+    All coordinates are in radians. Multi-byte values are little-endian.
+    """
+
+    # Sidereal rate in degrees per second
+    SIDEREAL_RATE_DEG_SEC = 15.0 / 3600.0  # ~0.00417 deg/sec
+
+    @staticmethod
+    def build_query(variables: List[str]) -> str:
+        """Build a :*!G query command for multiple variables.
+
+        Args:
+            variables: List of variable IDs (e.g., ['T16', 'T17', 'C5'])
+
+        Returns:
+            Command string (e.g., ':*!G T16,T17,C5#')
+
+        Raises:
+            ValueError: If too many variables or invalid format
+        """
+        if not variables:
+            raise ValueError("At least one variable must be specified")
+
+        if len(variables) > BINARY_MAX_VARS_PER_COMMAND:
+            raise ValueError(
+                f"Too many variables ({len(variables)}). "
+                f"Maximum is {BINARY_MAX_VARS_PER_COMMAND}."
+            )
+
+        # Validate variable format
+        for var in variables:
+            if not var or len(var) < 2:
+                raise ValueError(f"Invalid variable format: {var}")
+            category = var[0].upper()
+            if category not in 'TCMALODK':
+                raise ValueError(f"Invalid category in variable: {var}")
+            try:
+                var_id = int(var[1:])
+                if var_id < 1 or var_id > 99:
+                    raise ValueError(f"Variable ID out of range: {var}")
+            except ValueError:
+                raise ValueError(f"Invalid variable ID in: {var}")
+
+        return f":*!G {','.join(variables)}#"
+
+    @staticmethod
+    def build_format_string(variables: List[str]) -> str:
+        """Build expected format string for a list of variables.
+
+        Args:
+            variables: List of variable IDs
+
+        Returns:
+            Format string (e.g., 'ffB' for two floats and one uint8)
+        """
+        format_chars = []
+        for var in variables:
+            category = var[0].upper()
+            var_id = int(var[1:])
+            type_spec = VARIABLE_TYPES.get((category, var_id), 'B')
+            format_chars.append(type_spec)
+        return ''.join(format_chars)
+
+    @staticmethod
+    def parse_response(
+        variables: List[str],
+        format_spec: str,
+        data: bytes
+    ) -> Dict[str, Any]:
+        """Parse binary response data into a dictionary.
+
+        Args:
+            variables: List of variable IDs that were queried
+            format_spec: Format specification from response header
+            data: Binary data bytes
+
+        Returns:
+            Dictionary mapping variable IDs to their values
+
+        Raises:
+            BinaryFormatError: If parsing fails
+        """
+        # Build struct format from format_spec
+        struct_fmt = '<'  # Little endian
+        expected_size = 0
+        value_count = 0
+
+        for char in format_spec:
+            if char in BINARY_TYPE_SPECS:
+                fmt, size = BINARY_TYPE_SPECS[char]
+                struct_fmt += fmt
+                expected_size += size
+                # Quaternion produces 4 values
+                value_count += 4 if char == 'q' else 1
+            else:
+                raise BinaryFormatError(f"Unknown type specifier: {char}")
+
+        if len(data) != expected_size:
+            raise BinaryFormatError(
+                f"Data size mismatch: expected {expected_size} bytes, "
+                f"got {len(data)} bytes"
+            )
+
+        try:
+            values = list(struct.unpack(struct_fmt, data))
+        except struct.error as ex:
+            raise BinaryFormatError(f"Failed to unpack binary data: {ex}") from ex
+
+        # Map values to variable names
+        result = {}
+        value_idx = 0
+
+        for var in variables:
+            category = var[0].upper()
+            var_id = int(var[1:])
+            type_spec = VARIABLE_TYPES.get((category, var_id), 'B')
+
+            if type_spec == 'q':
+                # Quaternion: extract 4 floats
+                result[var] = tuple(values[value_idx:value_idx + 4])
+                value_idx += 4
+            else:
+                result[var] = values[value_idx]
+                value_idx += 1
+
+        return result
+
+    @staticmethod
+    def build_set_command(cmd_id: int, data: bytes = b'') -> str:
+        """Build a :*!S SET command.
+
+        Args:
+            cmd_id: SET command ID (from SetCommand enum)
+            data: Binary parameter data
+
+        Returns:
+            Command string with embedded binary data
+        """
+        # Format: :*!S <cmd_hex>;<binary>#
+        cmd_hex = f"{cmd_id:02X}"
+        if data:
+            # Encode binary data as part of command
+            return f":*!S {cmd_hex};".encode('ascii') + data + b'#'
+        else:
+            return f":*!S {cmd_hex};#"
+
+    @staticmethod
+    def build_set_command_bytes(cmd_id: int, data: bytes = b'') -> bytes:
+        """Build a :*!S SET command as bytes.
+
+        Args:
+            cmd_id: SET command ID (from SetCommand enum)
+            data: Binary parameter data
+
+        Returns:
+            Command bytes with embedded binary data
+        """
+        cmd_hex = f"{cmd_id:02X}"
+        return f":*!S {cmd_hex};".encode('ascii') + data + b'#'
+
+    @staticmethod
+    def pack_guide_command(direction: int, duration_ms: int) -> bytes:
+        """Pack parameters for GUIDE (0x05) command.
+
+        Args:
+            direction: GuideDirection enum value (0-3)
+            duration_ms: Duration in milliseconds (0-10000)
+
+        Returns:
+            Packed binary data
+        """
+        return struct.pack('<BH', direction, duration_ms)
+
+    @staticmethod
+    def pack_slew_target(ra_rad: float, dec_rad: float) -> bytes:
+        """Pack parameters for SLEW_TO_TARGET with RA/Dec.
+
+        Args:
+            ra_rad: Right ascension in radians
+            dec_rad: Declination in radians
+
+        Returns:
+            Packed binary data (slew_type + ra + dec)
+        """
+        return struct.pack('<Bff', SlewType.RA_DEC, ra_rad, dec_rad)
+
+    @staticmethod
+    def pack_slew_altaz(az_rad: float, alt_rad: float) -> bytes:
+        """Pack parameters for SLEW_TO_TARGET with Alt/Az.
+
+        Args:
+            az_rad: Azimuth in radians
+            alt_rad: Altitude in radians
+
+        Returns:
+            Packed binary data (slew_type + az + alt)
+        """
+        return struct.pack('<Bff', SlewType.ALT_AZ, az_rad, alt_rad)
+
+    @staticmethod
+    def pack_target_coords(ra_rad: float, dec_rad: float) -> bytes:
+        """Pack parameters for SET_TARGET command.
+
+        Args:
+            ra_rad: Right ascension in radians
+            dec_rad: Declination in radians
+
+        Returns:
+            Packed binary data
+        """
+        return struct.pack('<ff', ra_rad, dec_rad)
+
+    @staticmethod
+    def pack_move_axis(direction: int, speed_deg_sec: float) -> bytes:
+        """Pack parameters for MOVE_AXIS command.
+
+        Args:
+            direction: GuideDirection enum value
+            speed_deg_sec: Speed in degrees per second (0-3.5)
+
+        Returns:
+            Packed binary data
+        """
+        return struct.pack('<Bf', direction, speed_deg_sec)
+
+    @staticmethod
+    def pack_location(
+        name: str,
+        longitude_deg: float,
+        latitude_deg: float,
+        timezone_hours: float,
+        min_horizon: int = 0
+    ) -> bytes:
+        """Pack 22-byte location payload for SET_LOCATION command.
+
+        Args:
+            name: Location name (max 10 chars, will be padded)
+            longitude_deg: Longitude in degrees (-180 to 180, negative = West)
+            latitude_deg: Latitude in degrees (-90 to 90, negative = South)
+            timezone_hours: Timezone offset in hours from UTC
+            min_horizon: Minimum horizon angle (0-89 degrees)
+
+        Returns:
+            22-byte packed location data
+        """
+        # Pad/truncate name to 10 chars
+        name_bytes = name[:10].ljust(10).encode('ascii')
+
+        # Timezone as half-hour offset (-24 to +28)
+        tz_half_hours = int(timezone_hours * 2)
+
+        # Longitude
+        lon_sign = 1 if longitude_deg < 0 else 0
+        lon_abs = abs(longitude_deg)
+        lon_degs = int(lon_abs)
+        lon_mins = int((lon_abs - lon_degs) * 60)
+        lon_secs = int(((lon_abs - lon_degs) * 60 - lon_mins) * 60)
+
+        # Latitude
+        lat_sign = 1 if latitude_deg < 0 else 0
+        lat_abs = abs(latitude_deg)
+        lat_degs = int(lat_abs)
+        lat_mins = int((lat_abs - lat_degs) * 60)
+        lat_secs = int(((lat_abs - lat_degs) * 60 - lat_mins) * 60)
+
+        return struct.pack(
+            '<10sbBHBBBHBBB',
+            name_bytes,
+            tz_half_hours,
+            lon_sign,
+            lon_degs,
+            lon_mins,
+            lon_secs,
+            lat_sign,
+            lat_degs,
+            lat_mins,
+            lat_secs,
+            min_horizon
+        )
+
+    @staticmethod
+    def parse_set_response(data: bytes) -> List[Tuple[int, Any]]:
+        """Parse SET command response.
+
+        Args:
+            data: Binary response data
+
+        Returns:
+            List of (response_type, value) tuples
+        """
+        if not data:
+            return []
+
+        results = []
+        count = data[0]
+        offset = 1
+
+        for _ in range(count):
+            if offset >= len(data):
+                break
+
+            resp_type = data[offset]
+            offset += 1
+
+            if resp_type == CmdResponseType.NONE:
+                results.append((resp_type, None))
+            elif resp_type == CmdResponseType.INT:
+                if offset + 4 <= len(data):
+                    value = struct.unpack_from('<i', data, offset)[0]
+                    offset += 4
+                    results.append((resp_type, value))
+            elif resp_type == CmdResponseType.FLOAT:
+                if offset + 4 <= len(data):
+                    value = struct.unpack_from('<f', data, offset)[0]
+                    offset += 4
+                    results.append((resp_type, value))
+            elif resp_type == CmdResponseType.ERROR:
+                if offset + 4 <= len(data):
+                    error_code = struct.unpack_from('<i', data, offset)[0]
+                    offset += 4
+                    results.append((resp_type, BinaryError(error_code)))
+
+        return results
+
+    # Coordinate conversion helpers
+
+    @staticmethod
+    def rad_to_hours(radians: float) -> float:
+        """Convert radians to hours (for RA)."""
+        hours = (radians * 12.0 / math.pi) % 24.0
+        return hours
+
+    @staticmethod
+    def hours_to_rad(hours: float) -> float:
+        """Convert hours to radians (for RA)."""
+        return (hours % 24.0) * math.pi / 12.0
+
+    @staticmethod
+    def rad_to_deg(radians: float) -> float:
+        """Convert radians to degrees."""
+        return radians * 180.0 / math.pi
+
+    @staticmethod
+    def deg_to_rad(degrees: float) -> float:
+        """Convert degrees to radians."""
+        return degrees * math.pi / 180.0
+
+    @staticmethod
+    def normalize_ra_rad(ra_rad: float) -> float:
+        """Normalize RA to [0, 2*pi) range."""
+        two_pi = 2.0 * math.pi
+        return ra_rad % two_pi
+
+    @staticmethod
+    def normalize_dec_rad(dec_rad: float) -> float:
+        """Clamp declination to [-pi/2, pi/2] range."""
+        half_pi = math.pi / 2.0
+        return max(-half_pi, min(half_pi, dec_rad))
+
+    @staticmethod
+    def quaternion_to_matrix(quat: Tuple[float, float, float, float]) -> List[float]:
+        """Convert quaternion (w, x, y, z) to 3x3 rotation matrix.
+
+        Args:
+            quat: Quaternion as (w, x, y, z) tuple
+
+        Returns:
+            List of 9 floats representing row-major 3x3 matrix
+        """
+        w, x, y, z = quat
+
+        # Normalize quaternion
+        norm = math.sqrt(w*w + x*x + y*y + z*z)
+        if norm < 1e-10:
+            # Return identity matrix for zero quaternion
+            return [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+
+        w, x, y, z = w/norm, x/norm, y/norm, z/norm
+
+        # Compute rotation matrix elements
+        xx, yy, zz = x*x, y*y, z*z
+        xy, xz, yz = x*y, x*z, y*z
+        wx, wy, wz = w*x, w*y, w*z
+
+        return [
+            1.0 - 2.0*(yy + zz), 2.0*(xy - wz), 2.0*(xz + wy),
+            2.0*(xy + wz), 1.0 - 2.0*(xx + zz), 2.0*(yz - wx),
+            2.0*(xz - wy), 2.0*(yz + wx), 1.0 - 2.0*(xx + yy)
+        ]
 
 
 class SerialManager:
@@ -230,7 +711,7 @@ class SerialManager:
     def __init__(self, logger: Optional[logging.Logger] = None):
         """
         Initialize serial manager with optional logger.
-        
+
         Args:
             logger: Optional logger instance. If None, creates module logger.
         """
@@ -242,12 +723,18 @@ class SerialManager:
         self._max_retries = DEFAULT_MAX_RETRIES
         self._retry_timeout = DEFAULT_RETRY_TIMEOUT
         self._flush_buffer_on_next_command = False
-        
-        # Binary format registry
+
+        # Priority queue for commands
+        self._command_queue: queue.PriorityQueue[_PendingCommand] = queue.PriorityQueue()
+        self._command_sequence = 0  # For FIFO ordering within same priority
+        self._sequence_lock = threading.Lock()
+        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_stop_event = threading.Event()
+
+        # Binary format registry (for custom formats if needed)
         self._binary_formats: Dict[str, BinaryFormat] = {}
-        self._setup_default_formats()
-        
-        self._logger.info("TTS160 SerialManager initialized with binary support")
+
+        self._logger.info("TTS160 SerialManager initialized with v357 protocol support")
     
     def __enter__(self) -> 'SerialManager':
         """Context manager entry - connection must be established separately."""
@@ -257,62 +744,141 @@ class SerialManager:
         """Context manager exit - cleanup all connections."""
         self.cleanup()
     
-    def _setup_default_formats(self) -> None:
-        """Setup predefined binary formats for standard cases."""
-        default_formats = {
-            '0': (
-                '13i4f',
-                 ['h_ticks', 'e_ticks', 'tracking',
-                  'h_motor_on', 'e_motor_on', 'h_motor_moving','e_motor_moving',
-                  'h_dir', 'e_dir', 'align_status', 'error', 'slewing','collision',
-                  'ra','dec','az','alt']
-            ),
-            '1': (
-                '3i9f', 
-                ['tracking_mode', 'tracking_rate', 'custom_track_rate',
-                 'align_time', 'lx200_object_ra', 'lx200_object_dec',
-                 'last_goto_ra', 'last_goto_dec', 'custom_rate_ra', 'custom_rate_dec',
-                 'current_obj_ra', 'current_obj_de']
-            ), 
-            '2': (
-                '5i2f', 
-                ['goto_speed_h', 'goto_speed_e', 'guide_speed_h', 
-                 'guide_speed_e', 'park_flag', 'park_az', 'park_alt']
-            ),
-            '3': (
-                '6i3f',
-                 ['month', 'day','year','hrs','mins','secs',
-                  'longitude','latitude','timezone'] 
-            ),
-            '4': (
-                '7i', 
-                ['ticks_per_round_h', 'ticks_per_round_e', 'guide_corr_h', 'guide_corr_e', 
-                 'cable_twist_alarm', 'south_angle', 'az_counter']
-            ),
-            '5': ('9f', None),
-            '6': ('9f', None),
-            '7': (
-                '13i4f',
-                ['clock_freq', 'h_jerk', 'e_jerk', 'h_speed_active','e_speed_active',
-                 'h_posit_active', 'e_posit_active', 'h_den', 'h_num_final', 'h_num_curr',
-                 'e_den', 'e_num_final', 'e_num_curr',
-                 'h_pos_init', 'h_pos_final', 'e_pos_init', 'e_pos_final']
-            ),
-            '8': (
-                '5i2f',
-                ['rotator_on', 'rotator_ticks', 'field_rot_ticks',
-                 'field_rot_ticks_range', 'field_rot_direction',
-                 'field_rot_full_angle', 'initial_field_rot']
-            )
-        }
-        
-        for name, (format_string, field_names) in default_formats.items():
+    # ----------------------
+    # PRIORITY QUEUE METHODS
+    # ----------------------
+
+    def _start_worker(self) -> None:
+        """Start the command processing worker thread."""
+        if self._worker_thread and self._worker_thread.is_alive():
+            return
+
+        self._worker_stop_event.clear()
+        self._worker_thread = threading.Thread(
+            target=self._command_worker,
+            name='SerialCommandWorker',
+            daemon=True
+        )
+        self._worker_thread.start()
+        self._logger.info("Serial command worker thread started")
+
+    def _stop_worker(self) -> None:
+        """Stop the command processing worker thread."""
+        if not self._worker_thread or not self._worker_thread.is_alive():
+            return
+
+        self._worker_stop_event.set()
+        # Put a sentinel to unblock the queue
+        with self._sequence_lock:
+            self._command_sequence += 1
+            seq = self._command_sequence
+        sentinel = _PendingCommand(
+            priority=CommandPriority.CRITICAL,
+            sequence=seq,
+            command='',
+            command_type=CommandType.BLIND,
+            result_event=threading.Event()
+        )
+        self._command_queue.put(sentinel)
+
+        self._worker_thread.join(timeout=2.0)
+        if self._worker_thread.is_alive():
+            self._logger.warning("Serial command worker did not stop gracefully")
+        else:
+            self._logger.info("Serial command worker thread stopped")
+        self._worker_thread = None
+
+    def _command_worker(self) -> None:
+        """Worker thread that processes commands from the priority queue."""
+        self._logger.debug("Command worker started")
+
+        while not self._worker_stop_event.is_set():
             try:
-                self.register_binary_format(name, format_string, field_names)
-                self._logger.debug(f"Registered default format: {name}")
-            except BinaryFormatError as ex:
-                self._logger.warning(f"Failed to register default format {name}: {ex}")
-    
+                # Wait for a command with timeout to allow stop checks
+                try:
+                    pending = self._command_queue.get(timeout=0.5)
+                except queue.Empty:
+                    continue
+
+                # Check for sentinel/stop
+                if self._worker_stop_event.is_set() or not pending.command:
+                    self._command_queue.task_done()
+                    break
+
+                # Execute the command
+                try:
+                    result = self._execute_command_with_retry(
+                        pending.command,
+                        pending.command_type
+                    )
+                    pending.result = result
+                    pending.error = None
+                except Exception as ex:
+                    pending.result = None
+                    pending.error = ex
+
+                # Signal completion
+                pending.result_event.set()
+                self._command_queue.task_done()
+
+            except Exception as ex:
+                self._logger.error(f"Error in command worker: {ex}")
+
+        self._logger.debug("Command worker stopped")
+
+    def _get_next_sequence(self) -> int:
+        """Get the next sequence number for command ordering."""
+        with self._sequence_lock:
+            self._command_sequence += 1
+            return self._command_sequence
+
+    def _execute_command_with_retry(
+        self,
+        command: str,
+        command_type: CommandType
+    ) -> Union[str, bool, List[Any], Dict[str, Any]]:
+        """Execute command with retry logic (called by worker thread).
+
+        Args:
+            command: Command string
+            command_type: Expected response type
+
+        Returns:
+            Parsed response
+
+        Raises:
+            ConnectionError: If all retries fail
+        """
+        if self._flush_buffer_on_next_command:
+            self._logger.info("Failure detected, flushing receive buffer")
+            self.clear_buffers()
+            self._flush_buffer_on_next_command = False
+
+        for attempt in range(self._max_retries + 1):
+            try:
+                result = self._send_command_once(command, command_type)
+                if attempt > 0:
+                    self._logger.info(f"Command {command} succeeded on attempt {attempt + 1}")
+                return result
+
+            except Exception as ex:
+                self._flush_buffer_on_next_command = True
+
+                if attempt == self._max_retries:
+                    self._logger.error(
+                        f"Command {command} failed after {self._max_retries + 1} attempts: {ex}"
+                    )
+                    raise ConnectionError(
+                        f"Command failed after {self._max_retries + 1} attempts"
+                    ) from ex
+                else:
+                    self._logger.warning(
+                        f"Command {command} failed (attempt {attempt + 1}), retrying: {ex}"
+                    )
+                    time.sleep(self._retry_timeout)
+
+        raise ConnectionError("Unexpected retry loop exit")
+
     def register_binary_format(
         self, 
         name: str, 
@@ -370,18 +936,20 @@ class SerialManager:
         with self._lock:
             if self._connection_count == 0:
                 self._establish_connection(port, baudrate)
-            
+                self._start_worker()  # Start command processing thread
+
             self._connection_count += 1
             self._logger.info(f"Serial connection count: {self._connection_count}")
-    
+
     def disconnect(self) -> None:
         """Decrement connection count and close when reaching zero."""
         with self._lock:
             if self._connection_count > 0:
                 self._connection_count -= 1
                 self._logger.info(f"Serial connection count: {self._connection_count}")
-                
+
                 if self._connection_count == 0:
+                    self._stop_worker()  # Stop command processing thread
                     self._close_connection()
     
     def add_client(self, client: dict) -> None:
@@ -453,6 +1021,7 @@ class SerialManager:
 
     def cleanup(self) -> None:
         """Force immediate connection cleanup regardless of reference count."""
+        self._stop_worker()  # Stop worker first (outside lock to avoid deadlock)
         with self._lock:
             self._connection_count = 0
             self._close_connection()
@@ -471,95 +1040,391 @@ class SerialManager:
             return self._connection_count
     
     def send_command(
-        self, 
-        command: str, 
-        command_type: CommandType = CommandType.AUTO
+        self,
+        command: str,
+        command_type: CommandType = CommandType.AUTO,
+        priority: Optional[CommandPriority] = None,
+        timeout: float = 30.0
     ) -> Union[str, bool, List[Any], Dict[str, Any]]:
         """
-        Send command with automatic retry and response parsing.
-        
+        Send command with priority queuing and automatic retry.
+
+        Commands are queued and processed by a worker thread in priority order.
+        Higher priority commands (lower enum value) are processed first.
+
         Args:
             command: Command string (e.g., ':GR#' or ':*!2#')
             command_type: Expected response type
-            
+            priority: Command priority (CRITICAL, HIGH, NORMAL, LOW).
+                     If None, uses thread-local default (set by LowPriorityContext).
+            timeout: Maximum time to wait for result in seconds
+
         Returns:
             Parsed response based on command type
-            
+
         Raises:
             ValueError: If command is invalid
             ConnectionError: If not connected or communication fails
             ResponseError: If response parsing fails
+            TimeoutError: If command times out waiting for execution
         """
         if not command or not isinstance(command, str):
             raise ValueError("Command must be a non-empty string")
-        
+
         if not command.startswith(':') or not command.endswith('#'):
             raise ValueError("Command must start with ':' and end with '#'")
-        
-        if self._flush_buffer_on_next_command:
-            self._logger.info("Failure detected, flushing receive buffer")
-            self.clear_buffers()
-            self._flush_buffer_on_next_command = False
-        
-        for attempt in range(self._max_retries + 1):
-            try:
-                result = self._send_command_once(command, command_type)
-                if attempt > 0:
-                    self._logger.info(f"Command {command} succeeded on attempt {attempt + 1}")
-                return result
-                
-            except Exception as ex:
-                self._flush_buffer_on_next_command = True
-                
-                if attempt == self._max_retries:
-                    self._logger.error(
-                        f"Command {command} failed after {self._max_retries + 1} attempts: {ex}"
-                    )
-                    raise ConnectionError(
-                        f"Command failed after {self._max_retries + 1} attempts"
-                    ) from ex
-                else:
-                    self._logger.warning(
-                        f"Command {command} failed (attempt {attempt + 1}), retrying: {ex}"
-                    )
-                    time.sleep(self._retry_timeout)
-        
-        # Should never reach here
-        raise ConnectionError("Unexpected retry loop exit")
+
+        # Resolve priority from thread-local context if not explicitly set
+        effective_priority = priority if priority is not None else get_default_priority()
+
+        # Check if worker is running; fall back to direct execution if not
+        if not self._worker_thread or not self._worker_thread.is_alive():
+            self._logger.debug(f"Worker not running, executing {command} directly")
+            return self._execute_command_with_retry(command, command_type)
+
+        # Create pending command
+        pending = _PendingCommand(
+            priority=effective_priority,
+            sequence=self._get_next_sequence(),
+            command=command,
+            command_type=command_type,
+            result_event=threading.Event()
+        )
+
+        # Queue the command
+        self._command_queue.put(pending)
+        self._logger.debug(
+            f"Queued command {command} with priority {effective_priority.name}"
+        )
+
+        # Wait for result
+        if not pending.result_event.wait(timeout=timeout):
+            raise TimeoutError(
+                f"Command {command} timed out after {timeout}s waiting for execution"
+            )
+
+        # Check for error
+        if pending.error:
+            raise pending.error
+
+        return pending.result
     
-    def get_case_data(self, case_number: int) -> Union[List[Any], Dict[str, Any]]:
-        """
-        Retrieve binary case data using :*!n# command format.
-        
+    # ----------------------
+    # V357 PROTOCOL METHODS
+    # ----------------------
+
+    def query_variables(
+        self,
+        variables: List[str],
+        priority: Optional[CommandPriority] = None
+    ) -> Dict[str, Any]:
+        """Query multiple v357 variables in a single command.
+
+        This is the primary method for reading mount state using the v357
+        binary variable protocol. Variables are specified as category+ID
+        strings (e.g., 'T16' for RA, 'T17' for Dec).
+
         Args:
-            case_number: Case number (0-9)
-            
+            variables: List of variable IDs (e.g., ['T16', 'T17', 'C5'])
+            priority: Command priority (defaults to thread-local context)
+
         Returns:
-            Parsed binary data as list or named dictionary
-            
+            Dictionary mapping variable IDs to their values
+
         Raises:
-            ValueError: If case number is invalid
+            ValueError: If variables list is invalid
             ConnectionError: If communication fails
             ResponseError: If response parsing fails
+
+        Example:
+            >>> result = serial_mgr.query_variables(['T16', 'T17', 'X1', 'X2'])
+            >>> ra_rad = result['T16']  # RA in radians
+            >>> dec_rad = result['T17']  # Dec in radians
         """
-        if not MIN_CASE_NUMBER <= case_number <= MAX_CASE_NUMBER:
-            raise ValueError(
-                f"Invalid case number: {case_number}. "
-                f"Must be between {MIN_CASE_NUMBER} and {MAX_CASE_NUMBER}."
-            )
-        
-        command = f"{BINARY_COMMAND_PREFIX}{case_number}#"
-        self._logger.debug(f"Requesting case {case_number} binary data")
-        
-        result = self.send_command(command, CommandType.AUTO)
-        
+        command = V357Protocol.build_query(variables)
+        self._logger.debug(f"Querying v357 variables: {variables}")
+
+        result = self.send_command(command, CommandType.AUTO, priority=priority)
+
         if isinstance(result, str):
             raise ResponseError(
-                f"Expected binary response for case {case_number}, got text: {result}"
+                f"Expected binary response for v357 query, got text: {result}"
             )
-        
+
+        # Result should be a list from _parse_inline_binary_response
+        if isinstance(result, list):
+            # Map list values to variable names
+            return self._map_query_result(variables, result)
+
+        # Already a dictionary
         return result
-    
+
+    def query_variable_group(
+        self,
+        group_name: str,
+        priority: Optional[CommandPriority] = None
+    ) -> Dict[str, Any]:
+        """Query a predefined group of variables.
+
+        Args:
+            group_name: Name of predefined group (e.g., 'position', 'status')
+            priority: Command priority
+
+        Returns:
+            Dictionary mapping variable IDs to their values
+
+        Raises:
+            ValueError: If group name is not recognized
+        """
+        if group_name not in QUERY_GROUPS:
+            raise ValueError(
+                f"Unknown query group: {group_name}. "
+                f"Available groups: {list(QUERY_GROUPS.keys())}"
+            )
+
+        variables = QUERY_GROUPS[group_name]
+        return self.query_variables(variables, priority=priority)
+
+    def execute_set_command(
+        self,
+        cmd_id: int,
+        data: bytes = b'',
+        priority: Optional[CommandPriority] = None
+    ) -> List[Tuple[int, Any]]:
+        """Execute a v357 SET command.
+
+        Args:
+            cmd_id: SET command ID (from SetCommand enum)
+            data: Binary parameter data
+            priority: Command priority
+
+        Returns:
+            List of (response_type, value) tuples
+
+        Raises:
+            ConnectionError: If communication fails
+            ResponseError: If response parsing fails
+
+        Example:
+            >>> # Enable tracking
+            >>> result = serial_mgr.execute_set_command(SetCommand.SET_TRACKING, b'\\x01')
+        """
+        command_bytes = V357Protocol.build_set_command_bytes(cmd_id, data)
+        self._logger.debug(f"Executing v357 SET command: 0x{cmd_id:02X}")
+
+        # Send raw bytes command
+        result = self._send_set_command_bytes(command_bytes, priority)
+
+        return V357Protocol.parse_set_response(result)
+
+    def _send_set_command_bytes(
+        self,
+        command_bytes: bytes,
+        priority: Optional[CommandPriority] = None  # Reserved for future queue integration
+    ) -> bytes:
+        """Send raw bytes command and return raw response.
+
+        This is used for SET commands that have embedded binary data.
+        Note: Priority parameter is reserved for future queue integration.
+        """
+        _ = priority  # Reserved for future use
+
+        # For SET commands, we need direct serial access
+        # since we're sending binary data
+        with self._lock:
+            if not self.is_connected:
+                raise ConnectionError("Serial port not connected")
+
+            try:
+                self._serial.reset_input_buffer()
+                self._serial.reset_output_buffer()
+
+                self._logger.debug(f"Sending SET command bytes: {command_bytes.hex()}")
+                self._serial.write(command_bytes)
+                self._serial.flush()
+
+                # Read response - SET commands return binary response
+                response = self._serial.read(50)  # Max expected response size
+                self._logger.debug(f"SET command response: {response.hex()}")
+                return response
+
+            except (serial.SerialException, UnicodeDecodeError) as ex:
+                raise ConnectionError(f"Serial communication error: {ex}") from ex
+
+    def _map_query_result(
+        self,
+        variables: List[str],
+        values: List[Any]
+    ) -> Dict[str, Any]:
+        """Map query result list to variable dictionary.
+
+        Handles special cases like quaternions that expand to multiple values.
+        """
+        result = {}
+        value_idx = 0
+
+        for var in variables:
+            category = var[0].upper()
+            var_id = int(var[1:])
+            type_spec = VARIABLE_TYPES.get((category, var_id), 'B')
+
+            if type_spec == 'q':
+                # Quaternion: extract 4 floats
+                if value_idx + 4 <= len(values):
+                    result[var] = tuple(values[value_idx:value_idx + 4])
+                    value_idx += 4
+                else:
+                    self._logger.warning(f"Insufficient values for quaternion {var}")
+                    result[var] = (0.0, 0.0, 0.0, 1.0)  # Identity quaternion
+            else:
+                if value_idx < len(values):
+                    result[var] = values[value_idx]
+                    value_idx += 1
+                else:
+                    self._logger.warning(f"Missing value for variable {var}")
+                    result[var] = 0
+
+        return result
+
+    # Convenience methods for common v357 operations
+
+    def get_position(
+        self,
+        priority: Optional[CommandPriority] = None
+    ) -> Tuple[float, float, float, float]:
+        """Get current position (RA, Dec, Alt, Az) in radians.
+
+        Returns:
+            Tuple of (ra_rad, dec_rad, alt_rad, az_rad)
+        """
+        result = self.query_variables(['T16', 'T17', 'X1', 'X2'], priority)
+        return (
+            result.get('T16', 0.0),
+            result.get('T17', 0.0),
+            result.get('X1', 0.0),
+            result.get('X2', 0.0)
+        )
+
+    def get_status(
+        self,
+        priority: Optional[CommandPriority] = None
+    ) -> Dict[str, Any]:
+        """Get current mount status flags.
+
+        Returns:
+            Dictionary with 'tracking', 'slewing', 'goto_active', 'parked' keys
+        """
+        result = self.query_variables(['T4', 'L5', 'L6', 'C5'], priority)
+        return {
+            'tracking': bool(result.get('T4', 0)),
+            'slewing': bool(result.get('L5', 0)),
+            'goto_active': bool(result.get('L6', 0)),
+            'parked': bool(result.get('C5', 0))
+        }
+
+    def halt(self, priority: CommandPriority = CommandPriority.CRITICAL) -> bool:
+        """Emergency stop - halt all motion.
+
+        Returns:
+            True if successful
+        """
+        result = self.execute_set_command(SetCommand.HALT_ALL, b'', priority)
+        return len(result) > 0 and result[0][1] == 0
+
+    def set_tracking(
+        self,
+        enabled: bool,
+        priority: Optional[CommandPriority] = None
+    ) -> bool:
+        """Enable or disable tracking.
+
+        Args:
+            enabled: True to enable, False to disable
+
+        Returns:
+            True if successful
+        """
+        data = struct.pack('<B', 1 if enabled else 0)
+        result = self.execute_set_command(SetCommand.SET_TRACKING, data, priority)
+        return len(result) > 0 and result[0][1] == 0
+
+    def pulse_guide(
+        self,
+        direction: int,
+        duration_ms: int,
+        priority: Optional[CommandPriority] = None
+    ) -> bool:
+        """Send pulse guide command.
+
+        Args:
+            direction: GuideDirection enum value (0=N, 1=S, 2=E, 3=W)
+            duration_ms: Duration in milliseconds (0-10000)
+
+        Returns:
+            True if successful
+        """
+        data = V357Protocol.pack_guide_command(direction, duration_ms)
+        result = self.execute_set_command(SetCommand.GUIDE, data, priority)
+        return len(result) > 0 and result[0][1] == 0
+
+    def slew_to_coordinates(
+        self,
+        ra_rad: float,
+        dec_rad: float,
+        priority: Optional[CommandPriority] = None
+    ) -> bool:
+        """Slew to RA/Dec coordinates.
+
+        Args:
+            ra_rad: Right ascension in radians
+            dec_rad: Declination in radians
+
+        Returns:
+            True if slew started successfully
+        """
+        data = V357Protocol.pack_slew_target(ra_rad, dec_rad)
+        result = self.execute_set_command(SetCommand.SLEW_TO_TARGET, data, priority)
+        return len(result) > 0 and result[0][1] == 0
+
+    def set_target(
+        self,
+        ra_rad: float,
+        dec_rad: float,
+        priority: Optional[CommandPriority] = None
+    ) -> bool:
+        """Set target coordinates without slewing.
+
+        Args:
+            ra_rad: Right ascension in radians
+            dec_rad: Declination in radians
+
+        Returns:
+            True if successful
+        """
+        data = V357Protocol.pack_target_coords(ra_rad, dec_rad)
+        result = self.execute_set_command(SetCommand.SET_TARGET, data, priority)
+        return len(result) > 0 and result[0][1] == 0
+
+    def park(self, priority: Optional[CommandPriority] = None) -> bool:
+        """Park the mount.
+
+        Returns:
+            True if park command accepted
+        """
+        data = struct.pack('<B', 0)  # 0 = park
+        result = self.execute_set_command(SetCommand.PARK_UNPARK, data, priority)
+        return len(result) > 0 and result[0][1] == 0
+
+    def unpark(self, priority: Optional[CommandPriority] = None) -> bool:
+        """Unpark the mount.
+
+        Returns:
+            True if unpark command accepted
+        """
+        data = struct.pack('<B', 1)  # 1 = unpark
+        result = self.execute_set_command(SetCommand.PARK_UNPARK, data, priority)
+        return len(result) > 0 and result[0][1] == 0
+
     def clear_buffers(self) -> None:
         """Clear serial input/output buffers and purge queued responses."""
         with self._lock:
@@ -732,13 +1597,10 @@ class SerialManager:
             # Attempt to decode as text header
             try:
                 text_header = header_chunk.decode('ascii')
-                
+
                 if text_header.startswith('BINARY:'):
                     return self._parse_inline_binary_response(text_header)
-                
-                elif text_header.startswith('CASE:'):
-                    return self._parse_case_binary_response(text_header)
-                
+
                 # Regular string response - read until #
                 remaining = self._serial.read_until(b'#')
                 full_response = (header_chunk + remaining).decode('ascii')
@@ -784,38 +1646,7 @@ class SerialManager:
             
         except Exception as ex:
             raise ResponseError(f"Failed to parse inline binary ({format_spec}): {ex}") from ex
-    
-    def _parse_case_binary_response(self, text_header: str) -> Union[List[Any], Dict[str, Any]]:
-        """Parse binary response using predefined case format."""
-        if '\n' not in text_header:
-            raise ResponseError("Invalid case header: missing newline")
-        
-        case_name = text_header.split('\n')[0][5:].lower()  # Remove 'CASE:' prefix
-        self._logger.debug(f"Parsing case binary format: {case_name}")
-        
-        with self._lock:
-            if case_name not in self._binary_formats:
-                raise ResponseError(f"Unknown binary case: {case_name}")
-            
-            binary_format = self._binary_formats[case_name]
-        
-        try:
-            binary_data = self._serial.read(binary_format.byte_size)
-            
-            if len(binary_data) != binary_format.byte_size:
-                raise ResponseError(
-                    f"Binary read failed: expected {binary_format.byte_size} bytes, "
-                    f"got {len(binary_data)}"
-                )
-            
-            result = BinaryParser.unpack_data(binary_format, binary_data)
-            value_count = len(result) if isinstance(result, list) else len(result.keys())
-            self._logger.debug(f"Parsed case {case_name} binary data: {value_count} values")
-            return result
-            
-        except Exception as ex:
-            raise ResponseError(f"Failed to parse case binary ({case_name}): {ex}") from ex
-    
+
     def _attempt_string_fallback(self, initial_data: bytes) -> str:
         """Attempt to recover by reading as string response."""
         try:
