@@ -410,3 +410,38 @@ python -m pytest tests/ -v
 2. Add default value
 3. Update corresponding `.toml` file
 4. Update GUI config tab if user-editable
+
+---
+
+## Planned Features
+
+### Alignment Monitor (TODO)
+
+A semi-autonomous subsystem that continuously evaluates pointing accuracy and alignment model quality, automatically initiating synchronization or alignment point replacement operations.
+
+**Specification:** [alignment_monitor_specification.md](alignment_monitor_specification.md)
+**Reference Implementation:** [alignment_monitor.py](alignment_monitor.py)
+
+**Key Features:**
+
+- Decision logic for sync vs. align vs. no action based on pointing error thresholds
+- Geometry quality evaluation via determinant metric (measures how well-spread alignment points are)
+- Per-point weighted error tracking to identify degraded alignment points
+- Health monitoring with UX alerts for persistent issues
+- Configurable thresholds via TOML `[alignment_monitor]` section
+
+**Integration Tasks:**
+
+- [ ] Integrate `AlignmentMonitor` class with `TTS160Device`
+- [ ] Implement `FirmwareInterface` protocol in driver
+- [ ] Add plate solver integration (external or built-in)
+- [ ] Add `[alignment_monitor]` section to `TTS160config.toml`
+- [ ] Add GUI panel for alignment status and health alerts
+- [ ] Add unit tests for alignment monitor logic
+- [ ] Add integration tests with test harness
+
+**Dependencies:**
+
+- Plate solver providing current RA/Dec with ~1 second latency
+- Mount position reporting (current ticks or alt/az)
+- Ability to command sync and alignment point capture operations
