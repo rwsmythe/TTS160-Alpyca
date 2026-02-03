@@ -16,3 +16,14 @@ pulse_guide_equatorial_frame = true
 pulse_guide_altitude_compensation = true
 pulse_guide_max_compensation = 1000
 pulse_guide_compensation_buffer = 20
+
+[gps]
+enabled = true
+port = "auto"                    # "auto" to scan for GPS, or specific port like "COM3"
+baudrate = 9600
+min_fix_quality = 1              # NMEA GGA quality (1=GPS, 2=DGPS, 4=RTK)
+min_satellites = 4
+push_on_connect = true           # Push location once when mount connects (if fix valid)
+location_name = "GPS"            # Max 10 chars, sent to mount
+read_timeout = 2.0
+verbose_logging = true

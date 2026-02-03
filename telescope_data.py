@@ -275,9 +275,64 @@ class DataManager:
                 'total_requests': 0,
                 'memory_usage': 'Unknown'
             }
-    
+
+    def get_gps_status(self):
+        """Get GPS status information.
+
+        Returns:
+            dict: GPS status data including state, position, fix quality,
+                  satellites, and last update time. Returns None if GPS
+                  is disabled or unavailable.
+        """
+        try:
+            import TTS160Global
+            gps_mgr = TTS160Global.get_gps_manager(self.logger)
+
+            if gps_mgr is None:
+                return {
+                    'enabled': False,
+                    'state': 'DISABLED',
+                    'state_display': 'Disabled'
+                }
+
+            status = gps_mgr.get_status()
+            position = status.position  # Position is nested in status
+
+            return {
+                'enabled': True,
+                'state': status.state.name,
+                'state_display': status.state.name.replace('_', ' ').title(),
+                'connected': status.connected,
+                'has_fix': position.valid if position else False,
+                'fix_quality': position.fix_quality.name if position else 'UNKNOWN',
+                'fix_quality_value': position.fix_quality.value if position else 0,
+                'satellites': position.satellites if position else 0,
+                'hdop': position.hdop if position else None,
+                'latitude': position.latitude if position and position.valid else None,
+                'longitude': position.longitude if position and position.valid else None,
+                'altitude': position.altitude if position else None,
+                'last_fix_time': position.timestamp.isoformat() if position and position.timestamp else None,
+                'last_push_time': status.last_push_to_mount.isoformat() if status.last_push_to_mount else None,
+                'push_count': status.push_count,
+                'error_message': status.error_message,
+                'port': status.port or self.telescope_config.gps_port
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error getting GPS status: {e}")
+            return {
+                'enabled': self.telescope_config.gps_enabled,
+                'state': 'ERROR',
+                'state_display': 'Error',
+                'error_message': str(e),
+                'port': self.telescope_config.gps_port,
+                'satellites': 0,
+                'has_fix': False,
+                'fix_quality': 'UNKNOWN'
+            }
+
     # Static data methods (called on demand)
-    
+
     def get_server_config(self):
         """
         Get server configuration data.

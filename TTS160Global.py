@@ -11,6 +11,7 @@ _TTS160Device = None
 _SerialManager = None
 _ServerConfig = None
 _TTS160Cache = None
+_GPSManager = None
 _lock = threading.RLock()
 
 _config_instance = None
@@ -18,6 +19,7 @@ _device_instance = None
 _serial_instance = None
 _serverconfig_instance = None
 _cache_instance = None
+_gps_instance = None
 
 def get_serverconfig():
     """Get or create the global configuration instance."""
@@ -113,7 +115,7 @@ def reset_serial_manager() -> None:
 def reset_device() -> None:
     """Reset the device instance (for cleanup)."""
     global _device_instance
-    
+
     with _lock:
         if _device_instance is not None:
             try:
@@ -121,3 +123,41 @@ def reset_device() -> None:
             except Exception:
                 pass  # Ignore cleanup errors
             _device_instance = None
+
+
+def get_gps_manager(logger: Logger) -> Optional[object]:
+    """Get or create the global GPS manager instance.
+
+    Args:
+        logger: Logger instance for GPS manager operations.
+
+    Returns:
+        GPSManager instance or None if GPS is disabled.
+    """
+    global _gps_instance, _GPSManager
+
+    config = get_config()
+    if not config.gps_enabled:
+        return None
+
+    if _gps_instance is None:
+        with _lock:
+            if _gps_instance is None:
+                if _GPSManager is None:
+                    import gps_manager as _GPSManager
+                _gps_instance = _GPSManager.GPSManager(config, logger)
+
+    return _gps_instance
+
+
+def reset_gps_manager() -> None:
+    """Reset the GPS manager instance (for cleanup)."""
+    global _gps_instance
+
+    with _lock:
+        if _gps_instance is not None:
+            try:
+                _gps_instance.stop()
+            except Exception:
+                pass  # Ignore cleanup errors
+            _gps_instance = None

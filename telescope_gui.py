@@ -35,6 +35,9 @@ class TelescopeInterface:
         self.data_manager = DataManager(logger)
         self.commands = TelescopeCommands(logger, self.data_manager, self.force_status_update)
 
+        # Start GPS manager if enabled (so fix can be acquired before mount connect)
+        self._start_gps_manager()
+
         # UI component storage for updates
         self.ui_components = {
             'health_cards': {},
@@ -119,8 +122,9 @@ class TelescopeInterface:
             ui.label('System Health').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
             with ui.row().classes('w-full gap-4 mb-6'):
                 self.create_health_card('🖥️', 'Server Status', 'server_running')
-                self.create_health_card('📡', 'Discovery Service', 'discovery_active') 
+                self.create_health_card('📡', 'Discovery Service', 'discovery_active')
                 self.create_health_card('🔭', 'Telescope', 'telescope_connected')
+                self.create_health_card('🛰️', 'GPS Fix', 'gps_fix_ready')
                 self.create_health_card('⚙️', 'Configuration', 'config_valid')
             
             # System statistics
@@ -325,7 +329,39 @@ class TelescopeInterface:
                             with ui.card_section():
                                 ui.label('Condition Numer').classes('text-md font-semibold mb-2 text-center')
                                 self.ui_components['telescope_status']['condition_number'] = ui.label().style('font-family: monospace; font-size: 1.2rem; text-align: center')
-            
+
+            # GPS Status
+            ui.label('GPS Status').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
+            with ui.card().classes('w-full mb-6'):
+                with ui.card_section():
+                    with ui.row().classes('w-full gap-6'):
+                        # GPS state and connection
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['gps_state'] = ui.label().style('font-size: 1.1rem')
+                            self.ui_components['telescope_status']['gps_port'] = ui.label().style('font-family: monospace; opacity: 0.8')
+                        # Fix quality and satellites
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['gps_fix'] = ui.label().style('font-family: monospace')
+                            self.ui_components['telescope_status']['gps_satellites'] = ui.label().style('font-family: monospace')
+                        # Position
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['gps_latitude'] = ui.label().style('font-family: monospace')
+                            self.ui_components['telescope_status']['gps_longitude'] = ui.label().style('font-family: monospace')
+                        # Last update
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['gps_last_fix'] = ui.label().style('font-family: monospace; opacity: 0.8')
+                            self.ui_components['telescope_status']['gps_last_push'] = ui.label().style('font-family: monospace; opacity: 0.8')
+                        # Manual push control
+                        with ui.column().classes('gap-2 items-center'):
+                            self.ui_components['telescope_status']['gps_push_button'] = ui.button(
+                                '📍 Push Location',
+                                on_click=self.manual_gps_push,
+                                color='primary'
+                            ).classes('w-32')
+                            self.ui_components['telescope_status']['gps_push_status'] = ui.label().style(
+                                'font-size: 0.8rem; opacity: 0.8'
+                            )
+
             # Control panel
             ui.label('Telescope Control').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
             with ui.row().classes('w-full gap-4 mb-6'):
@@ -481,7 +517,10 @@ class TelescopeInterface:
                         btn.set_text('🚀 Unpark')
                     else:
                         btn.set_text('🏠 Park')
-            
+
+            # Update GPS status
+            self._update_gps_status()
+
         except Exception as e:
             if self.data_manager.telescope_cache:
                 self.logger.error(f"Error updating telescope data: {e}")
@@ -501,7 +540,19 @@ class TelescopeInterface:
                     '🟢 Connected' if system_data.get('telescope_connected', False) else '🔴 Disconnected')
                 self.ui_components['health_cards']['config_valid'].set_text(
                     '🟢 Valid' if system_data.get('config_valid', True) else '🔴 Invalid')
-            
+
+                # Update GPS fix status
+                if 'gps_fix_ready' in self.ui_components['health_cards']:
+                    gps_data = self.data_manager.get_gps_status()
+                    if not gps_data.get('enabled', False):
+                        self.ui_components['health_cards']['gps_fix_ready'].set_text('⚫ Disabled')
+                    elif gps_data.get('has_fix', False):
+                        self.ui_components['health_cards']['gps_fix_ready'].set_text('🟢 Ready')
+                    elif gps_data.get('state') == 'ERROR':
+                        self.ui_components['health_cards']['gps_fix_ready'].set_text('🔴 Error')
+                    else:
+                        self.ui_components['health_cards']['gps_fix_ready'].set_text('🟡 Acquiring')
+
             # Update statistics
             if 'connected_clients' in self.ui_components['system_stats']:
                 self.ui_components['system_stats']['connected_clients'].set_text(
@@ -596,7 +647,115 @@ class TelescopeInterface:
 
         except Exception as e:
             self.logger.error(f"Error updating static data: {e}")
-    
+
+    def _update_gps_status(self):
+        """Update GPS status display in the telescope status tab."""
+        try:
+            gps_data = self.data_manager.get_gps_status()
+
+            if 'gps_state' not in self.ui_components['telescope_status']:
+                return
+
+            if not gps_data.get('enabled', False):
+                self.ui_components['telescope_status']['gps_state'].set_text('📡 GPS: Disabled')
+                self.ui_components['telescope_status']['gps_port'].set_text('')
+                self.ui_components['telescope_status']['gps_fix'].set_text('')
+                self.ui_components['telescope_status']['gps_satellites'].set_text('')
+                self.ui_components['telescope_status']['gps_latitude'].set_text('')
+                self.ui_components['telescope_status']['gps_longitude'].set_text('')
+                self.ui_components['telescope_status']['gps_last_fix'].set_text('')
+                self.ui_components['telescope_status']['gps_last_push'].set_text('')
+                return
+
+            # State with appropriate icon
+            state = gps_data.get('state', 'UNKNOWN')
+            state_icons = {
+                'DISABLED': '⚫',
+                'DISCONNECTED': '🔴',
+                'CONNECTING': '🟡',
+                'CONNECTED': '🟢',
+                'ACQUIRING_FIX': '🟡',
+                'FIX_VALID': '🟢',
+                'ERROR': '🔴'
+            }
+            icon = state_icons.get(state, '⚪')
+            state_display = gps_data.get('state_display', state)
+
+            # Show error message if in error state
+            error_msg = gps_data.get('error_message', '')
+            if state == 'ERROR' and error_msg:
+                self.ui_components['telescope_status']['gps_state'].set_text(f'{icon} GPS: {error_msg}')
+            else:
+                self.ui_components['telescope_status']['gps_state'].set_text(f'{icon} GPS: {state_display}')
+
+            # Port
+            port = gps_data.get('port', '')
+            self.ui_components['telescope_status']['gps_port'].set_text(f'Port: {port}' if port else 'Port: Not configured')
+
+            # Fix quality
+            fix_quality = gps_data.get('fix_quality', 'UNKNOWN')
+            has_fix = gps_data.get('has_fix', False)
+            fix_icon = '🟢' if has_fix else '🔴'
+            self.ui_components['telescope_status']['gps_fix'].set_text(f'{fix_icon} Fix: {fix_quality}')
+
+            # Satellites
+            satellites = gps_data.get('satellites', 0)
+            hdop = gps_data.get('hdop')
+            hdop_str = f' (HDOP: {hdop:.1f})' if hdop else ''
+            self.ui_components['telescope_status']['gps_satellites'].set_text(f'Satellites: {satellites}{hdop_str}')
+
+            # Position
+            lat = gps_data.get('latitude')
+            lon = gps_data.get('longitude')
+            if lat is not None and lon is not None:
+                lat_dir = 'N' if lat >= 0 else 'S'
+                lon_dir = 'E' if lon >= 0 else 'W'
+                self.ui_components['telescope_status']['gps_latitude'].set_text(f'Lat: {abs(lat):.6f}° {lat_dir}')
+                self.ui_components['telescope_status']['gps_longitude'].set_text(f'Lon: {abs(lon):.6f}° {lon_dir}')
+            else:
+                self.ui_components['telescope_status']['gps_latitude'].set_text('Lat: --')
+                self.ui_components['telescope_status']['gps_longitude'].set_text('Lon: --')
+
+            # Last fix time
+            last_fix = gps_data.get('last_fix_time')
+            if last_fix:
+                self.ui_components['telescope_status']['gps_last_fix'].set_text(f'Last fix: {last_fix[:19]}')
+            else:
+                self.ui_components['telescope_status']['gps_last_fix'].set_text('Last fix: Never')
+
+            # Last push time
+            last_push = gps_data.get('last_push_time')
+            if last_push:
+                self.ui_components['telescope_status']['gps_last_push'].set_text(f'Last push: {last_push[:19]}')
+            else:
+                self.ui_components['telescope_status']['gps_last_push'].set_text('Last push: Never')
+
+            # Update push button state
+            if 'gps_push_button' in self.ui_components['telescope_status']:
+                btn = self.ui_components['telescope_status']['gps_push_button']
+                has_fix = gps_data.get('has_fix', False)
+                telescope_connected = self.data_manager.is_telescope_connected()
+
+                if has_fix and telescope_connected:
+                    btn.enable()
+                    btn._props['color'] = 'primary'
+                else:
+                    btn.disable()
+                    btn._props['color'] = 'grey'
+
+                # Update status hint
+                if 'gps_push_status' in self.ui_components['telescope_status']:
+                    if not has_fix:
+                        self.ui_components['telescope_status']['gps_push_status'].set_text('Waiting for fix...')
+                    elif not telescope_connected:
+                        self.ui_components['telescope_status']['gps_push_status'].set_text('Connect mount first')
+                    else:
+                        push_count = gps_data.get('push_count', 0)
+                        self.ui_components['telescope_status']['gps_push_status'].set_text(f'Pushes: {push_count}')
+
+        except Exception as e:
+            self.logger.debug(f"Error updating GPS status: {e}")
+
     # Event handlers
     def confirm_stop_server(self):
         """Show confirmation dialog for stopping server."""
@@ -620,7 +779,55 @@ class TelescopeInterface:
             self.commands.stop_tracking()
         else:
             self.commands.start_tracking()
-    
+
+    def manual_gps_push(self):
+        """Manually push GPS location to mount."""
+        try:
+            import TTS160Global
+            gps_mgr = TTS160Global.get_gps_manager(self.logger)
+
+            if gps_mgr is None:
+                ui.notify('GPS is disabled', type='warning')
+                return
+
+            if not gps_mgr.has_valid_fix():
+                ui.notify('No valid GPS fix available', type='warning')
+                return
+
+            if not self.data_manager.is_telescope_connected():
+                ui.notify('Telescope not connected', type='warning')
+                return
+
+            if gps_mgr.push_location_now():
+                ui.notify('GPS location pushed to mount', type='positive')
+                # Update the status label
+                if 'gps_push_status' in self.ui_components['telescope_status']:
+                    self.ui_components['telescope_status']['gps_push_status'].set_text('Pushed!')
+            else:
+                ui.notify('Failed to push GPS location', type='negative')
+
+        except Exception as e:
+            self.logger.error(f"Manual GPS push error: {e}")
+            ui.notify(f'GPS push error: {e}', type='negative')
+
+    def _start_gps_manager(self):
+        """Start GPS manager at GUI startup so fix can be acquired before mount connect."""
+        try:
+            import TTS160Global
+            gps_mgr = TTS160Global.get_gps_manager(self.logger)
+
+            if gps_mgr is None:
+                self.logger.debug("GPS disabled in configuration")
+                return
+
+            if gps_mgr.start():
+                self.logger.info("GPS manager started at GUI startup")
+            else:
+                self.logger.warning("GPS manager failed to start")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to start GPS manager: {e}")
+
     def reload_server_config(self):
         """Reload server configuration data."""
         self.update_static_data()

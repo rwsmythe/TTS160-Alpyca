@@ -1842,11 +1842,14 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     self._logger.warning(f"Time synchronization failed: {ex}")
             
             self._logger.info("Mount initialization completed successfully")
-            
+
             self._logger.debug("Warming up coordinate frame caches")
             _ = self._altaz_frame  # Triggers cache creation
-            _ = self._gcrs_frame   # Triggers cache creation  
+            _ = self._gcrs_frame   # Triggers cache creation
             self._logger.info("Coordinate frame caches warmed up successfully")
+
+            # Start GPS manager if enabled
+            self._start_gps_if_enabled()
 
         except Exception as ex:
             self._logger.error(f"Mount initialization failed: {ex}")
@@ -1928,7 +1931,153 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         except Exception as ex:
             self._logger.warning(f"Site coordinate synchronization failed: {ex}")
             raise RuntimeError("Failed to synchronize site coordinates from mount", ex)
-    
+
+    def _start_gps_if_enabled(self) -> None:
+        """Start GPS manager if enabled in configuration.
+
+        Gets the GPS manager singleton, sets the location push callback,
+        and starts the background GPS reading thread.
+
+        Note:
+            GPS failures do not affect mount operations - all errors are logged
+            but not propagated.
+        """
+        try:
+            import TTS160Global
+            gps_mgr = TTS160Global.get_gps_manager(self._logger)
+            if gps_mgr is None:
+                self._logger.debug("GPS is disabled in configuration")
+                return
+
+            # Set callback for location updates
+            gps_mgr.set_push_callback(self._push_gps_location_to_mount)
+
+            # Start the GPS background thread
+            if gps_mgr.start():
+                self._logger.info("GPS manager started successfully")
+
+                # Attempt push-on-connect if configured
+                if self._config.gps_push_on_connect:
+                    # Wait briefly for GPS to acquire fix (up to 10 seconds)
+                    import time
+                    max_wait = 10
+                    waited = 0
+                    while waited < max_wait and not gps_mgr.has_valid_fix():
+                        time.sleep(1)
+                        waited += 1
+
+                    # Try to push location
+                    success, message = gps_mgr.push_on_mount_connect()
+                    if success:
+                        self._logger.info(f"GPS push-on-connect: {message}")
+                    else:
+                        self._logger.info(f"GPS push-on-connect skipped: {message}")
+            else:
+                self._logger.warning("GPS manager failed to start")
+
+        except Exception as ex:
+            self._logger.warning(f"Failed to start GPS manager: {ex}")
+
+    def _stop_gps(self) -> None:
+        """Stop GPS manager if running.
+
+        Gracefully shuts down the GPS background thread.
+
+        Note:
+            GPS failures do not affect mount operations - all errors are logged
+            but not propagated.
+        """
+        try:
+            import TTS160Global
+            gps_mgr = TTS160Global.get_gps_manager(self._logger)
+            if gps_mgr is not None:
+                gps_mgr.stop()
+                self._logger.info("GPS manager stopped")
+        except Exception as ex:
+            self._logger.warning(f"Failed to stop GPS manager: {ex}")
+
+    def _push_gps_location_to_mount(
+        self,
+        latitude: float,
+        longitude: float,
+        altitude: float = 0.0,
+        location_name: str = ""
+    ) -> bool:
+        """Push GPS location to mount via SET_LOCATION binary command.
+
+        This callback is called by the GPS manager when it has a valid fix
+        and the update interval has elapsed.
+
+        Args:
+            latitude: Latitude in decimal degrees (positive North)
+            longitude: Longitude in decimal degrees (positive East, negative West)
+            altitude: Altitude in meters (optional, uses config elevation if not provided)
+            location_name: Location name (optional, uses config if not provided)
+
+        Returns:
+            True if location was pushed successfully, False otherwise.
+        """
+        try:
+            from tts160_serial import V357Protocol, SetCommand
+
+            # Get location name from config (max 10 chars)
+            location_name = self._config.gps_location_name[:10]
+
+            # Get timezone offset in hours
+            # Use system timezone or default to 0
+            try:
+                from datetime import datetime
+                tz_offset = datetime.now().astimezone().utcoffset()
+                tz_hours = tz_offset.total_seconds() / 3600.0 if tz_offset else 0.0
+            except Exception:
+                tz_hours = 0.0
+
+            # Pack the location payload
+            payload = V357Protocol.pack_location(
+                name=location_name,
+                longitude_deg=longitude,
+                latitude_deg=latitude,
+                timezone_hours=tz_hours,
+                min_horizon=0
+            )
+
+            # Send to mount
+            result = self._serial_manager.execute_set_command(
+                SetCommand.SET_LOCATION,
+                payload
+            )
+
+            if result:
+                self._logger.info(
+                    f"GPS location pushed to mount: {location_name} "
+                    f"({latitude:.6f}°, {longitude:.6f}°)"
+                )
+
+                # Update local config and site location
+                with self._lock:
+                    self._config.site_latitude = latitude
+                    self._config.site_longitude = longitude
+
+                    # Update AstroPy location
+                    from astropy.coordinates import EarthLocation
+                    import astropy.units as u
+                    elevation = float(self._config.site_elevation) if self._config.site_elevation else 0.0
+                    self._site_location = EarthLocation(
+                        lat=latitude * u.deg,
+                        lon=longitude * u.deg,
+                        height=elevation * u.m
+                    )
+
+                self._invalidate_cache('altaz')
+                return True
+            else:
+                self._logger.warning("Failed to push GPS location to mount")
+                return False
+
+        except Exception as ex:
+            self._logger.error(f"Error pushing GPS location to mount: {ex}")
+            return False
+
     def Disconnect(self, client: dict) -> None:
         """
         Disconnect from the TTS160 mount using ASCOM shared connection semantics.
@@ -1987,6 +2136,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             #self._executor.shutdown(wait=True)
             self._send_command(":Q#", CommandType.BLIND)
             #time.sleep(1)
+            # Stop GPS manager if running
+            self._stop_gps()
+
             # Save configuration before disconnecting
             try:
                 if self._config:
@@ -1994,7 +2146,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                     self._logger.debug("Configuration saved before disconnect")
             except Exception as ex:
                 self._logger.warning(f"Configuration save failed during disconnect: {ex}")
-            
+
             # Stop cache thread
             self.TTS160_cache.stop_cache_thread()
 

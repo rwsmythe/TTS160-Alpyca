@@ -185,6 +185,7 @@ class TTS160Config:
     DEVICE_SECTION = 'device'
     SITE_SECTION = 'site'
     DRIVER_SECTION = 'driver'
+    GPS_SECTION = 'gps'
     
     # --------------
     # Device Section
@@ -290,6 +291,94 @@ class TTS160Config:
     @slew_settle_time.setter
     def slew_settle_time(self, value: int) -> None:
         self._put_toml(self.DRIVER_SECTION, 'slew_settle_time', value)
+
+    # --------------
+    # GPS Section
+    # --------------
+
+    @property
+    def gps_enabled(self) -> bool:
+        """Enable GPS support for automatic location updates."""
+        value = self._get_toml(self.GPS_SECTION, 'enabled')
+        return False if value is None else value
+
+    @gps_enabled.setter
+    def gps_enabled(self, value: bool) -> None:
+        self._put_toml(self.GPS_SECTION, 'enabled', value)
+
+    @property
+    def gps_port(self) -> str:
+        """GPS serial port (e.g., 'COM6' or '/dev/ttyUSB1')."""
+        return self._get_toml(self.GPS_SECTION, 'port') or ''
+
+    @gps_port.setter
+    def gps_port(self, value: str) -> None:
+        self._put_toml(self.GPS_SECTION, 'port', value)
+
+    @property
+    def gps_baudrate(self) -> int:
+        """GPS serial port baud rate."""
+        return self._get_toml(self.GPS_SECTION, 'baudrate') or 9600
+
+    @gps_baudrate.setter
+    def gps_baudrate(self, value: int) -> None:
+        self._put_toml(self.GPS_SECTION, 'baudrate', value)
+
+    @property
+    def gps_min_fix_quality(self) -> int:
+        """Minimum NMEA GGA fix quality (1=GPS, 2=DGPS, 4=RTK)."""
+        return self._get_toml(self.GPS_SECTION, 'min_fix_quality') or 1
+
+    @gps_min_fix_quality.setter
+    def gps_min_fix_quality(self, value: int) -> None:
+        self._put_toml(self.GPS_SECTION, 'min_fix_quality', value)
+
+    @property
+    def gps_min_satellites(self) -> int:
+        """Minimum satellites required for valid fix."""
+        return self._get_toml(self.GPS_SECTION, 'min_satellites') or 4
+
+    @gps_min_satellites.setter
+    def gps_min_satellites(self, value: int) -> None:
+        self._put_toml(self.GPS_SECTION, 'min_satellites', value)
+
+    @property
+    def gps_push_on_connect(self) -> bool:
+        """Push GPS location to mount once when connecting (if fix available)."""
+        value = self._get_toml(self.GPS_SECTION, 'push_on_connect')
+        return True if value is None else value
+
+    @gps_push_on_connect.setter
+    def gps_push_on_connect(self, value: bool) -> None:
+        self._put_toml(self.GPS_SECTION, 'push_on_connect', value)
+
+    @property
+    def gps_location_name(self) -> str:
+        """Location name sent to mount (max 10 chars)."""
+        return self._get_toml(self.GPS_SECTION, 'location_name') or 'GPS'
+
+    @gps_location_name.setter
+    def gps_location_name(self, value: str) -> None:
+        self._put_toml(self.GPS_SECTION, 'location_name', value[:10])
+
+    @property
+    def gps_read_timeout(self) -> float:
+        """Serial read timeout in seconds."""
+        return self._get_toml(self.GPS_SECTION, 'read_timeout') or 2.0
+
+    @gps_read_timeout.setter
+    def gps_read_timeout(self, value: float) -> None:
+        self._put_toml(self.GPS_SECTION, 'read_timeout', value)
+
+    @property
+    def gps_verbose_logging(self) -> bool:
+        """Enable verbose GPS logging for debugging."""
+        value = self._get_toml(self.GPS_SECTION, 'verbose_logging')
+        return False if value is None else value
+
+    @gps_verbose_logging.setter
+    def gps_verbose_logging(self, value: bool) -> None:
+        self._put_toml(self.GPS_SECTION, 'verbose_logging', value)
 
     def __repr__(self) -> str:
         """Return string representation for debugging."""

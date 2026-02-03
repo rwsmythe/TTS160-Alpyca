@@ -2,6 +2,7 @@ astropy==7.1.0
 falcon==4.0.2
 nicegui==2.21.1
 psutil==7.0.0
+pynmea2==1.19.0
 pyserial==3.5
 python_dateutil==2.9.0.post0
 toml==0.10.2
