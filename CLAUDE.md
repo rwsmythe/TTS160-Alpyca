@@ -352,6 +352,40 @@ python -c "from telescope_gui import TelescopeInterface"
 python -c "from config import Config"
 ```
 
+### Integration Testing Harness
+
+A separate test harness framework exists for integration testing between this driver and the TTS-160 firmware. This harness runs actual firmware code compiled for x86 to validate protocol compatibility.
+
+**Location:** `C:\Users\astronomy\TTS160\TTS160-Test-Harness`
+
+**Key Files:**
+
+| File | Purpose |
+| ---- | ------- |
+| `TODO.md` | Test results, failure analysis, and required fixes |
+| `CLAUDE.md` | Harness-specific documentation |
+| `tests/` | Integration tests for LX200 and binary protocols |
+| `harness/` | Compiled firmware harness code |
+
+**Workflow:**
+
+1. Check `TODO.md` periodically for test failures that require driver fixes
+2. Action items marked with `### Driver (TTS160-Alpyca)` indicate changes needed in this driver
+3. After making driver changes, re-run the harness tests to verify compatibility
+
+**Running Harness Tests:**
+
+```bash
+cd C:\Users\astronomy\TTS160\TTS160-Test-Harness
+python -m pytest tests/ -v
+```
+
+**Current Status (as of 2026-02-02):**
+
+- 9 tests passing
+- 32 tests skipped (firmware/configuration incomplete)
+- 0 failures
+
 ---
 
 ## Common Tasks
