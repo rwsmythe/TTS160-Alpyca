@@ -41,7 +41,8 @@ TTS160 Alpyca/
 ├── telescope_data.py        # GUI data management
 ├── telescope_commands.py    # GUI command handlers
 │
-├── alignment_monitor.py     # Alignment quality monitoring orchestrator
+├── alignment_monitor.py     # Alignment quality monitoring orchestrator (V1)
+├── alignment_geometry.py    # Geometry calculations for alignment decisions
 ├── camera_manager.py        # Alpaca camera control (alpyca wrapper)
 ├── star_detector.py         # Star detection (SEP wrapper)
 ├── plate_solver.py          # Plate solving (tetra3 wrapper)
@@ -63,7 +64,8 @@ TTS160 Alpyca/
 | `telescope.py`         | Alpaca API endpoint responders                                 |
 | `telescope_gui.py`     | NiceGUI web interface                                          |
 | `exceptions.py`        | Alpaca-compliant exception classes                             |
-| `alignment_monitor.py` | Alignment quality monitoring with plate solving                |
+| `alignment_monitor.py` | Alignment quality monitoring with V1 decision engine           |
+| `alignment_geometry.py`| Geometry determinant and candidate evaluation calculations     |
 | `camera_manager.py`    | Alpaca camera control via alpyca library                       |
 | `star_detector.py`     | Star detection and centroid extraction via SEP                 |
 | `plate_solver.py`      | Astrometric plate solving via tetra3                           |
@@ -346,7 +348,8 @@ tests/
 │   ├── test_telescope_cache.py
 │   ├── test_priority_queue.py
 │   ├── test_gps_manager.py  # GPS manager tests
-│   └── test_alignment_monitor.py  # Alignment monitor tests
+│   ├── test_alignment_monitor.py  # Alignment monitor tests (V1)
+│   └── test_alignment_geometry.py # Geometry calculation tests
 ├── integration/             # Integration tests
 │   ├── test_api_endpoints.py
 │   ├── test_device.py
@@ -431,9 +434,22 @@ python -m pytest tests/ -v
 
 ---
 
-## Alignment Monitor
+## Alignment Monitor (V1)
 
 The alignment monitor is a background subsystem that continuously evaluates pointing accuracy by capturing images, detecting stars, plate solving, and comparing the solved position against the mount's reported position.
+
+**Current Version:** V1 (Decision Engine)
+
+### V1 Features
+
+The V1 implementation adds autonomous decision-making capabilities:
+
+- **Decision Engine**: Threshold-based logic for sync vs. alignment decisions
+- **Geometry Evaluation**: Determinant-based quality metric for 3-point alignment spread
+- **Per-point Weighted Error**: Distance-based attribution of errors to alignment points
+- **Health Monitoring**: Sliding window detection of persistent alignment problems
+- **Lockout System**: Prevents rapid repeated sync/align actions
+- **Firmware Abstraction**: Graceful fallback when ALIGN_POINT command unavailable
 
 ### Data Flow
 
@@ -446,12 +462,28 @@ The alignment monitor is a background subsystem that continuously evaluates poin
 │ -> ImageData │    │ -> centroids  │    │ centroids    │    │ solved_pos  │
 │ (numpy array)│    │ (Nx2 array)   │    │ -> RA,Dec    │    │ = error     │
 └──────────────┘    └───────────────┘    └──────────────┘    └─────────────┘
+                                                                    │
+                                                                    ▼
+                                                         ┌─────────────────┐
+                                                         │ V1 Decision     │
+                                                         │ Engine          │
+                                                         ├─────────────────┤
+                                                         │ evaluate() ->   │
+                                                         │ NO_ACTION/SYNC/ │
+                                                         │ ALIGN/LOCKOUT   │
+                                                         └─────────────────┘
 ```
 
 ### State Machine
 
 ```text
 DISABLED → DISCONNECTED → CONNECTING → CONNECTED → CAPTURING → SOLVING → MONITORING
+                                                                              ↓
+                                                                    ┌─── evaluate() ───┐
+                                                                    │                  │
+                                                              NO_ACTION          SYNC/ALIGN
+                                                                    │                  │
+                                                                    └───── LOCKOUT ────┘
                                                                               ↓
                                                                            ERROR
 ```
@@ -460,6 +492,7 @@ DISABLED → DISCONNECTED → CONNECTING → CONNECTED → CAPTURING → SOLVING
 
 ```toml
 [alignment]
+# === Core Settings ===
 enabled = false                 # Enable alignment monitoring
 camera_address = "127.0.0.1"    # Alpaca camera server address
 camera_port = 11111             # Alpaca camera server port
@@ -473,6 +506,64 @@ max_stars = 50                  # Maximum stars for solving
 error_threshold = 60.0          # Error warning threshold (arcseconds)
 database_path = "tetra3_database.npz"
 verbose_logging = false
+
+# === V1 Decision Thresholds (arcseconds) ===
+error_ignore = 30.0             # Below this, take no action
+error_sync = 120.0              # Above this, sync if not aligning
+error_concern = 300.0           # Above this, evaluate alignment replacement
+error_max = 600.0               # Above this, force action and log health event
+
+# === Geometry Thresholds (determinant, dimensionless 0-1) ===
+det_excellent = 0.80            # Near-optimal; protect this geometry
+det_good = 0.60                 # Solid; be selective about changes
+det_marginal = 0.40             # Weak; actively seek improvement
+det_improvement_min = 0.10      # Minimum improvement to justify replacement
+
+# === Angular Constraints (degrees) ===
+min_separation = 15.0           # Minimum angle between any two alignment points
+refresh_radius = 10.0           # Distance within which "refresh" logic applies
+scale_radius = 30.0             # Per-point weighted error distance falloff
+
+# === Refresh Logic ===
+refresh_error_threshold = 60.0  # Weighted error threshold for refresh eligibility (arcsec)
+
+# === Lockout Periods (seconds) ===
+lockout_post_align = 60.0       # After alignment point replacement
+lockout_post_sync = 10.0        # After sync operation
+
+# === Health Monitoring ===
+health_window = 1800.0          # Window duration (seconds) - 30 minutes
+health_alert_threshold = 5      # Events within window to trigger alert
+```
+
+### Geometry Determinant
+
+The geometry quality is measured by the absolute determinant of a 3×3 matrix formed by unit direction vectors from the three alignment points in alt/az coordinates:
+
+- **det = 0**: Points are coplanar through origin (degenerate, useless)
+- **det → 1**: Points are maximally spread (optimal geometry)
+
+```python
+# Computed in alignment_geometry.py
+det = |v1 · (v2 × v3)|  # where v_i are unit vectors from alt/az
+```
+
+### V1 Decision Logic
+
+```text
+1. Check lockout period → LOCKOUT if active
+2. Check mount state → NO_ACTION if slewing
+3. Get pointing error from plate solve
+4. Update per-point weighted errors (distance-based)
+5. If error < error_ignore → NO_ACTION
+6. Refresh alignment point data from firmware
+7. Find valid replacement candidates:
+   - Geometry improvement candidates (det_improvement_min)
+   - Refresh candidates (within refresh_radius + high weighted error)
+8. If no candidates and error > error_sync → SYNC
+9. Select best candidate (refresh priority, then geometry by threshold)
+10. If error > error_max → log health event, check alert
+11. Execute alignment (or sync fallback if firmware unsupported)
 ```
 
 ### Third-Party Libraries
@@ -495,6 +586,11 @@ The alignment status is displayed in the Telescope Status tab with:
 - Average and maximum error statistics
 - Star count and measurement history
 - Manual "Measure Now" trigger button
+- **V1 additions:**
+  - Geometry determinant with quality color coding (red/yellow/green)
+  - Last decision result (no_action/sync/align/lockout)
+  - Lockout remaining time
+  - Health alert indicator
 
 ### Usage
 
@@ -503,13 +599,68 @@ The alignment status is displayed in the Telescope Status tab with:
 3. Configure camera address, port, and exposure settings
 4. Provide a tetra3 star database file (or use default path)
 5. Connect the telescope - alignment monitor starts automatically
+6. V1 decision engine runs automatically after each plate solve
 
 ### Alignment Module Files
 
-| File                     | Purpose                              |
-| ------------------------ | ------------------------------------ |
-| `alignment_monitor.py`   | Main orchestrator with state machine |
-| `camera_manager.py`      | Alpyca camera wrapper                |
-| `star_detector.py`       | SEP star detection wrapper           |
-| `plate_solver.py`        | tetra3 plate solving wrapper         |
-| `LICENSE_THIRD_PARTY.md` | License attributions                 |
+| File                       | Purpose                                    |
+| -------------------------- | ------------------------------------------ |
+| `alignment_monitor.py`     | Main orchestrator with V1 decision engine  |
+| `alignment_geometry.py`    | Determinant and candidate evaluation logic |
+| `camera_manager.py`        | Alpyca camera wrapper                      |
+| `star_detector.py`         | SEP star detection wrapper                 |
+| `plate_solver.py`          | tetra3 plate solving wrapper               |
+| `LICENSE_THIRD_PARTY.md`   | License attributions                       |
+
+### Firmware Compatibility Note
+
+The TTS-160 firmware currently only supports the SYNC command (`:CM#`). The V1 implementation includes full alignment replacement logic, but falls back to SYNC operations until firmware implements ALIGN_POINT and PERFORM_ALIGNMENT commands. When this occurs, the driver logs "alignment replacement would occur" messages for validation.
+
+---
+
+## V2 Alignment Monitor Roadmap
+
+The following features are planned for V2:
+
+### Firmware Integration (Requires TTS-Central Updates)
+
+| Feature | Description | Status |
+| ------- | ----------- | ------ |
+| ALIGN_POINT command | Direct alignment point replacement via serial | Waiting for firmware |
+| PERFORM_ALIGNMENT command | Trigger alignment recalculation | Waiting for firmware |
+| A1-A15 variable access | Read/write alignment matrix directly | Waiting for firmware |
+
+### Enhanced Decision Logic
+
+| Feature | Description |
+| ------- | ----------- |
+| Multi-star error weighting | Weight errors by star brightness/confidence |
+| Atmospheric refraction compensation | Account for refraction in error calculations |
+| Time-of-night adaptation | Adjust thresholds based on sky conditions |
+| Meridian flip awareness | Special handling around meridian crossings |
+
+### Advanced Geometry
+
+| Feature | Description |
+| ------- | ----------- |
+| N-point alignment support | Extend beyond 3-point alignment |
+| Zone-based tracking | Different weights for different sky regions |
+| Pointing model fitting | Build pointing model from accumulated data |
+
+### Observability & Diagnostics
+
+| Feature | Description |
+| ------- | ----------- |
+| Error trend analysis | Detect drift patterns over time |
+| Alignment quality reports | Generate session summaries |
+| Integration with ASCOM logs | Standard logging format |
+| Remote alerting | Webhook/email for health alerts |
+
+### GUI Enhancements
+
+| Feature | Description |
+| ------- | ----------- |
+| Alignment point visualization | Sky map showing point positions |
+| Error history graph | Time-series plot of pointing errors |
+| Manual alignment controls | UI for manual point management |
+| Configuration wizard | Guided setup for alignment parameters |
