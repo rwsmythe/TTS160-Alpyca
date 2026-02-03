@@ -12,6 +12,7 @@ _SerialManager = None
 _ServerConfig = None
 _TTS160Cache = None
 _GPSManager = None
+_AlignmentMonitor = None
 _lock = threading.RLock()
 
 _config_instance = None
@@ -20,6 +21,7 @@ _serial_instance = None
 _serverconfig_instance = None
 _cache_instance = None
 _gps_instance = None
+_alignment_instance = None
 
 def get_serverconfig():
     """Get or create the global configuration instance."""
@@ -161,3 +163,41 @@ def reset_gps_manager() -> None:
             except Exception:
                 pass  # Ignore cleanup errors
             _gps_instance = None
+
+
+def get_alignment_monitor(logger: Logger) -> Optional[object]:
+    """Get or create the global alignment monitor instance.
+
+    Args:
+        logger: Logger instance for alignment monitor operations.
+
+    Returns:
+        AlignmentMonitor instance or None if alignment is disabled.
+    """
+    global _alignment_instance, _AlignmentMonitor
+
+    config = get_config()
+    if not config.alignment_enabled:
+        return None
+
+    if _alignment_instance is None:
+        with _lock:
+            if _alignment_instance is None:
+                if _AlignmentMonitor is None:
+                    import alignment_monitor as _AlignmentMonitor
+                _alignment_instance = _AlignmentMonitor.AlignmentMonitor(config, logger)
+
+    return _alignment_instance
+
+
+def reset_alignment_monitor() -> None:
+    """Reset the alignment monitor instance (for cleanup)."""
+    global _alignment_instance
+
+    with _lock:
+        if _alignment_instance is not None:
+            try:
+                _alignment_instance.stop()
+            except Exception:
+                pass  # Ignore cleanup errors
+            _alignment_instance = None
