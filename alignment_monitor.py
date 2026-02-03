@@ -1,1321 +1,1176 @@
+# -*- coding: utf-8 -*-
 """
-Alignment Monitor Module
+Alignment Monitor for TTS160 Alpaca Driver.
 
-A semi-autonomous subsystem for telescope mount drivers that continuously evaluates
-pointing accuracy and alignment model quality, automatically initiating synchronization
-or alignment point replacement operations to maintain optimal pointing performance.
+Provides alignment quality monitoring by periodically capturing images,
+detecting stars, plate solving, and comparing solved position against
+mount-reported position.
 
-This module provides the core decision logic, data structures, and algorithms for
-the Alignment Monitor system as specified in the Alignment Monitor Specification v1.0.
+Components:
+    - CameraManager: Alpaca camera control via alpyca
+    - StarDetector: Star detection via SEP
+    - PlateSolver: Plate solving via tetra3
 
-Example usage:
-    from alignment_monitor import AlignmentMonitor, AlignmentMonitorConfig
-    
-    config = AlignmentMonitorConfig.from_toml("config.toml")
-    monitor = AlignmentMonitor(config, firmware_interface)
-    
-    # Called after goto settle or on periodic drumbeat
-    action = monitor.evaluate(plate_solve_position)
+Third-Party Libraries:
+    alpyca - MIT License (ASCOM Initiative)
+    SEP - LGPLv3/BSD/MIT (Kyle Barbary)
+    tetra3 - Apache 2.0 (European Space Agency)
 
-Author: [Your Name]
-Version: 1.0
-Date: February 2, 2026
+See LICENSE_THIRD_PARTY.md for full attribution.
 """
-
-from __future__ import annotations
 
 import logging
-import math
-from abc import ABC, abstractmethod
+import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum, auto
-from pathlib import Path
-from typing import Optional, Tuple, List, Protocol
+from enum import IntEnum, Enum
+from typing import Optional, List, Callable, Tuple
 
-# Configure module logger
-logger = logging.getLogger(__name__)
+import numpy as np
 
-
-# =============================================================================
-# Constants
-# =============================================================================
-
-ARCSEC_PER_RADIAN = 206264.806
-"""Conversion factor from radians to arcseconds."""
-
-DEG_TO_RAD = math.pi / 180.0
-"""Conversion factor from degrees to radians."""
-
-RAD_TO_DEG = 180.0 / math.pi
-"""Conversion factor from radians to degrees."""
+from camera_manager import CameraManager, CameraState
+from star_detector import StarDetector
+from plate_solver import PlateSolver
+import alignment_geometry as geometry
 
 
-# =============================================================================
-# Enumerations
-# =============================================================================
-
-class MonitorAction(Enum):
-    """Actions that the Alignment Monitor can take."""
-    
-    NO_ACTION = auto()
-    """No action required; pointing is acceptable."""
-    
-    SYNC = auto()
-    """Synchronization performed to correct transient offset."""
-    
-    ALIGN = auto()
-    """Alignment point replaced to improve model."""
-
-
-class EvaluationSkipReason(Enum):
-    """Reasons why an evaluation cycle may be skipped."""
-    
-    IN_LOCKOUT = auto()
-    """Currently in post-action lockout period."""
-    
-    MOUNT_NOT_STATIC = auto()
-    """Mount is slewing or otherwise not stable."""
-    
-    PLATE_SOLVE_UNAVAILABLE = auto()
-    """No valid plate solve data available."""
-    
-    PLATE_SOLVE_STALE = auto()
-    """Plate solve data is too old."""
-
-
-# =============================================================================
-# Data Classes
-# =============================================================================
-
-@dataclass
-class EquatorialCoord:
-    """
-    Equatorial coordinate pair.
-    
-    Attributes:
-        ra: Right ascension in radians.
-        dec: Declination in radians.
-    """
-    ra: float
-    dec: float
-    
-    def to_unit_vector(self) -> Tuple[float, float, float]:
-        """
-        Convert to unit direction vector.
-        
-        Returns:
-            Tuple (x, y, z) representing the unit vector pointing to this coordinate.
-        """
-        cos_dec = math.cos(self.dec)
-        return (
-            cos_dec * math.cos(self.ra),
-            cos_dec * math.sin(self.ra),
-            math.sin(self.dec)
-        )
-
-
-@dataclass
-class HorizontalCoord:
-    """
-    Horizontal (alt-az) coordinate pair.
-    
-    Attributes:
-        alt: Altitude in radians.
-        az: Azimuth in radians (north-referenced).
-    """
-    alt: float
-    az: float
-    
-    def to_unit_vector(self) -> Tuple[float, float, float]:
-        """
-        Convert to unit direction vector.
-        
-        Returns:
-            Tuple (x, y, z) representing the unit vector pointing to this coordinate.
-        """
-        cos_alt = math.cos(self.alt)
-        return (
-            cos_alt * math.cos(self.az),
-            cos_alt * math.sin(self.az),
-            math.sin(self.alt)
-        )
-
-
-@dataclass
-class EncoderTicks:
-    """
-    Mount encoder tick counts.
-    
-    Attributes:
-        h_ticks: Horizontal (azimuth) axis encoder ticks.
-        e_ticks: Elevation (altitude) axis encoder ticks.
-    """
-    h_ticks: int
-    e_ticks: int
+class AlignmentState(IntEnum):
+    """Alignment monitor states."""
+    DISABLED = 0
+    DISCONNECTED = 1
+    CONNECTING = 2
+    CONNECTED = 3
+    CAPTURING = 4
+    SOLVING = 5
+    MONITORING = 6
+    ERROR = 7
 
 
 @dataclass
 class AlignmentPoint:
-    """
-    Record of a single alignment point.
-    
+    """Single alignment measurement point."""
+    timestamp: datetime
+    mount_ra: float          # hours
+    mount_dec: float         # degrees
+    solved_ra: float         # hours
+    solved_dec: float        # degrees
+    ra_error: float          # arcseconds
+    dec_error: float         # arcseconds
+    total_error: float       # arcseconds
+    solve_time_ms: float
+    stars_detected: int
+    confidence: float        # 0.0 - 1.0
+
+
+@dataclass
+class AlignmentStatus:
+    """Current alignment monitor status."""
+    state: AlignmentState
+    camera_connected: bool
+    camera_name: str
+    last_solve_time: Optional[datetime]
+    last_ra_error: float
+    last_dec_error: float
+    last_total_error: float
+    average_error: float
+    max_error: float
+    measurement_count: int
+    stars_detected: int
+    solve_confidence: float
+    error_message: str
+    history: List[AlignmentPoint] = field(default_factory=list)
+    # V1 additions
+    geometry_determinant: float = 0.0
+    health_alert_active: bool = False
+    last_decision: str = ""
+    lockout_remaining: float = 0.0
+
+
+# =============================================================================
+# V1 Data Structures
+# =============================================================================
+
+class DecisionResult(Enum):
+    """Result of V1 decision engine evaluation."""
+    NO_ACTION = "no_action"
+    SYNC = "sync"
+    ALIGN = "align"
+    LOCKOUT = "lockout"
+    ERROR = "error"
+
+
+@dataclass
+class AlignmentPointRecord:
+    """Mount alignment point record for V1 tracking.
+
+    Tracks one of the three mount alignment points with weighted error
+    accumulation for determining which point should be replaced.
+
     Attributes:
         index: Point index (1, 2, or 3).
-        equatorial: Equatorial coordinates at capture time.
-        ticks: Encoder tick values at capture time.
+        equatorial: (ra, dec) coordinates in radians.
+        altaz: (alt, az) coordinates in radians.
+        ticks: (h_ticks, e_ticks) encoder counts.
         timestamp: When the point was captured.
         manual: True if user-selected, False if auto-captured.
-        weighted_error_sum: Accumulated weighted pointing error (arcseconds).
-        weighted_error_weight: Accumulated weight for error calculation.
+        weighted_error_sum: Accumulated weighted error (arcseconds).
+        weighted_error_weight: Accumulated weights for averaging.
     """
     index: int
-    equatorial: EquatorialCoord
-    ticks: EncoderTicks
+    equatorial: Tuple[float, float]  # (ra, dec) in radians
+    altaz: Tuple[float, float]       # (alt, az) in radians
+    ticks: Tuple[int, int]           # (h_ticks, e_ticks)
     timestamp: datetime
-    manual: bool = True
+    manual: bool = False
     weighted_error_sum: float = 0.0
     weighted_error_weight: float = 0.0
-    
+
     @property
     def mean_weighted_error(self) -> float:
-        """
-        Calculate mean weighted error for this point.
-        
-        Returns:
-            Mean weighted error in arcseconds, or 0.0 if no observations recorded.
-        """
-        if self.weighted_error_weight > 0:
-            return self.weighted_error_sum / self.weighted_error_weight
-        return 0.0
-    
+        """Calculate mean weighted error in arcseconds."""
+        if self.weighted_error_weight == 0:
+            return 0.0
+        return self.weighted_error_sum / self.weighted_error_weight
+
     def reset_weighted_error(self) -> None:
-        """Reset the weighted error accumulators to zero."""
+        """Reset weighted error accumulators (called after replacement)."""
         self.weighted_error_sum = 0.0
         self.weighted_error_weight = 0.0
-    
-    def update_weighted_error(
-        self, 
-        current_position: EquatorialCoord, 
-        pointing_error_arcsec: float,
-        scale_radius_deg: float
-    ) -> None:
-        """
-        Update weighted error accumulator based on a new observation.
-        
-        The weight is calculated using an inverse-square falloff based on the
-        angular distance from the current observation position to this alignment
-        point. Observations closer to this point contribute more to its error metric.
-        
+
+    def add_weighted_error(self, error: float, weight: float) -> None:
+        """Add a weighted error observation.
+
         Args:
-            current_position: Current mount position where error was observed.
-            pointing_error_arcsec: Observed pointing error in arcseconds.
-            scale_radius_deg: Distance scale for weight falloff in degrees.
+            error: Pointing error in arcseconds.
+            weight: Weight based on distance from this point.
         """
-        distance_rad = angular_separation(current_position, self.equatorial)
-        distance_deg = distance_rad * RAD_TO_DEG
-        
-        # Inverse-square weight falloff
-        weight = 1.0 / (1.0 + (distance_deg / scale_radius_deg) ** 2)
-        
-        self.weighted_error_sum += weight * pointing_error_arcsec
+        self.weighted_error_sum += weight * error
         self.weighted_error_weight += weight
 
 
 @dataclass
 class SyncOffsetTracker:
-    """
-    Tracks cumulative sync adjustments for evaluation consistency.
-    
-    When syncs are performed, they shift the mount's reported position without
-    modifying the alignment model. This tracker maintains the cumulative offset
-    so that pointing error evaluation remains consistent across syncs.
-    
+    """Tracks cumulative sync adjustments for V1 evaluation consistency.
+
+    Maintains the total tick adjustments from sync operations since
+    the last alignment, allowing error evaluation to be normalized.
+
     Attributes:
-        cumulative_h_ticks: Total H-axis sync adjustments since last alignment.
-        cumulative_e_ticks: Total E-axis sync adjustments since last alignment.
-        last_reset: Timestamp of last reset (at alignment).
+        cumulative_h_ticks: Total H-axis sync adjustments.
+        cumulative_e_ticks: Total E-axis sync adjustments.
+        last_reset: When the tracker was last cleared.
     """
     cumulative_h_ticks: int = 0
     cumulative_e_ticks: int = 0
-    last_reset: Optional[datetime] = None
-    
-    def record_sync(self, h_delta: int, e_delta: int) -> None:
-        """
-        Record a sync adjustment.
-        
+    last_reset: datetime = field(default_factory=datetime.now)
+
+    def add_offset(self, h_delta: int, e_delta: int) -> None:
+        """Record a sync offset adjustment.
+
         Args:
-            h_delta: Change in H-axis ticks from sync.
-            e_delta: Change in E-axis ticks from sync.
+            h_delta: H-axis tick change from sync.
+            e_delta: E-axis tick change from sync.
         """
         self.cumulative_h_ticks += h_delta
         self.cumulative_e_ticks += e_delta
-        logger.debug(
-            f"Sync recorded: h_delta={h_delta}, e_delta={e_delta}, "
-            f"cumulative=({self.cumulative_h_ticks}, {self.cumulative_e_ticks})"
-        )
-    
+
     def reset(self) -> None:
-        """Reset cumulative offsets (called after alignment)."""
+        """Reset tracker (called after alignment point replacement)."""
         self.cumulative_h_ticks = 0
         self.cumulative_e_ticks = 0
         self.last_reset = datetime.now()
-        logger.debug("Sync offset tracker reset")
-
-
-@dataclass
-class HealthEvent:
-    """
-    Record of a high-error health event.
-    
-    Attributes:
-        timestamp: When the event occurred.
-        error_arcsec: Pointing error magnitude in arcseconds.
-    """
-    timestamp: datetime
-    error_arcsec: float
 
 
 @dataclass
 class HealthMonitor:
-    """
-    Monitors alignment system health by tracking high-error events.
-    
+    """Tracks high-error events for V1 system health assessment.
+
+    Maintains a sliding window of error events to detect persistent
+    alignment problems that may indicate mechanical issues.
+
     Attributes:
-        events: List of recent high-error events.
+        events: List of (timestamp, error_magnitude) tuples.
         alert_active: Whether a health alert is currently raised.
-        window_seconds: Time window for event tracking.
-        alert_threshold: Number of events to trigger alert.
     """
-    events: List[HealthEvent] = field(default_factory=list)
+    events: List[Tuple[datetime, float]] = field(default_factory=list)
     alert_active: bool = False
-    window_seconds: float = 1800.0  # 30 minutes
-    alert_threshold: int = 5
-    
-    def log_event(self, error_arcsec: float) -> None:
-        """
-        Log a high-error health event.
-        
+
+    def log_event(self, error_magnitude: float, window_seconds: float) -> None:
+        """Log a high-error event and prune old events.
+
         Args:
-            error_arcsec: Pointing error magnitude in arcseconds.
+            error_magnitude: The error value in arcseconds.
+            window_seconds: Health window duration for pruning.
         """
-        self.events.append(HealthEvent(datetime.now(), error_arcsec))
-        self._prune_old_events()
-        logger.info(f"Health event logged: error={error_arcsec:.1f} arcsec")
-    
-    def _prune_old_events(self) -> None:
-        """Remove events older than the tracking window."""
-        cutoff = datetime.now() - timedelta(seconds=self.window_seconds)
-        self.events = [e for e in self.events if e.timestamp > cutoff]
-    
-    def check_alert(self) -> bool:
-        """
-        Check if alert threshold is exceeded.
-        
+        now = datetime.now()
+        self.events.append((now, error_magnitude))
+        cutoff = now - timedelta(seconds=window_seconds)
+        self.events = [(t, e) for t, e in self.events if t > cutoff]
+
+    def check_alert(self, threshold: int) -> bool:
+        """Check if alert threshold has been crossed.
+
+        Args:
+            threshold: Number of events to trigger alert.
+
         Returns:
-            True if alert should be raised, False otherwise.
+            True if alert should be active.
         """
-        self._prune_old_events()
-        
-        if len(self.events) >= self.alert_threshold:
-            if not self.alert_active:
-                self.alert_active = True
-                logger.warning(
-                    f"Alignment health alert: {len(self.events)} high-error events "
-                    f"in past {self.window_seconds / 60:.0f} minutes. "
-                    "Possible causes: loose plate solver, mechanical issues, unstable mount."
-                )
-            return True
-        else:
-            self.alert_active = False
-            return False
-    
-    @property
-    def event_count(self) -> int:
-        """Return current number of events in window."""
-        self._prune_old_events()
-        return len(self.events)
+        self.alert_active = len(self.events) >= threshold
+        return self.alert_active
+
+    def clear(self) -> None:
+        """Clear all events and reset alert."""
+        self.events.clear()
+        self.alert_active = False
 
 
 @dataclass
 class ReplacementCandidate:
-    """
-    Candidate for alignment point replacement.
-    
+    """Candidate for alignment point replacement.
+
+    Represents a potential alignment point replacement with the
+    evaluation metrics needed for selection.
+
     Attributes:
-        point: The alignment point that would be replaced.
-        resulting_det: Determinant value after replacement.
-        improvement: Change in determinant from current value.
-        reason: Why this candidate was identified ("geometry" or "refresh").
+        point: The alignment point being considered for replacement.
+        new_det: Determinant if this point is replaced.
+        improvement: Change in determinant from current.
+        reason: Why this candidate was selected ("geometry" or "refresh").
+        distance: Angular distance from current position to this point.
     """
-    point: AlignmentPoint
-    resulting_det: float
+    point: AlignmentPointRecord
+    new_det: float
     improvement: float
     reason: str  # "geometry" or "refresh"
+    distance: float  # degrees
 
-
-@dataclass 
-class EvaluationResult:
-    """
-    Result of an alignment monitor evaluation cycle.
-    
-    Attributes:
-        action: The action taken (or NO_ACTION).
-        skip_reason: If skipped, the reason why (None if evaluated).
-        pointing_error_arcsec: Observed pointing error (None if skipped).
-        current_det: Current geometry determinant (None if skipped).
-        replaced_point: Index of replaced point (None if not ALIGN).
-        new_det: New geometry determinant after replacement (None if not ALIGN).
-    """
-    action: MonitorAction
-    skip_reason: Optional[EvaluationSkipReason] = None
-    pointing_error_arcsec: Optional[float] = None
-    current_det: Optional[float] = None
-    replaced_point: Optional[int] = None
-    new_det: Optional[float] = None
-
-
-# =============================================================================
-# Configuration
-# =============================================================================
-
-@dataclass
-class AlignmentMonitorConfig:
-    """
-    Configuration parameters for the Alignment Monitor.
-    
-    All angular parameters use consistent units as documented.
-    Error thresholds are in arcseconds; angular constraints are in degrees.
-    
-    Attributes:
-        enabled: Whether the alignment monitor is active.
-        drumbeat_interval: Evaluation interval during tracking (seconds).
-        error_ignore: Pointing error below which no action is taken (arcseconds).
-        error_sync: Pointing error above which sync is performed (arcseconds).
-        error_concern: Pointing error above which alignment is evaluated (arcseconds).
-        error_max: Pointing error above which health event is logged (arcseconds).
-        det_excellent: Determinant threshold for excellent geometry.
-        det_good: Determinant threshold for good geometry.
-        det_marginal: Determinant threshold for marginal geometry.
-        det_improvement_min: Minimum determinant improvement to justify replacement.
-        min_separation: Minimum angle between alignment points (degrees).
-        refresh_radius: Distance for refresh logic eligibility (degrees).
-        scale_radius: Per-point weighted error distance scale (degrees).
-        refresh_error_threshold: Weighted error threshold for refresh (arcseconds).
-        lockout_post_align: Lockout duration after alignment (seconds).
-        lockout_post_sync: Lockout duration after sync (seconds).
-        health_window: Health event tracking window (seconds).
-        health_alert_threshold: Number of events to trigger health alert.
-    """
-    enabled: bool = True
-    drumbeat_interval: float = 60.0
-    
-    # Pointing error thresholds (arcseconds)
-    error_ignore: float = 30.0
-    error_sync: float = 120.0
-    error_concern: float = 300.0
-    error_max: float = 600.0
-    
-    # Geometry thresholds (dimensionless)
-    det_excellent: float = 0.80
-    det_good: float = 0.60
-    det_marginal: float = 0.40
-    det_improvement_min: float = 0.10
-    
-    # Angular constraints (degrees)
-    min_separation: float = 15.0
-    refresh_radius: float = 10.0
-    scale_radius: float = 30.0
-    
-    # Refresh threshold (arcseconds)
-    refresh_error_threshold: float = 60.0
-    
-    # Lockout periods (seconds)
-    lockout_post_align: float = 60.0
-    lockout_post_sync: float = 10.0
-    
-    # Health monitoring
-    health_window: float = 1800.0
-    health_alert_threshold: int = 5
-    
-    @classmethod
-    def from_toml(cls, path: Path | str) -> AlignmentMonitorConfig:
-        """
-        Load configuration from a TOML file.
-        
-        Args:
-            path: Path to the TOML configuration file.
-            
-        Returns:
-            AlignmentMonitorConfig instance with values from file.
-            
-        Raises:
-            FileNotFoundError: If the configuration file does not exist.
-            ValueError: If the configuration file is malformed.
-        """
-        # Implementation note: requires `tomllib` (Python 3.11+) or `toml` package
-        try:
-            import tomllib
-        except ImportError:
-            import toml as tomllib  # type: ignore
-        
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {path}")
-        
-        with open(path, "rb") as f:
-            data = tomllib.load(f)
-        
-        section = data.get("alignment_monitor", {})
-        
-        return cls(
-            enabled=section.get("enabled", cls.enabled),
-            drumbeat_interval=section.get("drumbeat_interval", cls.drumbeat_interval),
-            error_ignore=section.get("error_ignore", cls.error_ignore),
-            error_sync=section.get("error_sync", cls.error_sync),
-            error_concern=section.get("error_concern", cls.error_concern),
-            error_max=section.get("error_max", cls.error_max),
-            det_excellent=section.get("det_excellent", cls.det_excellent),
-            det_good=section.get("det_good", cls.det_good),
-            det_marginal=section.get("det_marginal", cls.det_marginal),
-            det_improvement_min=section.get("det_improvement_min", cls.det_improvement_min),
-            min_separation=section.get("min_separation", cls.min_separation),
-            refresh_radius=section.get("refresh_radius", cls.refresh_radius),
-            scale_radius=section.get("scale_radius", cls.scale_radius),
-            refresh_error_threshold=section.get("refresh_error_threshold", cls.refresh_error_threshold),
-            lockout_post_align=section.get("lockout_post_align", cls.lockout_post_align),
-            lockout_post_sync=section.get("lockout_post_sync", cls.lockout_post_sync),
-            health_window=section.get("health_window", cls.health_window),
-            health_alert_threshold=section.get("health_alert_threshold", cls.health_alert_threshold),
-        )
-    
-    def to_toml(self, path: Path | str) -> None:
-        """
-        Save configuration to a TOML file.
-        
-        Args:
-            path: Path to write the TOML configuration file.
-        """
-        try:
-            import toml
-        except ImportError:
-            raise ImportError("toml package required for writing TOML files")
-        
-        data = {
-            "alignment_monitor": {
-                "enabled": self.enabled,
-                "drumbeat_interval": self.drumbeat_interval,
-                "error_ignore": self.error_ignore,
-                "error_sync": self.error_sync,
-                "error_concern": self.error_concern,
-                "error_max": self.error_max,
-                "det_excellent": self.det_excellent,
-                "det_good": self.det_good,
-                "det_marginal": self.det_marginal,
-                "det_improvement_min": self.det_improvement_min,
-                "min_separation": self.min_separation,
-                "refresh_radius": self.refresh_radius,
-                "scale_radius": self.scale_radius,
-                "refresh_error_threshold": self.refresh_error_threshold,
-                "lockout_post_align": self.lockout_post_align,
-                "lockout_post_sync": self.lockout_post_sync,
-                "health_window": self.health_window,
-                "health_alert_threshold": self.health_alert_threshold,
-            }
-        }
-        
-        with open(path, "w") as f:
-            toml.dump(data, f)
-
-
-# =============================================================================
-# Firmware Interface Protocol
-# =============================================================================
-
-class FirmwareInterface(Protocol):
-    """
-    Protocol defining the required interface to mount firmware.
-    
-    Implementations must provide these methods for the Alignment Monitor
-    to communicate with the telescope mount.
-    """
-    
-    def get_mount_position(self) -> EquatorialCoord:
-        """
-        Get current mount-reported equatorial position.
-        
-        Returns:
-            Current RA/Dec as reported by the mount.
-        """
-        ...
-    
-    def get_mount_ticks(self) -> EncoderTicks:
-        """
-        Get current encoder tick values.
-        
-        Returns:
-            Current H and E axis encoder ticks.
-        """
-        ...
-    
-    def is_mount_static(self) -> bool:
-        """
-        Check if mount is static (not slewing).
-        
-        Returns:
-            True if mount is stationary or tracking, False if slewing.
-        """
-        ...
-    
-    def perform_sync(self, target: EquatorialCoord) -> bool:
-        """
-        Perform a sync operation to adjust reported position.
-        
-        Args:
-            target: Target RA/Dec to sync to.
-            
-        Returns:
-            True if sync succeeded, False otherwise.
-        """
-        ...
-    
-    def capture_alignment_point(
-        self, 
-        index: int, 
-        position: EquatorialCoord
-    ) -> bool:
-        """
-        Capture an alignment point at the current position.
-        
-        Args:
-            index: Point index (1, 2, or 3).
-            position: Plate-solved RA/Dec for this position.
-            
-        Returns:
-            True if capture succeeded, False otherwise.
-        """
-        ...
-    
-    def perform_alignment(self) -> bool:
-        """
-        Recalculate alignment model from current points.
-        
-        Returns:
-            True if alignment calculation succeeded, False otherwise.
-        """
-        ...
-    
-    def get_alignment_points(self) -> List[AlignmentPoint]:
-        """
-        Retrieve current alignment point data from firmware.
-        
-        Returns:
-            List of three AlignmentPoint records.
-        """
-        ...
-
-
-# =============================================================================
-# Utility Functions
-# =============================================================================
-
-def angular_separation(coord1: EquatorialCoord, coord2: EquatorialCoord) -> float:
-    """
-    Calculate angular separation between two equatorial coordinates.
-    
-    Uses the numerically stable haversine formula.
-    
-    Args:
-        coord1: First coordinate.
-        coord2: Second coordinate.
-        
-    Returns:
-        Angular separation in radians.
-    """
-    delta_dec = coord2.dec - coord1.dec
-    delta_ra = coord2.ra - coord1.ra
-    
-    a = (
-        math.sin(delta_dec / 2) ** 2 +
-        math.cos(coord1.dec) * math.cos(coord2.dec) * math.sin(delta_ra / 2) ** 2
-    )
-    
-    return 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-
-def angular_separation_arcsec(coord1: EquatorialCoord, coord2: EquatorialCoord) -> float:
-    """
-    Calculate angular separation in arcseconds.
-    
-    Args:
-        coord1: First coordinate.
-        coord2: Second coordinate.
-        
-    Returns:
-        Angular separation in arcseconds.
-    """
-    return angular_separation(coord1, coord2) * ARCSEC_PER_RADIAN
-
-
-def compute_geometry_determinant(points: List[EquatorialCoord]) -> float:
-    """
-    Compute the geometry quality metric for three alignment points.
-    
-    The determinant of the 3x3 matrix formed by the three unit direction
-    vectors measures how well-spread the points are. Values range from 0
-    (coplanar/degenerate) to approximately 1 (maximally spread).
-    
-    Args:
-        points: List of exactly three equatorial coordinates.
-        
-    Returns:
-        Absolute value of the determinant.
-        
-    Raises:
-        ValueError: If not exactly three points provided.
-    """
-    if len(points) != 3:
-        raise ValueError(f"Expected 3 points, got {len(points)}")
-    
-    # Convert to unit vectors
-    v1 = points[0].to_unit_vector()
-    v2 = points[1].to_unit_vector()
-    v3 = points[2].to_unit_vector()
-    
-    # Compute determinant: v1 · (v2 × v3)
-    # Cross product v2 × v3
-    cross_x = v2[1] * v3[2] - v2[2] * v3[1]
-    cross_y = v2[2] * v3[0] - v2[0] * v3[2]
-    cross_z = v2[0] * v3[1] - v2[1] * v3[0]
-    
-    # Dot product v1 · cross
-    det = v1[0] * cross_x + v1[1] * cross_y + v1[2] * cross_z
-    
-    return abs(det)
-
-
-def compute_minimum_separation(points: List[EquatorialCoord]) -> float:
-    """
-    Compute the minimum angular separation between any pair of points.
-    
-    Args:
-        points: List of equatorial coordinates.
-        
-    Returns:
-        Minimum pairwise separation in degrees.
-    """
-    min_sep = float('inf')
-    
-    for i in range(len(points)):
-        for j in range(i + 1, len(points)):
-            sep = angular_separation(points[i], points[j]) * RAD_TO_DEG
-            min_sep = min(min_sep, sep)
-    
-    return min_sep
-
-
-# =============================================================================
-# Main Alignment Monitor Class
-# =============================================================================
 
 class AlignmentMonitor:
-    """
-    Semi-autonomous alignment management system.
-    
-    The Alignment Monitor evaluates pointing accuracy on each evaluation cycle
-    and determines whether to take no action, perform a sync, or replace an
-    alignment point. It tracks per-point error attribution, manages sync offset
-    bookkeeping, and monitors system health.
-    
+    """Alignment quality monitor using plate solving.
+
+    Monitors telescope alignment by periodically capturing images,
+    detecting stars, plate solving, and comparing the solved position
+    against the mount's reported position.
+
+    Thread Safety:
+        All public methods are thread-safe via RLock protection.
+
     Attributes:
-        config: Configuration parameters.
-        firmware: Interface to mount firmware.
-        alignment_points: Current alignment point records.
-        sync_tracker: Cumulative sync offset tracker.
-        health_monitor: System health tracker.
-        lockout_until: Timestamp when current lockout expires.
+        HISTORY_LIMIT: Maximum number of measurements to retain.
+        MIN_INTERVAL: Minimum interval between measurements (seconds).
     """
-    
+
+    HISTORY_LIMIT = 100
+    MIN_INTERVAL = 5.0
+
     def __init__(
-        self, 
-        config: AlignmentMonitorConfig,
-        firmware: FirmwareInterface
-    ) -> None:
-        """
-        Initialize the Alignment Monitor.
-        
-        Args:
-            config: Configuration parameters.
-            firmware: Interface to mount firmware.
-        """
-        self.config = config
-        self.firmware = firmware
-        
-        # Initialize alignment points from firmware
-        self.alignment_points: List[AlignmentPoint] = []
-        self._refresh_alignment_points()
-        
-        # Initialize trackers
-        self.sync_tracker = SyncOffsetTracker()
-        self.health_monitor = HealthMonitor(
-            window_seconds=config.health_window,
-            alert_threshold=config.health_alert_threshold
-        )
-        
-        # Lockout management
-        self.lockout_until: Optional[datetime] = None
-        
-        logger.info("Alignment Monitor initialized")
-    
-    def _refresh_alignment_points(self) -> None:
-        """Refresh alignment point data from firmware."""
-        self.alignment_points = self.firmware.get_alignment_points()
-        logger.debug(f"Refreshed alignment points: {len(self.alignment_points)} points")
-    
-    def _in_lockout(self) -> bool:
-        """Check if currently in lockout period."""
-        if self.lockout_until is None:
-            return False
-        return datetime.now() < self.lockout_until
-    
-    def _start_lockout(self, duration_seconds: float) -> None:
-        """Start a lockout period."""
-        self.lockout_until = datetime.now() + timedelta(seconds=duration_seconds)
-        logger.debug(f"Lockout started for {duration_seconds} seconds")
-    
-    def _update_weighted_errors(
-        self, 
-        current_position: EquatorialCoord,
-        pointing_error_arcsec: float
-    ) -> None:
-        """
-        Update weighted error accumulators for all alignment points.
-        
-        Args:
-            current_position: Current mount position.
-            pointing_error_arcsec: Observed pointing error in arcseconds.
-        """
-        for point in self.alignment_points:
-            point.update_weighted_error(
-                current_position,
-                pointing_error_arcsec,
-                self.config.scale_radius
-            )
-    
-    def _compute_current_det(self) -> float:
-        """Compute geometry determinant for current alignment points."""
-        coords = [p.equatorial for p in self.alignment_points]
-        return compute_geometry_determinant(coords)
-    
-    def _compute_det_with_replacement(
-        self, 
-        replace_index: int, 
-        new_position: EquatorialCoord
-    ) -> float:
-        """
-        Compute geometry determinant if a point were replaced.
-        
-        Args:
-            replace_index: Index of point to replace (0-2).
-            new_position: New position to use.
-            
-        Returns:
-            Determinant value for the modified configuration.
-        """
-        coords = [p.equatorial for p in self.alignment_points]
-        coords[replace_index] = new_position
-        return compute_geometry_determinant(coords)
-    
-    def _compute_min_sep_with_replacement(
-        self, 
-        replace_index: int, 
-        new_position: EquatorialCoord
-    ) -> float:
-        """
-        Compute minimum separation if a point were replaced.
-        
-        Args:
-            replace_index: Index of point to replace (0-2).
-            new_position: New position to use.
-            
-        Returns:
-            Minimum pairwise separation in degrees.
-        """
-        coords = [p.equatorial for p in self.alignment_points]
-        coords[replace_index] = new_position
-        return compute_minimum_separation(coords)
-    
-    def _build_candidates(
         self,
-        current_position: EquatorialCoord,
-        current_det: float
-    ) -> List[ReplacementCandidate]:
-        """
-        Build list of candidate alignment point replacements.
-        
-        Args:
-            current_position: Current mount position (from plate solve).
-            current_det: Current geometry determinant.
-            
-        Returns:
-            List of valid replacement candidates.
-        """
-        candidates = []
-        
-        for i, point in enumerate(self.alignment_points):
-            candidate_det = self._compute_det_with_replacement(i, current_position)
-            min_sep = self._compute_min_sep_with_replacement(i, current_position)
-            
-            # Check minimum separation constraint
-            if min_sep < self.config.min_separation:
-                continue
-            
-            det_improvement = candidate_det - current_det
-            distance_deg = angular_separation(current_position, point.equatorial) * RAD_TO_DEG
-            
-            # Check geometry improvement criterion
-            if det_improvement >= self.config.det_improvement_min:
-                candidates.append(ReplacementCandidate(
-                    point=point,
-                    resulting_det=candidate_det,
-                    improvement=det_improvement,
-                    reason="geometry"
-                ))
-            # Check refresh criterion
-            elif (distance_deg < self.config.refresh_radius and 
-                  point.mean_weighted_error > self.config.refresh_error_threshold):
-                candidates.append(ReplacementCandidate(
-                    point=point,
-                    resulting_det=candidate_det,
-                    improvement=det_improvement,
-                    reason="refresh"
-                ))
-        
-        return candidates
-    
-    def _select_replacement(
-        self, 
-        candidates: List[ReplacementCandidate],
-        current_det: float
-    ) -> ReplacementCandidate:
-        """
-        Select the best replacement candidate.
-        
-        Selection priority:
-        1. Refresh candidates (fixing bad data takes precedence)
-        2. Among remaining candidates, prefer those crossing higher thresholds
-        3. Ties broken by point age (oldest replaced first)
-        
-        Args:
-            candidates: List of valid candidates.
-            current_det: Current geometry determinant.
-            
-        Returns:
-            Selected candidate for replacement.
-            
-        Raises:
-            ValueError: If candidates list is empty.
-        """
-        if not candidates:
-            raise ValueError("Cannot select from empty candidate list")
-        
-        # Priority 1: Refresh candidates
-        refresh_candidates = [c for c in candidates if c.reason == "refresh"]
-        if refresh_candidates:
-            # Pick oldest point among refresh candidates
-            return min(refresh_candidates, key=lambda c: c.point.timestamp)
-        
-        # Priority 2: Geometry improvement with threshold awareness
-        thresholds = [
-            self.config.det_excellent,
-            self.config.det_good,
-            self.config.det_marginal,
-            0.0  # Floor
-        ]
-        
-        def highest_crossed_threshold(det: float) -> float:
-            for t in thresholds:
-                if det >= t:
-                    return t
-            return 0.0
-        
-        # Find the highest threshold any candidate crosses
-        candidate_thresholds = [
-            (c, highest_crossed_threshold(c.resulting_det)) 
-            for c in candidates
-        ]
-        max_threshold = max(ct[1] for ct in candidate_thresholds)
-        
-        # Get all candidates at that threshold level
-        top_candidates = [ct[0] for ct in candidate_thresholds if ct[1] == max_threshold]
-        
-        if len(top_candidates) > 1:
-            # Multiple at same level: pick oldest
-            return min(top_candidates, key=lambda c: c.point.timestamp)
-        else:
-            return top_candidates[0]
-    
-    def _perform_sync(self, target: EquatorialCoord) -> bool:
-        """
-        Perform a sync operation and update tracking.
-        
-        Args:
-            target: Target position from plate solve.
-            
-        Returns:
-            True if sync succeeded, False otherwise.
-        """
-        # Get ticks before sync for offset tracking
-        ticks_before = self.firmware.get_mount_ticks()
-        
-        success = self.firmware.perform_sync(target)
-        
-        if success:
-            # Get ticks after sync
-            ticks_after = self.firmware.get_mount_ticks()
-            
-            # Record the offset
-            h_delta = ticks_after.h_ticks - ticks_before.h_ticks
-            e_delta = ticks_after.e_ticks - ticks_before.e_ticks
-            self.sync_tracker.record_sync(h_delta, e_delta)
-            
-            logger.info(f"Sync performed to RA={target.ra:.6f}, Dec={target.dec:.6f}")
-        else:
-            logger.warning("Sync command failed")
-        
-        return success
-    
-    def _perform_alignment(
-        self, 
-        candidate: ReplacementCandidate,
-        plate_solve_position: EquatorialCoord
-    ) -> bool:
-        """
-        Perform an alignment point replacement.
-        
-        Args:
-            candidate: The selected replacement candidate.
-            plate_solve_position: Plate-solved position for the new point.
-            
-        Returns:
-            True if alignment succeeded, False otherwise.
-        """
-        point_index = candidate.point.index
-        
-        # Capture new alignment point
-        if not self.firmware.capture_alignment_point(point_index, plate_solve_position):
-            logger.warning(f"Failed to capture alignment point {point_index}")
-            return False
-        
-        # Recalculate alignment model
-        if not self.firmware.perform_alignment():
-            logger.warning("Failed to perform alignment calculation")
-            return False
-        
-        # Reset sync offset tracker (alignment absorbs previous syncs)
-        self.sync_tracker.reset()
-        
-        # Refresh alignment point data
-        self._refresh_alignment_points()
-        
-        # Reset weighted error for the replaced point
-        for point in self.alignment_points:
-            if point.index == point_index:
-                point.reset_weighted_error()
-                break
-        
-        logger.info(
-            f"Alignment point {point_index} replaced. "
-            f"Reason: {candidate.reason}, "
-            f"det: {candidate.resulting_det:.3f} "
-            f"(improvement: {candidate.improvement:+.3f})"
-        )
-        
-        return True
-    
-    def evaluate(
-        self, 
-        plate_solve_position: Optional[EquatorialCoord],
-        plate_solve_timestamp: Optional[datetime] = None,
-        max_plate_solve_age_seconds: float = 5.0
-    ) -> EvaluationResult:
-        """
-        Execute one evaluation cycle.
-        
-        This is the main entry point, called after goto settle or on periodic
-        drumbeat during tracking.
-        
-        Args:
-            plate_solve_position: Current plate-solved RA/Dec, or None if unavailable.
-            plate_solve_timestamp: When the plate solve was obtained (default: now).
-            max_plate_solve_age_seconds: Maximum acceptable age for plate solve data.
-            
-        Returns:
-            EvaluationResult describing the action taken or reason for skipping.
-        """
-        # Check enabled
-        if not self.config.enabled:
-            return EvaluationResult(
-                action=MonitorAction.NO_ACTION,
-                skip_reason=None
-            )
-        
-        # Step 1: Check lockout
-        if self._in_lockout():
-            return EvaluationResult(
-                action=MonitorAction.NO_ACTION,
-                skip_reason=EvaluationSkipReason.IN_LOCKOUT
-            )
-        
-        # Step 2: Check mount state
-        if not self.firmware.is_mount_static():
-            return EvaluationResult(
-                action=MonitorAction.NO_ACTION,
-                skip_reason=EvaluationSkipReason.MOUNT_NOT_STATIC
-            )
-        
-        # Step 3: Validate plate solve
-        if plate_solve_position is None:
-            return EvaluationResult(
-                action=MonitorAction.NO_ACTION,
-                skip_reason=EvaluationSkipReason.PLATE_SOLVE_UNAVAILABLE
-            )
-        
-        if plate_solve_timestamp is not None:
-            age = (datetime.now() - plate_solve_timestamp).total_seconds()
-            if age > max_plate_solve_age_seconds:
-                return EvaluationResult(
-                    action=MonitorAction.NO_ACTION,
-                    skip_reason=EvaluationSkipReason.PLATE_SOLVE_STALE
-                )
-        
-        # Get mount position
-        mount_position = self.firmware.get_mount_position()
-        pointing_error_arcsec = angular_separation_arcsec(plate_solve_position, mount_position)
-        
-        # Step 4: Update per-point weighted errors
-        self._update_weighted_errors(mount_position, pointing_error_arcsec)
-        
-        # Step 5: Check if error is ignorable
-        if pointing_error_arcsec < self.config.error_ignore:
-            logger.debug(f"Pointing error {pointing_error_arcsec:.1f}\" below threshold, no action")
-            return EvaluationResult(
-                action=MonitorAction.NO_ACTION,
-                pointing_error_arcsec=pointing_error_arcsec
-            )
-        
-        # Step 6: Compute geometry and candidates
-        current_det = self._compute_current_det()
-        candidates = self._build_candidates(plate_solve_position, current_det)
-        
-        logger.debug(
-            f"Evaluation: error={pointing_error_arcsec:.1f}\", "
-            f"det={current_det:.3f}, candidates={len(candidates)}"
-        )
-        
-        # Step 7: No candidates - consider sync
-        if not candidates:
-            if pointing_error_arcsec > self.config.error_sync:
-                if self._perform_sync(plate_solve_position):
-                    self._start_lockout(self.config.lockout_post_sync)
-                    return EvaluationResult(
-                        action=MonitorAction.SYNC,
-                        pointing_error_arcsec=pointing_error_arcsec,
-                        current_det=current_det
-                    )
-            
-            return EvaluationResult(
-                action=MonitorAction.NO_ACTION,
-                pointing_error_arcsec=pointing_error_arcsec,
-                current_det=current_det
-            )
-        
-        # Step 8: Select replacement
-        selected = self._select_replacement(candidates, current_det)
-        
-        # Step 9: Health monitoring
-        if pointing_error_arcsec > self.config.error_max:
-            self.health_monitor.log_event(pointing_error_arcsec)
-            self.health_monitor.check_alert()
-        
-        # Step 10: Perform alignment
-        if self._perform_alignment(selected, plate_solve_position):
-            self._start_lockout(self.config.lockout_post_align)
-            return EvaluationResult(
-                action=MonitorAction.ALIGN,
-                pointing_error_arcsec=pointing_error_arcsec,
-                current_det=current_det,
-                replaced_point=selected.point.index,
-                new_det=selected.resulting_det
-            )
-        else:
-            # Alignment failed - fall back to sync if error is high enough
-            if pointing_error_arcsec > self.config.error_sync:
-                if self._perform_sync(plate_solve_position):
-                    self._start_lockout(self.config.lockout_post_sync)
-                    return EvaluationResult(
-                        action=MonitorAction.SYNC,
-                        pointing_error_arcsec=pointing_error_arcsec,
-                        current_det=current_det
-                    )
-            
-            return EvaluationResult(
-                action=MonitorAction.NO_ACTION,
-                pointing_error_arcsec=pointing_error_arcsec,
-                current_det=current_det
-            )
-    
-    @property
-    def is_health_alert_active(self) -> bool:
-        """Check if a health alert is currently active."""
-        return self.health_monitor.alert_active
-    
-    @property
-    def current_geometry_quality(self) -> float:
-        """Get current geometry determinant value."""
-        return self._compute_current_det()
-    
-    def get_point_diagnostics(self) -> List[dict]:
-        """
-        Get diagnostic information for each alignment point.
-        
-        Returns:
-            List of dictionaries with diagnostic info for each point.
-        """
-        return [
-            {
-                "index": p.index,
-                "ra_deg": p.equatorial.ra * RAD_TO_DEG,
-                "dec_deg": p.equatorial.dec * RAD_TO_DEG,
-                "age_minutes": (datetime.now() - p.timestamp).total_seconds() / 60,
-                "manual": p.manual,
-                "mean_weighted_error_arcsec": p.mean_weighted_error,
-            }
-            for p in self.alignment_points
-        ]
+        config,
+        logger: logging.Logger
+    ):
+        """Initialize alignment monitor.
 
+        Args:
+            config: TTS160Config instance with alignment settings.
+            logger: Logger instance for alignment operations.
+        """
+        self._config = config
+        self._logger = logger
+        self._lock = threading.RLock()
 
-# =============================================================================
-# Example Usage and Testing Support
-# =============================================================================
+        # State
+        self._state = AlignmentState.DISABLED
+        self._error_message = ""
 
-class MockFirmwareInterface:
-    """
-    Mock firmware interface for testing.
-    
-    Provides a simulated firmware that can be configured to return
-    specific values and track commands received.
-    """
-    
-    def __init__(self) -> None:
-        """Initialize mock firmware with default state."""
-        self.mount_position = EquatorialCoord(ra=0.0, dec=0.0)
-        self.mount_ticks = EncoderTicks(h_ticks=0, e_ticks=0)
-        self.is_static = True
-        self.alignment_points: List[AlignmentPoint] = []
-        
-        # Command history for verification
-        self.sync_history: List[EquatorialCoord] = []
-        self.alignment_captures: List[Tuple[int, EquatorialCoord]] = []
-        self.alignment_count = 0
-    
-    def get_mount_position(self) -> EquatorialCoord:
-        return self.mount_position
-    
-    def get_mount_ticks(self) -> EncoderTicks:
-        return self.mount_ticks
-    
-    def is_mount_static(self) -> bool:
-        return self.is_static
-    
-    def perform_sync(self, target: EquatorialCoord) -> bool:
-        self.sync_history.append(target)
-        self.mount_position = target
-        return True
-    
-    def capture_alignment_point(self, index: int, position: EquatorialCoord) -> bool:
-        self.alignment_captures.append((index, position))
-        
-        # Update or add alignment point
-        for i, p in enumerate(self.alignment_points):
-            if p.index == index:
-                self.alignment_points[i] = AlignmentPoint(
-                    index=index,
-                    equatorial=position,
-                    ticks=self.mount_ticks,
-                    timestamp=datetime.now(),
-                    manual=False
-                )
+        # Components (lazy-initialized)
+        self._camera_manager: Optional[CameraManager] = None
+        self._star_detector: Optional[StarDetector] = None
+        self._plate_solver: Optional[PlateSolver] = None
+
+        # Background thread
+        self._monitor_thread: Optional[threading.Thread] = None
+        self._stop_event = threading.Event()
+
+        # Mount position callback
+        self._mount_position_callback: Optional[Callable[[], Tuple[float, float]]] = None
+
+        # Measurement history
+        self._history: List[AlignmentPoint] = []
+        self._last_measurement: Optional[AlignmentPoint] = None
+
+        # Statistics
+        self._measurement_count = 0
+        self._average_error = 0.0
+        self._max_error = 0.0
+
+        # V1 Decision Engine State
+        self._alignment_points: List[AlignmentPointRecord] = []
+        self._sync_tracker = SyncOffsetTracker()
+        self._health_monitor = HealthMonitor()
+        self._lockout_until: Optional[datetime] = None
+        self._last_decision = DecisionResult.NO_ACTION
+        self._geometry_determinant = 0.0
+
+        # V1 Additional Callbacks
+        self._mount_altaz_callback: Optional[Callable[[], Tuple[float, float]]] = None
+        self._mount_static_callback: Optional[Callable[[], bool]] = None
+        self._sync_callback: Optional[Callable[[float, float], bool]] = None
+        self._alignment_data_callback: Optional[Callable[[], List[AlignmentPointRecord]]] = None
+
+        # V1 Firmware support flag (false until firmware implements ALIGN_POINT)
+        self._firmware_supports_align_point = False
+
+    def start(self) -> bool:
+        """Start the alignment monitor.
+
+        Initializes components and starts the background monitoring thread.
+
+        Returns:
+            True if started successfully, False otherwise.
+        """
+        with self._lock:
+            if not self._config.alignment_enabled:
+                self._logger.info("Alignment monitor is disabled in configuration")
+                self._state = AlignmentState.DISABLED
+                return False
+
+            if self._monitor_thread is not None and self._monitor_thread.is_alive():
+                self._logger.debug("Alignment monitor already running")
                 return True
-        
-        # Point not found - add it
-        self.alignment_points.append(AlignmentPoint(
-            index=index,
-            equatorial=position,
-            ticks=self.mount_ticks,
-            timestamp=datetime.now(),
-            manual=False
-        ))
-        return True
-    
-    def perform_alignment(self) -> bool:
-        self.alignment_count += 1
-        return True
-    
-    def get_alignment_points(self) -> List[AlignmentPoint]:
-        return self.alignment_points.copy()
-    
-    def setup_initial_alignment(
-        self,
-        coords: List[Tuple[float, float]],
-        ages_minutes: Optional[List[float]] = None
-    ) -> None:
+
+            try:
+                self._logger.info("Starting alignment monitor...")
+
+                # Initialize components
+                self._camera_manager = CameraManager(self._logger)
+                self._star_detector = StarDetector(self._logger)
+                self._plate_solver = PlateSolver(
+                    self._config.alignment_database_path,
+                    self._logger
+                )
+
+                # Check component availability
+                if not StarDetector.is_available():
+                    self._error_message = "SEP library not available"
+                    self._update_state(AlignmentState.ERROR)
+                    return False
+
+                if not self._plate_solver.is_available():
+                    self._error_message = "tetra3 library not available"
+                    self._update_state(AlignmentState.ERROR)
+                    return False
+
+                # Start background thread
+                self._stop_event.clear()
+                self._monitor_thread = threading.Thread(
+                    target=self._background_monitor,
+                    name="AlignmentMonitor",
+                    daemon=True
+                )
+                self._monitor_thread.start()
+
+                self._update_state(AlignmentState.DISCONNECTED)
+                self._logger.info("Alignment monitor started")
+                return True
+
+            except Exception as e:
+                self._error_message = str(e)
+                self._update_state(AlignmentState.ERROR)
+                self._logger.error(f"Failed to start alignment monitor: {e}")
+                return False
+
+    def stop(self) -> None:
+        """Stop the alignment monitor and clean up resources."""
+        with self._lock:
+            # Always set stop event for safety
+            self._stop_event.set()
+
+            if self._monitor_thread is None:
+                return
+
+            self._logger.info("Stopping alignment monitor...")
+
+        # Wait for thread outside lock
+        if self._monitor_thread is not None:
+            self._monitor_thread.join(timeout=5.0)
+
+        with self._lock:
+            # Disconnect camera
+            if self._camera_manager is not None:
+                self._camera_manager.disconnect()
+                self._camera_manager = None
+
+            self._star_detector = None
+            self._plate_solver = None
+            self._monitor_thread = None
+            self._update_state(AlignmentState.DISABLED)
+            self._logger.info("Alignment monitor stopped")
+
+    def get_status(self) -> AlignmentStatus:
+        """Get current alignment status.
+
+        Returns:
+            AlignmentStatus with current state and statistics.
         """
-        Set up initial alignment points for testing.
-        
+        with self._lock:
+            camera_connected = (
+                self._camera_manager is not None and
+                self._camera_manager.is_connected()
+            )
+            camera_info = (
+                self._camera_manager.get_camera_info()
+                if self._camera_manager else None
+            )
+            camera_name = camera_info.name if camera_info else ""
+
+            last_point = self._last_measurement
+
+            # Calculate lockout remaining time
+            lockout_remaining = 0.0
+            if self._lockout_until:
+                remaining = (self._lockout_until - datetime.now()).total_seconds()
+                lockout_remaining = max(0.0, remaining)
+
+            return AlignmentStatus(
+                state=self._state,
+                camera_connected=camera_connected,
+                camera_name=camera_name,
+                last_solve_time=last_point.timestamp if last_point else None,
+                last_ra_error=last_point.ra_error if last_point else 0.0,
+                last_dec_error=last_point.dec_error if last_point else 0.0,
+                last_total_error=last_point.total_error if last_point else 0.0,
+                average_error=self._average_error,
+                max_error=self._max_error,
+                measurement_count=self._measurement_count,
+                stars_detected=last_point.stars_detected if last_point else 0,
+                solve_confidence=last_point.confidence if last_point else 0.0,
+                error_message=self._error_message,
+                history=list(self._history),
+                # V1 additions
+                geometry_determinant=self._geometry_determinant,
+                health_alert_active=self._health_monitor.alert_active,
+                last_decision=self._last_decision.value,
+                lockout_remaining=lockout_remaining
+            )
+
+    def get_history(self, limit: int = 50) -> List[AlignmentPoint]:
+        """Get recent measurement history.
+
         Args:
-            coords: List of (ra_deg, dec_deg) tuples.
-            ages_minutes: Optional ages for each point (default: 0).
+            limit: Maximum number of points to return.
+
+        Returns:
+            List of recent AlignmentPoint measurements.
         """
-        if ages_minutes is None:
-            ages_minutes = [0.0] * len(coords)
-        
-        self.alignment_points = []
-        for i, ((ra_deg, dec_deg), age) in enumerate(zip(coords, ages_minutes)):
-            self.alignment_points.append(AlignmentPoint(
-                index=i + 1,
-                equatorial=EquatorialCoord(
-                    ra=ra_deg * DEG_TO_RAD,
-                    dec=dec_deg * DEG_TO_RAD
-                ),
-                ticks=EncoderTicks(h_ticks=i * 1000, e_ticks=i * 500),
-                timestamp=datetime.now() - timedelta(minutes=age),
-                manual=True
+        with self._lock:
+            return list(self._history[-limit:])
+
+    def trigger_measurement(self) -> Optional[AlignmentPoint]:
+        """Manually trigger a single measurement.
+
+        Returns:
+            AlignmentPoint if successful, None otherwise.
+        """
+        with self._lock:
+            if self._state == AlignmentState.DISABLED:
+                self._logger.warning("Cannot trigger measurement: monitor disabled")
+                return None
+
+            if not self._camera_manager or not self._camera_manager.is_connected():
+                self._logger.warning("Cannot trigger measurement: camera not connected")
+                return None
+
+            return self._perform_measurement()
+
+    def clear_history(self) -> None:
+        """Clear measurement history and reset statistics."""
+        with self._lock:
+            self._history.clear()
+            self._last_measurement = None
+            self._measurement_count = 0
+            self._average_error = 0.0
+            self._max_error = 0.0
+            self._logger.info("Alignment history cleared")
+
+    def set_mount_position_callback(
+        self,
+        callback: Callable[[], Tuple[float, float]]
+    ) -> None:
+        """Set callback to get current mount position.
+
+        Args:
+            callback: Function returning (ra_hours, dec_degrees).
+        """
+        with self._lock:
+            self._mount_position_callback = callback
+            self._logger.debug("Mount position callback set")
+
+    def _background_monitor(self) -> None:
+        """Background thread for periodic measurements."""
+        self._logger.debug("Background monitor thread started")
+
+        while not self._stop_event.is_set():
+            try:
+                # Connect camera if needed
+                if not self._camera_manager.is_connected():
+                    self._connect_camera()
+
+                # Perform measurement if connected
+                if self._camera_manager.is_connected():
+                    with self._lock:
+                        self._perform_measurement()
+
+                # Wait for next interval
+                interval = max(
+                    self._config.alignment_interval,
+                    self.MIN_INTERVAL
+                )
+                self._stop_event.wait(timeout=interval)
+
+            except Exception as e:
+                self._logger.error(f"Background monitor error: {e}")
+                with self._lock:
+                    self._error_message = str(e)
+                    self._update_state(AlignmentState.ERROR)
+                self._stop_event.wait(timeout=10.0)
+
+        self._logger.debug("Background monitor thread exiting")
+
+    def _connect_camera(self) -> bool:
+        """Connect to the configured camera.
+
+        Returns:
+            True if connected successfully, False otherwise.
+        """
+        with self._lock:
+            self._update_state(AlignmentState.CONNECTING)
+
+            success = self._camera_manager.connect(
+                self._config.alignment_camera_address,
+                self._config.alignment_camera_port,
+                self._config.alignment_camera_device
+            )
+
+            if success:
+                self._update_state(AlignmentState.CONNECTED)
+                self._error_message = ""
+                return True
+            else:
+                self._error_message = self._camera_manager.get_error_message()
+                self._update_state(AlignmentState.DISCONNECTED)
+                return False
+
+    def _perform_measurement(self) -> Optional[AlignmentPoint]:
+        """Perform a single measurement cycle.
+
+        Captures image, detects stars, solves plate, calculates error.
+
+        Returns:
+            AlignmentPoint if successful, None otherwise.
+        """
+        # Get mount position
+        if self._mount_position_callback is None:
+            self._logger.warning("No mount position callback set")
+            return None
+
+        try:
+            mount_ra, mount_dec = self._mount_position_callback()
+        except Exception as e:
+            self._logger.error(f"Failed to get mount position: {e}")
+            return None
+
+        # Capture image
+        self._update_state(AlignmentState.CAPTURING)
+        image = self._camera_manager.capture_image(
+            self._config.alignment_exposure_time,
+            self._config.alignment_binning
+        )
+
+        if image is None:
+            self._error_message = "Image capture failed"
+            self._update_state(AlignmentState.ERROR)
+            return None
+
+        # Detect stars
+        detection = self._star_detector.detect_stars(
+            image.data,
+            threshold_sigma=self._config.alignment_detection_threshold,
+            max_stars=self._config.alignment_max_stars
+        )
+
+        if detection is None or detection.star_count == 0:
+            self._error_message = "No stars detected"
+            self._update_state(AlignmentState.CONNECTED)
+            return None
+
+        # Plate solve
+        self._update_state(AlignmentState.SOLVING)
+        solve_start = time.time()
+
+        solve_result = self._plate_solver.solve_from_centroids(
+            detection.centroids,
+            (image.width, image.height),
+            fov_estimate=self._config.alignment_fov_estimate
+        )
+
+        solve_time_ms = (time.time() - solve_start) * 1000
+
+        if solve_result is None:
+            self._error_message = "Plate solve failed"
+            self._update_state(AlignmentState.CONNECTED)
+            return None
+
+        # Calculate errors
+        ra_error, dec_error, total_error = self._calculate_error(
+            mount_ra, mount_dec,
+            solve_result.ra_hours, solve_result.dec_degrees
+        )
+
+        # Create measurement point
+        point = AlignmentPoint(
+            timestamp=datetime.now(),
+            mount_ra=mount_ra,
+            mount_dec=mount_dec,
+            solved_ra=solve_result.ra_hours,
+            solved_dec=solve_result.dec_degrees,
+            ra_error=ra_error,
+            dec_error=dec_error,
+            total_error=total_error,
+            solve_time_ms=solve_time_ms,
+            stars_detected=detection.star_count,
+            confidence=solve_result.confidence
+        )
+
+        # Update history and statistics
+        self._history.append(point)
+        if len(self._history) > self.HISTORY_LIMIT:
+            self._history.pop(0)
+
+        self._last_measurement = point
+        self._measurement_count += 1
+        self._update_statistics()
+
+        self._update_state(AlignmentState.MONITORING)
+        self._error_message = ""
+
+        if self._config.alignment_verbose_logging:
+            self._logger.info(
+                f"Alignment: RA={ra_error:.1f}\" Dec={dec_error:.1f}\" "
+                f"Total={total_error:.1f}\" ({detection.star_count} stars, "
+                f"{solve_time_ms:.0f}ms)"
+            )
+
+        # Check error threshold
+        if total_error > self._config.alignment_error_threshold:
+            self._logger.warning(
+                f"Alignment error {total_error:.1f}\" exceeds threshold "
+                f"{self._config.alignment_error_threshold}\"!"
+            )
+
+        return point
+
+    def _calculate_error(
+        self,
+        mount_ra: float,
+        mount_dec: float,
+        solved_ra: float,
+        solved_dec: float
+    ) -> Tuple[float, float, float]:
+        """Calculate pointing error in arcseconds.
+
+        Args:
+            mount_ra: Mount RA in hours.
+            mount_dec: Mount Dec in degrees.
+            solved_ra: Solved RA in hours.
+            solved_dec: Solved Dec in degrees.
+
+        Returns:
+            Tuple of (ra_error, dec_error, total_error) in arcseconds.
+        """
+        # Convert RA difference to arcseconds
+        # Account for RA wrapping at 24h
+        ra_diff = solved_ra - mount_ra
+        if ra_diff > 12.0:
+            ra_diff -= 24.0
+        elif ra_diff < -12.0:
+            ra_diff += 24.0
+
+        # RA error in arcseconds (15 arcsec per second of RA)
+        # Corrected for declination (cos(dec) factor)
+        cos_dec = np.cos(np.radians(mount_dec))
+        ra_error = ra_diff * 15.0 * 3600.0 * cos_dec  # hours to arcsec
+
+        # Dec error in arcseconds
+        dec_error = (solved_dec - mount_dec) * 3600.0
+
+        # Total error (angular separation)
+        total_error = np.sqrt(ra_error**2 + dec_error**2)
+
+        return ra_error, dec_error, total_error
+
+    def _update_statistics(self) -> None:
+        """Update running statistics from history."""
+        if not self._history:
+            self._average_error = 0.0
+            self._max_error = 0.0
+            return
+
+        errors = [p.total_error for p in self._history]
+        self._average_error = sum(errors) / len(errors)
+        self._max_error = max(errors)
+
+    def _update_state(self, new_state: AlignmentState) -> None:
+        """Update alignment state with logging.
+
+        Args:
+            new_state: New alignment state.
+        """
+        if self._state != new_state:
+            old_state = self._state
+            self._state = new_state
+            self._logger.debug(
+                f"Alignment state: {old_state.name} -> {new_state.name}"
+            )
+
+    # =========================================================================
+    # V1 Callback Setters
+    # =========================================================================
+
+    def set_mount_altaz_callback(
+        self,
+        callback: Callable[[], Tuple[float, float]]
+    ) -> None:
+        """Set callback to get current mount alt/az position.
+
+        Args:
+            callback: Function returning (altitude_degrees, azimuth_degrees).
+        """
+        with self._lock:
+            self._mount_altaz_callback = callback
+            self._logger.debug("Mount alt/az callback set")
+
+    def set_mount_static_callback(
+        self,
+        callback: Callable[[], bool]
+    ) -> None:
+        """Set callback to check if mount is static (tracking, not slewing).
+
+        Args:
+            callback: Function returning True if mount is static.
+        """
+        with self._lock:
+            self._mount_static_callback = callback
+            self._logger.debug("Mount static callback set")
+
+    def set_sync_callback(
+        self,
+        callback: Callable[[float, float], bool]
+    ) -> None:
+        """Set callback to perform sync operation.
+
+        Args:
+            callback: Function accepting (ra_hours, dec_degrees), returning success.
+        """
+        with self._lock:
+            self._sync_callback = callback
+            self._logger.debug("Sync callback set")
+
+    def set_alignment_data_callback(
+        self,
+        callback: Callable[[], List[AlignmentPointRecord]]
+    ) -> None:
+        """Set callback to get current alignment point data from firmware.
+
+        Args:
+            callback: Function returning list of AlignmentPointRecord.
+        """
+        with self._lock:
+            self._alignment_data_callback = callback
+            self._logger.debug("Alignment data callback set")
+
+    # =========================================================================
+    # V1 Lockout System
+    # =========================================================================
+
+    def _in_lockout_period(self) -> bool:
+        """Check if currently in a lockout period.
+
+        Returns:
+            True if actions are blocked by lockout.
+        """
+        if self._lockout_until is None:
+            return False
+        return datetime.now() < self._lockout_until
+
+    def _start_lockout(self, seconds: float) -> None:
+        """Start a lockout period.
+
+        Args:
+            seconds: Duration of lockout in seconds.
+        """
+        self._lockout_until = datetime.now() + timedelta(seconds=seconds)
+        self._logger.debug(f"Lockout started for {seconds:.1f}s")
+
+    def _clear_lockout(self) -> None:
+        """Clear the current lockout."""
+        self._lockout_until = None
+
+    # =========================================================================
+    # V1 Weighted Error Tracking
+    # =========================================================================
+
+    def _update_weighted_errors(self, pointing_error: float) -> None:
+        """Update per-point weighted errors based on current position.
+
+        Uses distance-based weighting to attribute error to nearby alignment points.
+
+        Args:
+            pointing_error: Current pointing error in arcseconds.
+        """
+        if not self._alignment_points:
+            return
+
+        if not self._mount_altaz_callback:
+            return
+
+        try:
+            alt_deg, az_deg = self._mount_altaz_callback()
+            current_altaz = (
+                geometry.degrees_to_radians(alt_deg),
+                geometry.degrees_to_radians(az_deg)
+            )
+        except Exception as e:
+            self._logger.debug(f"Failed to get alt/az for weighted errors: {e}")
+            return
+
+        scale_radius = self._config.alignment_scale_radius
+
+        for point in self._alignment_points:
+            # Calculate distance from current position to alignment point
+            distance_rad = geometry.angular_separation_altaz(
+                current_altaz[0], current_altaz[1],
+                point.altaz[0], point.altaz[1]
+            )
+            distance_deg = geometry.radians_to_degrees(distance_rad)
+
+            # Calculate weight based on distance
+            weight = geometry.compute_weight_for_distance(distance_deg, scale_radius)
+
+            # Accumulate weighted error
+            point.add_weighted_error(pointing_error, weight)
+
+    def _refresh_alignment_points(self) -> None:
+        """Refresh alignment point data from firmware callback."""
+        if not self._alignment_data_callback:
+            return
+
+        try:
+            self._alignment_points = self._alignment_data_callback()
+            if self._alignment_points:
+                self._update_geometry_determinant()
+        except Exception as e:
+            self._logger.debug(f"Failed to refresh alignment points: {e}")
+
+    # =========================================================================
+    # V1 Geometry Calculations
+    # =========================================================================
+
+    def _update_geometry_determinant(self) -> None:
+        """Update the geometry determinant from current alignment points."""
+        if len(self._alignment_points) != 3:
+            self._geometry_determinant = 0.0
+            return
+
+        points_altaz = [p.altaz for p in self._alignment_points]
+        self._geometry_determinant = geometry.compute_geometry_determinant(points_altaz)
+
+    def _get_geometry_config(self) -> geometry.GeometryConfig:
+        """Create GeometryConfig from current configuration."""
+        return geometry.GeometryConfig(
+            det_excellent=self._config.alignment_det_excellent,
+            det_good=self._config.alignment_det_good,
+            det_marginal=self._config.alignment_det_marginal,
+            det_improvement_min=self._config.alignment_det_improvement_min,
+            min_separation=self._config.alignment_min_separation,
+            refresh_radius=self._config.alignment_refresh_radius,
+            scale_radius=self._config.alignment_scale_radius,
+            refresh_error_threshold=self._config.alignment_refresh_error_threshold,
+        )
+
+    # =========================================================================
+    # V1 Health Monitoring
+    # =========================================================================
+
+    def _log_health_event(self, error_magnitude: float) -> None:
+        """Log a high-error health event.
+
+        Args:
+            error_magnitude: Error value in arcseconds.
+        """
+        self._health_monitor.log_event(
+            error_magnitude,
+            self._config.alignment_health_window
+        )
+
+    def _check_health_alert(self) -> bool:
+        """Check if health alert should be raised.
+
+        Returns:
+            True if alert is active.
+        """
+        if self._health_monitor.check_alert(self._config.alignment_health_alert_threshold):
+            if not self._health_monitor.alert_active:
+                self._logger.warning(
+                    f"Alignment health alert - {len(self._health_monitor.events)} "
+                    f"high-error events in past "
+                    f"{self._config.alignment_health_window / 60:.0f} minutes. "
+                    "Possible causes: loose plate solver, mechanical issues, unstable mount."
+                )
+            return True
+        return False
+
+    def clear_health_events(self) -> None:
+        """Clear health event history and reset alert."""
+        with self._lock:
+            self._health_monitor.clear()
+            self._logger.info("Health events cleared")
+
+    # =========================================================================
+    # V1 Sync Operations
+    # =========================================================================
+
+    def _perform_sync(self) -> bool:
+        """Perform sync operation with plate-solved coordinates.
+
+        Returns:
+            True if sync was successful.
+        """
+        if not self._sync_callback:
+            self._logger.debug("No sync callback set")
+            return False
+
+        if not self._last_measurement:
+            self._logger.debug("No measurement available for sync")
+            return False
+
+        try:
+            success = self._sync_callback(
+                self._last_measurement.solved_ra,
+                self._last_measurement.solved_dec
+            )
+
+            if success:
+                self._logger.info(
+                    f"V1 Sync performed: RA={self._last_measurement.solved_ra:.4f}h "
+                    f"Dec={self._last_measurement.solved_dec:.4f}°"
+                )
+            return success
+
+        except Exception as e:
+            self._logger.error(f"Sync operation failed: {e}")
+            return False
+
+    # =========================================================================
+    # V1 Decision Engine
+    # =========================================================================
+
+    def evaluate(self) -> DecisionResult:
+        """Execute V1 decision logic after a measurement.
+
+        This is the main V1 decision engine that evaluates pointing error
+        and decides whether to sync, replace an alignment point, or do nothing.
+
+        Returns:
+            DecisionResult indicating the action taken or reason for no action.
+        """
+        with self._lock:
+            # Step 1: Check lockout
+            if self._in_lockout_period():
+                self._last_decision = DecisionResult.LOCKOUT
+                return DecisionResult.LOCKOUT
+
+            # Step 2: Check mount state
+            if self._mount_static_callback:
+                try:
+                    if not self._mount_static_callback():
+                        self._last_decision = DecisionResult.NO_ACTION
+                        return DecisionResult.NO_ACTION
+                except Exception:
+                    pass  # Proceed if callback fails
+
+            # Step 3: Get pointing error from last measurement
+            if not self._last_measurement:
+                self._last_decision = DecisionResult.NO_ACTION
+                return DecisionResult.NO_ACTION
+
+            pointing_error = self._last_measurement.total_error
+
+            # Step 4: Update per-point weighted errors
+            self._update_weighted_errors(pointing_error)
+
+            # Step 5: Check if error is ignorable
+            if pointing_error < self._config.alignment_error_ignore:
+                self._last_decision = DecisionResult.NO_ACTION
+                return DecisionResult.NO_ACTION
+
+            # Step 6: Refresh alignment point data and compute geometry
+            self._refresh_alignment_points()
+
+            # Step 7: Find replacement candidates
+            candidates = self._find_replacement_candidates()
+
+            # Step 8: Handle no candidates - sync if error is high enough
+            if len(candidates) == 0:
+                if pointing_error > self._config.alignment_error_sync:
+                    if self._perform_sync():
+                        self._start_lockout(self._config.alignment_lockout_post_sync)
+                        self._last_decision = DecisionResult.SYNC
+                        return DecisionResult.SYNC
+                self._last_decision = DecisionResult.NO_ACTION
+                return DecisionResult.NO_ACTION
+
+            # Step 9: Select best replacement candidate
+            selected = self._select_replacement_candidate(candidates)
+            if not selected:
+                self._last_decision = DecisionResult.NO_ACTION
+                return DecisionResult.NO_ACTION
+
+            # Step 10: Health monitoring for extreme errors
+            if pointing_error > self._config.alignment_error_max:
+                self._log_health_event(pointing_error)
+                self._check_health_alert()
+
+            # Step 11: Perform alignment or fall back to sync
+            if self._firmware_supports_align_point:
+                # Future: call firmware ALIGN_POINT command
+                self._logger.info(
+                    f"V1 Alignment: replacing point {selected.point.index} "
+                    f"(reason: {selected.reason}, det: {selected.new_det:.3f})"
+                )
+                selected.point.reset_weighted_error()
+                self._sync_tracker.reset()
+                self._start_lockout(self._config.alignment_lockout_post_align)
+                self._last_decision = DecisionResult.ALIGN
+                return DecisionResult.ALIGN
+            else:
+                # Firmware doesn't support ALIGN_POINT, log intent and sync instead
+                self._logger.info(
+                    f"V1 Alignment would replace point {selected.point.index} "
+                    f"(reason: {selected.reason}, det: {selected.new_det:.3f}) - "
+                    "firmware unsupported, falling back to sync"
+                )
+                if self._perform_sync():
+                    self._start_lockout(self._config.alignment_lockout_post_sync)
+                    self._last_decision = DecisionResult.SYNC
+                    return DecisionResult.SYNC
+                self._last_decision = DecisionResult.NO_ACTION
+                return DecisionResult.NO_ACTION
+
+    def _find_replacement_candidates(self) -> List[ReplacementCandidate]:
+        """Find valid replacement candidates for alignment points.
+
+        Returns:
+            List of ReplacementCandidate objects.
+        """
+        if len(self._alignment_points) != 3:
+            return []
+
+        if not self._mount_altaz_callback:
+            return []
+
+        try:
+            alt_deg, az_deg = self._mount_altaz_callback()
+            candidate_altaz = (
+                geometry.degrees_to_radians(alt_deg),
+                geometry.degrees_to_radians(az_deg)
+            )
+        except Exception as e:
+            self._logger.debug(f"Failed to get alt/az for candidates: {e}")
+            return []
+
+        # Get current points as alt/az tuples
+        current_points = [p.altaz for p in self._alignment_points]
+
+        # Get weighted errors for each point
+        weighted_errors = [p.mean_weighted_error for p in self._alignment_points]
+
+        # Evaluate candidates using geometry module
+        config = self._get_geometry_config()
+        evaluations = geometry.evaluate_replacement_candidates(
+            current_points, candidate_altaz, config, weighted_errors
+        )
+
+        # Convert to ReplacementCandidate objects
+        candidates = []
+        for eval in evaluations:
+            candidates.append(ReplacementCandidate(
+                point=self._alignment_points[eval.point_index],
+                new_det=eval.new_det,
+                improvement=eval.improvement,
+                reason=eval.reason,
+                distance=eval.distance_deg
             ))
 
+        return candidates
 
-if __name__ == "__main__":
-    # Simple demonstration
-    logging.basicConfig(level=logging.DEBUG)
-    
-    # Create mock firmware with initial alignment
-    firmware = MockFirmwareInterface()
-    firmware.setup_initial_alignment([
-        (0.0, 45.0),    # Point 1: RA=0°, Dec=45°
-        (120.0, 45.0),  # Point 2: RA=120°, Dec=45°
-        (240.0, 45.0),  # Point 3: RA=240°, Dec=45°
-    ])
-    
-    # Create monitor with default config
-    config = AlignmentMonitorConfig()
-    monitor = AlignmentMonitor(config, firmware)
-    
-    print(f"Initial geometry quality: {monitor.current_geometry_quality:.3f}")
-    print(f"Point diagnostics: {monitor.get_point_diagnostics()}")
-    
-    # Simulate an evaluation with small error
-    firmware.mount_position = EquatorialCoord(ra=0.5 * DEG_TO_RAD, dec=45.0 * DEG_TO_RAD)
-    plate_solve = EquatorialCoord(ra=0.502 * DEG_TO_RAD, dec=45.001 * DEG_TO_RAD)
-    
-    result = monitor.evaluate(plate_solve)
-    print(f"Evaluation result: {result}")
+    def _select_replacement_candidate(
+        self,
+        candidates: List[ReplacementCandidate]
+    ) -> Optional[ReplacementCandidate]:
+        """Select the best replacement candidate.
+
+        Args:
+            candidates: List of valid candidates.
+
+        Returns:
+            Best candidate or None.
+        """
+        if not candidates:
+            return None
+
+        # Get timestamps for tiebreaking
+        timestamps = [p.timestamp.timestamp() for p in self._alignment_points]
+
+        # Convert to geometry module format
+        eval_candidates = [
+            geometry.CandidateEvaluation(
+                point_index=self._alignment_points.index(c.point),
+                new_det=c.new_det,
+                improvement=c.improvement,
+                reason=c.reason,
+                distance_deg=c.distance,
+                meets_separation=True
+            )
+            for c in candidates
+        ]
+
+        config = self._get_geometry_config()
+        best_eval = geometry.select_best_candidate(eval_candidates, timestamps, config)
+
+        if best_eval:
+            # Find corresponding ReplacementCandidate
+            for c in candidates:
+                if self._alignment_points.index(c.point) == best_eval.point_index:
+                    return c
+
+        return None
+
+    def get_geometry_determinant(self) -> float:
+        """Get the current geometry determinant value.
+
+        Returns:
+            Determinant value (0.0 to ~1.0).
+        """
+        with self._lock:
+            return self._geometry_determinant
+
+    def get_alignment_points(self) -> List[AlignmentPointRecord]:
+        """Get the current alignment point records.
+
+        Returns:
+            Copy of alignment point records.
+        """
+        with self._lock:
+            return list(self._alignment_points)

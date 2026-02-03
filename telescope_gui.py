@@ -362,6 +362,46 @@ class TelescopeInterface:
                                 'font-size: 0.8rem; opacity: 0.8'
                             )
 
+            # Alignment Status
+            ui.label('Alignment Monitor').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
+            with ui.card().classes('w-full mb-6'):
+                with ui.card_section():
+                    with ui.row().classes('w-full gap-6'):
+                        # Alignment state and camera
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['alignment_state'] = ui.label().style('font-size: 1.1rem')
+                            self.ui_components['telescope_status']['alignment_camera'] = ui.label().style('font-family: monospace; opacity: 0.8')
+                        # Last error measurements
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['alignment_ra_error'] = ui.label().style('font-family: monospace')
+                            self.ui_components['telescope_status']['alignment_dec_error'] = ui.label().style('font-family: monospace')
+                        # Total error and statistics
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['alignment_total_error'] = ui.label().style('font-family: monospace; font-weight: bold')
+                            self.ui_components['telescope_status']['alignment_avg_error'] = ui.label().style('font-family: monospace; opacity: 0.8')
+                        # Solve details
+                        with ui.column().classes('gap-2'):
+                            self.ui_components['telescope_status']['alignment_stars'] = ui.label().style('font-family: monospace')
+                            self.ui_components['telescope_status']['alignment_count'] = ui.label().style('font-family: monospace; opacity: 0.8')
+                        # Manual trigger control
+                        with ui.column().classes('gap-2 items-center'):
+                            self.ui_components['telescope_status']['alignment_trigger_button'] = ui.button(
+                                '🎯 Measure Now',
+                                on_click=self.manual_alignment_trigger,
+                                color='primary'
+                            ).classes('w-32')
+                            self.ui_components['telescope_status']['alignment_last_solve'] = ui.label().style(
+                                'font-size: 0.8rem; opacity: 0.8'
+                            )
+                    # V1 Status Row
+                    with ui.row().classes('w-full gap-6 mt-2'):
+                        with ui.column().classes('gap-1'):
+                            self.ui_components['telescope_status']['alignment_geometry'] = ui.label().style('font-family: monospace; font-size: 0.9rem')
+                            self.ui_components['telescope_status']['alignment_decision'] = ui.label().style('font-family: monospace; font-size: 0.9rem; opacity: 0.8')
+                        with ui.column().classes('gap-1'):
+                            self.ui_components['telescope_status']['alignment_health'] = ui.label().style('font-family: monospace; font-size: 0.9rem')
+                            self.ui_components['telescope_status']['alignment_lockout'] = ui.label().style('font-family: monospace; font-size: 0.9rem; opacity: 0.8')
+
             # Control panel
             ui.label('Telescope Control').classes('text-xl font-bold mb-4').style('border-bottom: 2px solid #667eea; padding-bottom: 8px')
             with ui.row().classes('w-full gap-4 mb-6'):
@@ -520,6 +560,9 @@ class TelescopeInterface:
 
             # Update GPS status
             self._update_gps_status()
+
+            # Update alignment status
+            self._update_alignment_status()
 
         except Exception as e:
             if self.data_manager.telescope_cache:
@@ -756,6 +799,164 @@ class TelescopeInterface:
         except Exception as e:
             self.logger.debug(f"Error updating GPS status: {e}")
 
+    def _update_alignment_status(self):
+        """Update alignment monitor status display in the telescope status tab."""
+        try:
+            alignment_data = self.data_manager.get_alignment_status()
+
+            if 'alignment_state' not in self.ui_components['telescope_status']:
+                return
+
+            if not alignment_data.get('enabled', False):
+                self.ui_components['telescope_status']['alignment_state'].set_text('🎯 Alignment: Disabled')
+                self.ui_components['telescope_status']['alignment_camera'].set_text('')
+                self.ui_components['telescope_status']['alignment_ra_error'].set_text('')
+                self.ui_components['telescope_status']['alignment_dec_error'].set_text('')
+                self.ui_components['telescope_status']['alignment_total_error'].set_text('')
+                self.ui_components['telescope_status']['alignment_avg_error'].set_text('')
+                self.ui_components['telescope_status']['alignment_stars'].set_text('')
+                self.ui_components['telescope_status']['alignment_count'].set_text('')
+                self.ui_components['telescope_status']['alignment_last_solve'].set_text('')
+                return
+
+            # State with appropriate icon
+            state = alignment_data.get('state', 'UNKNOWN')
+            state_icons = {
+                'DISABLED': '⚫',
+                'DISCONNECTED': '🔴',
+                'CONNECTING': '🟡',
+                'CONNECTED': '🟢',
+                'CAPTURING': '📷',
+                'SOLVING': '🔍',
+                'MONITORING': '🟢',
+                'ERROR': '🔴'
+            }
+            icon = state_icons.get(state, '⚪')
+            state_display = alignment_data.get('state_display', state)
+
+            # Show error message if in error state
+            error_msg = alignment_data.get('error_message', '')
+            if state == 'ERROR' and error_msg:
+                self.ui_components['telescope_status']['alignment_state'].set_text(f'{icon} Alignment: {error_msg}')
+            else:
+                self.ui_components['telescope_status']['alignment_state'].set_text(f'{icon} Alignment: {state_display}')
+
+            # Camera info
+            camera_connected = alignment_data.get('camera_connected', False)
+            camera_name = alignment_data.get('camera_name', '')
+            if camera_connected and camera_name:
+                self.ui_components['telescope_status']['alignment_camera'].set_text(f'Camera: {camera_name}')
+            elif camera_connected:
+                self.ui_components['telescope_status']['alignment_camera'].set_text('Camera: Connected')
+            else:
+                self.ui_components['telescope_status']['alignment_camera'].set_text('Camera: Not connected')
+
+            # Error measurements
+            ra_error = alignment_data.get('last_ra_error', 0)
+            dec_error = alignment_data.get('last_dec_error', 0)
+            total_error = alignment_data.get('last_total_error', 0)
+            avg_error = alignment_data.get('average_error', 0)
+
+            if alignment_data.get('measurement_count', 0) > 0:
+                self.ui_components['telescope_status']['alignment_ra_error'].set_text(f'RA Error: {ra_error:+.1f}"')
+                self.ui_components['telescope_status']['alignment_dec_error'].set_text(f'Dec Error: {dec_error:+.1f}"')
+
+                # Color code total error based on threshold
+                error_threshold = 60.0  # Default threshold
+                if total_error > error_threshold:
+                    self.ui_components['telescope_status']['alignment_total_error'].set_text(f'🔴 Total: {total_error:.1f}"')
+                elif total_error > error_threshold / 2:
+                    self.ui_components['telescope_status']['alignment_total_error'].set_text(f'🟡 Total: {total_error:.1f}"')
+                else:
+                    self.ui_components['telescope_status']['alignment_total_error'].set_text(f'🟢 Total: {total_error:.1f}"')
+
+                self.ui_components['telescope_status']['alignment_avg_error'].set_text(f'Avg: {avg_error:.1f}"')
+            else:
+                self.ui_components['telescope_status']['alignment_ra_error'].set_text('RA Error: --')
+                self.ui_components['telescope_status']['alignment_dec_error'].set_text('Dec Error: --')
+                self.ui_components['telescope_status']['alignment_total_error'].set_text('Total: --')
+                self.ui_components['telescope_status']['alignment_avg_error'].set_text('Avg: --')
+
+            # Solve details
+            stars = alignment_data.get('stars_detected', 0)
+            count = alignment_data.get('measurement_count', 0)
+            self.ui_components['telescope_status']['alignment_stars'].set_text(f'Stars: {stars}')
+            self.ui_components['telescope_status']['alignment_count'].set_text(f'Measurements: {count}')
+
+            # Last solve time
+            last_solve = alignment_data.get('last_solve_time')
+            if last_solve:
+                self.ui_components['telescope_status']['alignment_last_solve'].set_text(f'Last: {last_solve[:19]}')
+            else:
+                self.ui_components['telescope_status']['alignment_last_solve'].set_text('Last: Never')
+
+            # Update trigger button state
+            if 'alignment_trigger_button' in self.ui_components['telescope_status']:
+                btn = self.ui_components['telescope_status']['alignment_trigger_button']
+                camera_connected = alignment_data.get('camera_connected', False)
+                telescope_connected = self.data_manager.is_telescope_connected()
+
+                if camera_connected and telescope_connected and state not in ('CAPTURING', 'SOLVING'):
+                    btn.enable()
+                    btn._props['color'] = 'primary'
+                else:
+                    btn.disable()
+                    btn._props['color'] = 'grey'
+
+            # V1 Status displays
+            if 'alignment_geometry' in self.ui_components['telescope_status']:
+                geometry_det = alignment_data.get('geometry_determinant', 0.0)
+                # Color-code geometry quality
+                if geometry_det >= 0.8:
+                    det_icon = '🟢'
+                    det_label = 'Excellent'
+                elif geometry_det >= 0.6:
+                    det_icon = '🟢'
+                    det_label = 'Good'
+                elif geometry_det >= 0.4:
+                    det_icon = '🟡'
+                    det_label = 'Marginal'
+                elif geometry_det > 0:
+                    det_icon = '🔴'
+                    det_label = 'Weak'
+                else:
+                    det_icon = '⚫'
+                    det_label = 'N/A'
+                self.ui_components['telescope_status']['alignment_geometry'].set_text(
+                    f'{det_icon} Geometry: {geometry_det:.2f} ({det_label})'
+                )
+
+            if 'alignment_decision' in self.ui_components['telescope_status']:
+                last_decision = alignment_data.get('last_decision', 'no_action')
+                decision_icons = {
+                    'no_action': '⚪',
+                    'sync': '🔄',
+                    'align': '🎯',
+                    'lockout': '⏳',
+                    'error': '🔴'
+                }
+                icon = decision_icons.get(last_decision, '⚪')
+                self.ui_components['telescope_status']['alignment_decision'].set_text(
+                    f'{icon} Last: {last_decision}'
+                )
+
+            if 'alignment_health' in self.ui_components['telescope_status']:
+                health_alert = alignment_data.get('health_alert_active', False)
+                if health_alert:
+                    self.ui_components['telescope_status']['alignment_health'].set_text('⚠️ Health Alert!')
+                else:
+                    self.ui_components['telescope_status']['alignment_health'].set_text('✓ Health: OK')
+
+            if 'alignment_lockout' in self.ui_components['telescope_status']:
+                lockout = alignment_data.get('lockout_remaining', 0.0)
+                if lockout > 0:
+                    self.ui_components['telescope_status']['alignment_lockout'].set_text(f'⏳ Lockout: {lockout:.0f}s')
+                else:
+                    self.ui_components['telescope_status']['alignment_lockout'].set_text('Lockout: None')
+
+        except Exception as e:
+            self.logger.debug(f"Error updating alignment status: {e}")
+
     # Event handlers
     def confirm_stop_server(self):
         """Show confirmation dialog for stopping server."""
@@ -809,6 +1010,50 @@ class TelescopeInterface:
         except Exception as e:
             self.logger.error(f"Manual GPS push error: {e}")
             ui.notify(f'GPS push error: {e}', type='negative')
+
+    def manual_alignment_trigger(self):
+        """Manually trigger an alignment measurement."""
+        try:
+            import TTS160Global
+            alignment_mgr = TTS160Global.get_alignment_monitor(self.logger)
+
+            if alignment_mgr is None:
+                ui.notify('Alignment monitor is disabled', type='warning')
+                return
+
+            if not self.data_manager.is_telescope_connected():
+                ui.notify('Telescope not connected', type='warning')
+                return
+
+            # Update button to show measuring
+            if 'alignment_trigger_button' in self.ui_components['telescope_status']:
+                btn = self.ui_components['telescope_status']['alignment_trigger_button']
+                btn.set_text('Measuring...')
+                btn.disable()
+
+            point = alignment_mgr.trigger_measurement()
+
+            if point is not None:
+                ui.notify(f'Alignment measured: {point.total_error:.1f}" error', type='positive')
+                if 'alignment_last_solve' in self.ui_components['telescope_status']:
+                    self.ui_components['telescope_status']['alignment_last_solve'].set_text('Just now!')
+            else:
+                ui.notify('Alignment measurement failed', type='negative')
+
+            # Restore button
+            if 'alignment_trigger_button' in self.ui_components['telescope_status']:
+                btn = self.ui_components['telescope_status']['alignment_trigger_button']
+                btn.set_text('🎯 Measure Now')
+                btn.enable()
+
+        except Exception as e:
+            self.logger.error(f"Manual alignment trigger error: {e}")
+            ui.notify(f'Alignment error: {e}', type='negative')
+            # Restore button on error
+            if 'alignment_trigger_button' in self.ui_components['telescope_status']:
+                btn = self.ui_components['telescope_status']['alignment_trigger_button']
+                btn.set_text('🎯 Measure Now')
+                btn.enable()
 
     def _start_gps_manager(self):
         """Start GPS manager at GUI startup so fix can be acquired before mount connect."""

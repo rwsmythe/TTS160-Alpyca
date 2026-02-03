@@ -186,6 +186,7 @@ class TTS160Config:
     SITE_SECTION = 'site'
     DRIVER_SECTION = 'driver'
     GPS_SECTION = 'gps'
+    ALIGNMENT_SECTION = 'alignment'
     
     # --------------
     # Device Section
@@ -379,6 +380,293 @@ class TTS160Config:
     @gps_verbose_logging.setter
     def gps_verbose_logging(self, value: bool) -> None:
         self._put_toml(self.GPS_SECTION, 'verbose_logging', value)
+
+    # -------------------
+    # Alignment Section
+    # -------------------
+
+    @property
+    def alignment_enabled(self) -> bool:
+        """Enable alignment monitoring with plate solving."""
+        value = self._get_toml(self.ALIGNMENT_SECTION, 'enabled')
+        return False if value is None else value
+
+    @alignment_enabled.setter
+    def alignment_enabled(self, value: bool) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'enabled', value)
+
+    @property
+    def alignment_camera_address(self) -> str:
+        """Alpaca camera server address."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'camera_address') or '127.0.0.1'
+
+    @alignment_camera_address.setter
+    def alignment_camera_address(self, value: str) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'camera_address', value)
+
+    @property
+    def alignment_camera_port(self) -> int:
+        """Alpaca camera server port."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'camera_port') or 11111
+
+    @alignment_camera_port.setter
+    def alignment_camera_port(self, value: int) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'camera_port', value)
+
+    @property
+    def alignment_camera_device(self) -> int:
+        """Alpaca camera device number."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'camera_device') or 0
+
+    @alignment_camera_device.setter
+    def alignment_camera_device(self, value: int) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'camera_device', value)
+
+    @property
+    def alignment_exposure_time(self) -> float:
+        """Exposure time in seconds for alignment captures."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'exposure_time') or 1.0
+
+    @alignment_exposure_time.setter
+    def alignment_exposure_time(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'exposure_time', value)
+
+    @property
+    def alignment_binning(self) -> int:
+        """Camera binning (1, 2, or 4)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'binning') or 2
+
+    @alignment_binning.setter
+    def alignment_binning(self, value: int) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'binning', value)
+
+    @property
+    def alignment_interval(self) -> float:
+        """Interval between alignment measurements in seconds."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'interval') or 30.0
+
+    @alignment_interval.setter
+    def alignment_interval(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'interval', value)
+
+    @property
+    def alignment_fov_estimate(self) -> float:
+        """Estimated camera field of view in degrees."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'fov_estimate') or 1.0
+
+    @alignment_fov_estimate.setter
+    def alignment_fov_estimate(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'fov_estimate', value)
+
+    @property
+    def alignment_detection_threshold(self) -> float:
+        """Star detection threshold in sigma above background."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'detection_threshold') or 5.0
+
+    @alignment_detection_threshold.setter
+    def alignment_detection_threshold(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'detection_threshold', value)
+
+    @property
+    def alignment_max_stars(self) -> int:
+        """Maximum stars to use for plate solving."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'max_stars') or 50
+
+    @alignment_max_stars.setter
+    def alignment_max_stars(self, value: int) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'max_stars', value)
+
+    @property
+    def alignment_error_threshold(self) -> float:
+        """Error threshold in arcseconds for warnings."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'error_threshold') or 60.0
+
+    @alignment_error_threshold.setter
+    def alignment_error_threshold(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'error_threshold', value)
+
+    @property
+    def alignment_database_path(self) -> str:
+        """Path to tetra3 star pattern database."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'database_path') or 'tetra3_database.npz'
+
+    @alignment_database_path.setter
+    def alignment_database_path(self, value: str) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'database_path', value)
+
+    @property
+    def alignment_verbose_logging(self) -> bool:
+        """Enable verbose alignment logging for debugging."""
+        value = self._get_toml(self.ALIGNMENT_SECTION, 'verbose_logging')
+        return False if value is None else value
+
+    @alignment_verbose_logging.setter
+    def alignment_verbose_logging(self, value: bool) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'verbose_logging', value)
+
+    # -------------------
+    # V1 Decision Thresholds (arcseconds)
+    # -------------------
+
+    @property
+    def alignment_error_ignore(self) -> float:
+        """Pointing error below which no action is taken (arcseconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'error_ignore') or 30.0
+
+    @alignment_error_ignore.setter
+    def alignment_error_ignore(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'error_ignore', value)
+
+    @property
+    def alignment_error_sync(self) -> float:
+        """Pointing error above which sync is performed (arcseconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'error_sync') or 120.0
+
+    @alignment_error_sync.setter
+    def alignment_error_sync(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'error_sync', value)
+
+    @property
+    def alignment_error_concern(self) -> float:
+        """Pointing error above which alignment replacement is considered (arcseconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'error_concern') or 300.0
+
+    @alignment_error_concern.setter
+    def alignment_error_concern(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'error_concern', value)
+
+    @property
+    def alignment_error_max(self) -> float:
+        """Pointing error above which action is forced and health event logged (arcseconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'error_max') or 600.0
+
+    @alignment_error_max.setter
+    def alignment_error_max(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'error_max', value)
+
+    # -------------------
+    # V1 Geometry Thresholds (determinant, 0-1)
+    # -------------------
+
+    @property
+    def alignment_det_excellent(self) -> float:
+        """Geometry determinant threshold for excellent alignment (protect this)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'det_excellent') or 0.80
+
+    @alignment_det_excellent.setter
+    def alignment_det_excellent(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'det_excellent', value)
+
+    @property
+    def alignment_det_good(self) -> float:
+        """Geometry determinant threshold for good alignment (be selective)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'det_good') or 0.60
+
+    @alignment_det_good.setter
+    def alignment_det_good(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'det_good', value)
+
+    @property
+    def alignment_det_marginal(self) -> float:
+        """Geometry determinant threshold for marginal alignment (seek improvement)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'det_marginal') or 0.40
+
+    @alignment_det_marginal.setter
+    def alignment_det_marginal(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'det_marginal', value)
+
+    @property
+    def alignment_det_improvement_min(self) -> float:
+        """Minimum determinant improvement to justify replacement."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'det_improvement_min') or 0.10
+
+    @alignment_det_improvement_min.setter
+    def alignment_det_improvement_min(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'det_improvement_min', value)
+
+    # -------------------
+    # V1 Angular Constraints (degrees)
+    # -------------------
+
+    @property
+    def alignment_min_separation(self) -> float:
+        """Minimum angular separation between alignment points (degrees)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'min_separation') or 15.0
+
+    @alignment_min_separation.setter
+    def alignment_min_separation(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'min_separation', value)
+
+    @property
+    def alignment_refresh_radius(self) -> float:
+        """Distance within which refresh logic applies (degrees)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'refresh_radius') or 10.0
+
+    @alignment_refresh_radius.setter
+    def alignment_refresh_radius(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'refresh_radius', value)
+
+    @property
+    def alignment_scale_radius(self) -> float:
+        """Distance falloff for per-point weighted error (degrees)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'scale_radius') or 30.0
+
+    @alignment_scale_radius.setter
+    def alignment_scale_radius(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'scale_radius', value)
+
+    @property
+    def alignment_refresh_error_threshold(self) -> float:
+        """Weighted error threshold for refresh eligibility (arcseconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'refresh_error_threshold') or 60.0
+
+    @alignment_refresh_error_threshold.setter
+    def alignment_refresh_error_threshold(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'refresh_error_threshold', value)
+
+    # -------------------
+    # V1 Lockout Periods (seconds)
+    # -------------------
+
+    @property
+    def alignment_lockout_post_align(self) -> float:
+        """Lockout period after alignment point replacement (seconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'lockout_post_align') or 60.0
+
+    @alignment_lockout_post_align.setter
+    def alignment_lockout_post_align(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'lockout_post_align', value)
+
+    @property
+    def alignment_lockout_post_sync(self) -> float:
+        """Lockout period after sync operation (seconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'lockout_post_sync') or 10.0
+
+    @alignment_lockout_post_sync.setter
+    def alignment_lockout_post_sync(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'lockout_post_sync', value)
+
+    # -------------------
+    # V1 Health Monitoring
+    # -------------------
+
+    @property
+    def alignment_health_window(self) -> float:
+        """Health monitoring window duration (seconds)."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'health_window') or 1800.0
+
+    @alignment_health_window.setter
+    def alignment_health_window(self, value: float) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'health_window', value)
+
+    @property
+    def alignment_health_alert_threshold(self) -> int:
+        """Number of high-error events within window to trigger alert."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'health_alert_threshold') or 5
+
+    @alignment_health_alert_threshold.setter
+    def alignment_health_alert_threshold(self, value: int) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'health_alert_threshold', value)
 
     def __repr__(self) -> str:
         """Return string representation for debugging."""

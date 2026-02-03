@@ -27,3 +27,46 @@ push_on_connect = true           # Push location once when mount connects (if fi
 location_name = "GPS"            # Max 10 chars, sent to mount
 read_timeout = 2.0
 verbose_logging = true
+
+[alignment]
+enabled = false
+camera_address = "127.0.0.1"     # Alpaca camera server address
+camera_port = 11111              # Alpaca camera server port
+camera_device = 0                # Camera device number
+exposure_time = 1.0              # Exposure time in seconds
+binning = 2                      # Camera binning (1, 2, or 4)
+interval = 30.0                  # Interval between measurements (seconds)
+fov_estimate = 1.0               # Estimated field of view (degrees)
+detection_threshold = 5.0        # Star detection threshold (sigma)
+max_stars = 50                   # Maximum stars for solving
+error_threshold = 60.0           # Error warning threshold (arcseconds)
+database_path = "tetra3_database.npz"
+verbose_logging = false
+
+# === V1 Decision Thresholds (arcseconds) ===
+error_ignore = 30.0              # Below this, take no action
+error_sync = 120.0               # Above this, sync if not aligning
+error_concern = 300.0            # Above this, evaluate alignment replacement
+error_max = 600.0                # Above this, force action and log health event
+
+# === Geometry Thresholds (determinant, dimensionless 0-1) ===
+det_excellent = 0.80             # Near-optimal; protect this geometry
+det_good = 0.60                  # Solid; be selective about changes
+det_marginal = 0.40              # Weak; actively seek improvement
+det_improvement_min = 0.10       # Minimum improvement to justify replacement
+
+# === Angular Constraints (degrees) ===
+min_separation = 15.0            # Minimum angle between any two alignment points
+refresh_radius = 10.0            # Distance within which "refresh" logic applies
+scale_radius = 30.0              # Per-point weighted error distance falloff
+
+# === Refresh Logic ===
+refresh_error_threshold = 60.0   # Weighted error threshold for refresh eligibility (arcsec)
+
+# === Lockout Periods (seconds) ===
+lockout_post_align = 60.0        # After alignment point replacement
+lockout_post_sync = 10.0         # After sync operation
+
+# === Health Monitoring ===
+health_window = 1800.0           # Window duration (seconds) - 30 minutes
+health_alert_threshold = 5       # Events within window to trigger alert

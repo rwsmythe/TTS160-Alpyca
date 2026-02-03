@@ -1851,6 +1851,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Start GPS manager if enabled
             self._start_gps_if_enabled()
 
+            # Start alignment monitor if enabled
+            self._start_alignment_if_enabled()
+
         except Exception as ex:
             self._logger.error(f"Mount initialization failed: {ex}")
             raise RuntimeError("Mount initialization failed", ex)
@@ -1996,6 +1999,128 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         except Exception as ex:
             self._logger.warning(f"Failed to stop GPS manager: {ex}")
 
+    def _start_alignment_if_enabled(self) -> None:
+        """Start alignment monitor if enabled in configuration.
+
+        Gets the alignment monitor singleton, sets the mount position callback,
+        and starts the background monitoring thread.
+
+        Note:
+            Alignment failures do not affect mount operations - all errors are logged
+            but not propagated.
+        """
+        try:
+            import TTS160Global
+            alignment_mgr = TTS160Global.get_alignment_monitor(self._logger)
+            if alignment_mgr is None:
+                self._logger.debug("Alignment monitor is disabled in configuration")
+                return
+
+            # Set callback for getting mount position (RA/Dec)
+            alignment_mgr.set_mount_position_callback(self._get_mount_position_for_alignment)
+
+            # Set V1 callbacks
+            alignment_mgr.set_mount_altaz_callback(self._get_mount_altaz_for_alignment)
+            alignment_mgr.set_mount_static_callback(self._is_mount_static_for_alignment)
+            alignment_mgr.set_sync_callback(self._perform_sync_for_alignment)
+            alignment_mgr.set_alignment_data_callback(self._get_alignment_data_for_alignment)
+
+            # Start the alignment background thread
+            if alignment_mgr.start():
+                self._logger.info("Alignment monitor started successfully")
+            else:
+                self._logger.warning("Alignment monitor failed to start")
+
+        except Exception as ex:
+            self._logger.warning(f"Failed to start alignment monitor: {ex}")
+
+    def _stop_alignment(self) -> None:
+        """Stop alignment monitor if running.
+
+        Gracefully shuts down the alignment monitoring thread.
+
+        Note:
+            Alignment failures do not affect mount operations - all errors are logged
+            but not propagated.
+        """
+        try:
+            import TTS160Global
+            alignment_mgr = TTS160Global.get_alignment_monitor(self._logger)
+            if alignment_mgr is not None:
+                alignment_mgr.stop()
+                self._logger.info("Alignment monitor stopped")
+        except Exception as ex:
+            self._logger.warning(f"Failed to stop alignment monitor: {ex}")
+
+    def _get_mount_position_for_alignment(self) -> tuple:
+        """Get current mount position for alignment comparison.
+
+        This callback is called by the alignment monitor to get the mount's
+        reported position for comparison with plate-solved position.
+
+        Returns:
+            Tuple of (ra_hours, dec_degrees) from mount.
+        """
+        return (self.RightAscension, self.Declination)
+
+    def _get_mount_altaz_for_alignment(self) -> tuple:
+        """Get current mount alt/az position for V1 geometry calculations.
+
+        Returns:
+            Tuple of (altitude_degrees, azimuth_degrees) from mount.
+        """
+        return (self.Altitude, self.Azimuth)
+
+    def _is_mount_static_for_alignment(self) -> bool:
+        """Check if mount is static (tracking, not slewing) for V1 decisions.
+
+        The alignment monitor should not take action while the mount is moving.
+
+        Returns:
+            True if mount is tracking steadily and not slewing.
+        """
+        return self.Tracking and not self.Slewing
+
+    def _perform_sync_for_alignment(self, ra_hours: float, dec_degrees: float) -> bool:
+        """Perform sync operation with plate-solved coordinates for V1.
+
+        This callback is called by the alignment monitor when a sync is needed.
+
+        Args:
+            ra_hours: Right Ascension in hours from plate solve.
+            dec_degrees: Declination in degrees from plate solve.
+
+        Returns:
+            True if sync was successful, False otherwise.
+        """
+        try:
+            self.SyncToCoordinates(ra_hours, dec_degrees)
+            self._logger.info(
+                f"V1 alignment sync performed: RA={ra_hours:.4f}h Dec={dec_degrees:.4f}°"
+            )
+            return True
+        except Exception as ex:
+            self._logger.error(f"V1 alignment sync failed: {ex}")
+            return False
+
+    def _get_alignment_data_for_alignment(self) -> list:
+        """Get current alignment point data from mount for V1 tracking.
+
+        Note:
+            The TTS-160 firmware does not currently expose individual alignment
+            point data via commands. This returns an empty list until firmware
+            support is available.
+
+            Future v357 firmware may expose alignment data via the A1-A15
+            variables, which would allow populating this data.
+
+        Returns:
+            List of AlignmentPointRecord objects (empty until firmware support).
+        """
+        # Firmware does not currently support retrieving individual alignment points
+        # Return empty list - the V1 logic will fall back to sync-only mode
+        return []
+
     def _push_gps_location_to_mount(
         self,
         latitude: float,
@@ -2136,6 +2261,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             #self._executor.shutdown(wait=True)
             self._send_command(":Q#", CommandType.BLIND)
             #time.sleep(1)
+            # Stop alignment monitor if running
+            self._stop_alignment()
+
             # Stop GPS manager if running
             self._stop_gps()
 

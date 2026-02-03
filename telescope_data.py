@@ -331,6 +331,62 @@ class DataManager:
                 'fix_quality': 'UNKNOWN'
             }
 
+    def get_alignment_status(self):
+        """Get alignment monitor status information.
+
+        Returns:
+            dict: Alignment status data including state, camera connection,
+                  error measurements, and statistics. Returns None if alignment
+                  is disabled or unavailable.
+        """
+        try:
+            import TTS160Global
+            alignment_mgr = TTS160Global.get_alignment_monitor(self.logger)
+
+            if alignment_mgr is None:
+                return {
+                    'enabled': False,
+                    'state': 'DISABLED',
+                    'state_display': 'Disabled'
+                }
+
+            status = alignment_mgr.get_status()
+
+            return {
+                'enabled': True,
+                'state': status.state.name,
+                'state_display': status.state.name.replace('_', ' ').title(),
+                'camera_connected': status.camera_connected,
+                'camera_name': status.camera_name,
+                'last_solve_time': status.last_solve_time.isoformat() if status.last_solve_time else None,
+                'last_ra_error': status.last_ra_error,
+                'last_dec_error': status.last_dec_error,
+                'last_total_error': status.last_total_error,
+                'average_error': status.average_error,
+                'max_error': status.max_error,
+                'measurement_count': status.measurement_count,
+                'stars_detected': status.stars_detected,
+                'solve_confidence': status.solve_confidence,
+                'error_message': status.error_message,
+                'history_count': len(status.history),
+                # V1 additions
+                'geometry_determinant': status.geometry_determinant,
+                'health_alert_active': status.health_alert_active,
+                'last_decision': status.last_decision,
+                'lockout_remaining': status.lockout_remaining
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error getting alignment status: {e}")
+            return {
+                'enabled': self.telescope_config.alignment_enabled,
+                'state': 'ERROR',
+                'state_display': 'Error',
+                'error_message': str(e),
+                'camera_connected': False,
+                'measurement_count': 0
+            }
+
     # Static data methods (called on demand)
 
     def get_server_config(self):
