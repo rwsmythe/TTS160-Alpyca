@@ -24,7 +24,7 @@ The ZWO ASI SDK must be available for the camera to function. The module searche
 
 #### Option A: Bundled SDK (Recommended)
 
-**Windows SDK binaries are included** in this repository. For Linux and macOS, download the SDK from [ZWO Software Downloads](https://www.zwoastro.com/software/) and extract the appropriate binary to the `sdk/` directory:
+SDK binaries are bundled in this repository for all supported platforms. Alternatively, download the SDK from [ZWO Software Downloads](https://www.zwoastro.com/software/) and extract the appropriate binary to the `sdk/` directory:
 
 ```
 zwo_capture/sdk/
