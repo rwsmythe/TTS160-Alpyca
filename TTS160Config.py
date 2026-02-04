@@ -668,6 +668,70 @@ class TTS160Config:
     def alignment_health_alert_threshold(self, value: int) -> None:
         self._put_toml(self.ALIGNMENT_SECTION, 'health_alert_threshold', value)
 
+    # -------------------
+    # Camera Source Selection
+    # -------------------
+
+    @property
+    def alignment_camera_source(self) -> str:
+        """Camera source type: 'alpaca' or 'zwo'."""
+        return self._get_toml(self.ALIGNMENT_SECTION, 'camera_source') or 'alpaca'
+
+    @alignment_camera_source.setter
+    def alignment_camera_source(self, value: str) -> None:
+        self._put_toml(self.ALIGNMENT_SECTION, 'camera_source', value.lower())
+
+    # -------------------
+    # ZWO Camera Settings
+    # -------------------
+
+    ZWO_SECTION = 'alignment.zwo'
+
+    @property
+    def zwo_camera_id(self) -> int:
+        """ZWO camera index (0 for first camera)."""
+        return self._get_toml(self.ZWO_SECTION, 'camera_id') or 0
+
+    @zwo_camera_id.setter
+    def zwo_camera_id(self, value: int) -> None:
+        self._put_toml(self.ZWO_SECTION, 'camera_id', value)
+
+    @property
+    def zwo_exposure_ms(self) -> int:
+        """ZWO camera exposure time in milliseconds."""
+        return self._get_toml(self.ZWO_SECTION, 'exposure_ms') or 2000
+
+    @zwo_exposure_ms.setter
+    def zwo_exposure_ms(self, value: int) -> None:
+        self._put_toml(self.ZWO_SECTION, 'exposure_ms', value)
+
+    @property
+    def zwo_gain(self) -> int:
+        """ZWO camera gain setting (typically 0-500)."""
+        return self._get_toml(self.ZWO_SECTION, 'gain') or 100
+
+    @zwo_gain.setter
+    def zwo_gain(self, value: int) -> None:
+        self._put_toml(self.ZWO_SECTION, 'gain', value)
+
+    @property
+    def zwo_binning(self) -> int:
+        """ZWO camera binning (1, 2, or 4)."""
+        return self._get_toml(self.ZWO_SECTION, 'binning') or 2
+
+    @zwo_binning.setter
+    def zwo_binning(self, value: int) -> None:
+        self._put_toml(self.ZWO_SECTION, 'binning', value)
+
+    @property
+    def zwo_image_type(self) -> str:
+        """ZWO camera image type (RAW8, RAW16, RGB24, Y8)."""
+        return self._get_toml(self.ZWO_SECTION, 'image_type') or 'RAW16'
+
+    @zwo_image_type.setter
+    def zwo_image_type(self, value: str) -> None:
+        self._put_toml(self.ZWO_SECTION, 'image_type', value.upper())
+
     def __repr__(self) -> str:
         """Return string representation for debugging."""
         return (

@@ -12,3 +12,4 @@ waitress==3.0.0
 alpyca>=3.0.0
 sep>=1.2.0
 tetra3 @ git+https://github.com/esa/tetra3.git@master
+zwoasi>=0.2.0  # Native ZWO camera support (optional)

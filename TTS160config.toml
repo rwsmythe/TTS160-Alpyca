@@ -30,6 +30,7 @@ verbose_logging = true
 
 [alignment]
 enabled = false
+camera_source = "alpaca"         # Camera source: "alpaca" or "zwo"
 camera_address = "127.0.0.1"     # Alpaca camera server address
 camera_port = 11111              # Alpaca camera server port
 camera_device = 0                # Camera device number
@@ -70,3 +71,12 @@ lockout_post_sync = 10.0         # After sync operation
 # === Health Monitoring ===
 health_window = 1800.0           # Window duration (seconds) - 30 minutes
 health_alert_threshold = 5       # Events within window to trigger alert
+
+# === ZWO Camera Settings ===
+# Used when camera_source = "zwo"
+[alignment.zwo]
+camera_id = 0                    # Camera index (0 for first ZWO camera)
+exposure_ms = 2000               # Exposure time in milliseconds
+gain = 100                       # Camera gain (typically 0-500)
+binning = 2                      # Pixel binning (1, 2, or 4)
+image_type = "RAW16"             # Image format: RAW8, RAW16, RGB24, Y8

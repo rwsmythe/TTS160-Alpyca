@@ -7,12 +7,13 @@ detecting stars, plate solving, and comparing solved position against
 mount-reported position.
 
 Components:
-    - CameraManager: Alpaca camera control via alpyca
+    - CameraSource: Abstract camera interface (Alpaca or ZWO)
     - StarDetector: Star detection via SEP
     - PlateSolver: Plate solving via tetra3
 
 Third-Party Libraries:
     alpyca - MIT License (ASCOM Initiative)
+    zwoasi - MIT License (python-zwoasi)
     SEP - LGPLv3/BSD/MIT (Kyle Barbary)
     tetra3 - Apache 2.0 (European Space Agency)
 
@@ -29,7 +30,8 @@ from typing import Optional, List, Callable, Tuple
 
 import numpy as np
 
-from camera_manager import CameraManager, CameraState
+from camera_source import CameraSource
+from camera_factory import create_camera_source
 from star_detector import StarDetector
 from plate_solver import PlateSolver
 import alignment_geometry as geometry
@@ -285,7 +287,7 @@ class AlignmentMonitor:
         self._error_message = ""
 
         # Components (lazy-initialized)
-        self._camera_manager: Optional[CameraManager] = None
+        self._camera_source: Optional[CameraSource] = None
         self._star_detector: Optional[StarDetector] = None
         self._plate_solver: Optional[PlateSolver] = None
 
@@ -344,12 +346,19 @@ class AlignmentMonitor:
                 self._logger.info("Starting alignment monitor...")
 
                 # Initialize components
-                self._camera_manager = CameraManager(self._logger)
+                self._camera_source = create_camera_source(self._config, self._logger)
+                if self._camera_source is None:
+                    self._error_message = "No camera source available"
+                    self._update_state(AlignmentState.ERROR)
+                    return False
+
                 self._star_detector = StarDetector(self._logger)
                 self._plate_solver = PlateSolver(
                     self._config.alignment_database_path,
                     self._logger
                 )
+
+                self._logger.info(f"Using camera source: {self._camera_source.source_type}")
 
                 # Check component availability
                 if not StarDetector.is_available():
@@ -398,9 +407,9 @@ class AlignmentMonitor:
 
         with self._lock:
             # Disconnect camera
-            if self._camera_manager is not None:
-                self._camera_manager.disconnect()
-                self._camera_manager = None
+            if self._camera_source is not None:
+                self._camera_source.disconnect()
+                self._camera_source = None
 
             self._star_detector = None
             self._plate_solver = None
@@ -416,12 +425,12 @@ class AlignmentMonitor:
         """
         with self._lock:
             camera_connected = (
-                self._camera_manager is not None and
-                self._camera_manager.is_connected()
+                self._camera_source is not None and
+                self._camera_source.is_connected()
             )
             camera_info = (
-                self._camera_manager.get_camera_info()
-                if self._camera_manager else None
+                self._camera_source.get_info()
+                if self._camera_source else None
             )
             camera_name = camera_info.name if camera_info else ""
 
@@ -478,7 +487,7 @@ class AlignmentMonitor:
                 self._logger.warning("Cannot trigger measurement: monitor disabled")
                 return None
 
-            if not self._camera_manager or not self._camera_manager.is_connected():
+            if not self._camera_source or not self._camera_source.is_connected():
                 self._logger.warning("Cannot trigger measurement: camera not connected")
                 return None
 
@@ -514,11 +523,11 @@ class AlignmentMonitor:
         while not self._stop_event.is_set():
             try:
                 # Connect camera if needed
-                if not self._camera_manager.is_connected():
+                if not self._camera_source.is_connected():
                     self._connect_camera()
 
                 # Perform measurement if connected
-                if self._camera_manager.is_connected():
+                if self._camera_source.is_connected():
                     with self._lock:
                         self._perform_measurement()
 
@@ -547,18 +556,19 @@ class AlignmentMonitor:
         with self._lock:
             self._update_state(AlignmentState.CONNECTING)
 
-            success = self._camera_manager.connect(
-                self._config.alignment_camera_address,
-                self._config.alignment_camera_port,
-                self._config.alignment_camera_device
-            )
+            success = self._camera_source.connect()
 
             if success:
                 self._update_state(AlignmentState.CONNECTED)
                 self._error_message = ""
+                camera_info = self._camera_source.get_info()
+                self._logger.info(
+                    f"Connected to camera: {camera_info.get('name', 'Unknown')} "
+                    f"via {self._camera_source.source_type}"
+                )
                 return True
             else:
-                self._error_message = self._camera_manager.get_error_message()
+                self._error_message = self._camera_source.get_error_message()
                 self._update_state(AlignmentState.DISCONNECTED)
                 return False
 
@@ -583,19 +593,19 @@ class AlignmentMonitor:
 
         # Capture image
         self._update_state(AlignmentState.CAPTURING)
-        image = self._camera_manager.capture_image(
+        capture_result = self._camera_source.capture(
             self._config.alignment_exposure_time,
             self._config.alignment_binning
         )
 
-        if image is None:
-            self._error_message = "Image capture failed"
+        if capture_result is None:
+            self._error_message = f"Image capture failed: {self._camera_source.get_error_message()}"
             self._update_state(AlignmentState.ERROR)
             return None
 
         # Detect stars
         detection = self._star_detector.detect_stars(
-            image.data,
+            capture_result.image,
             threshold_sigma=self._config.alignment_detection_threshold,
             max_stars=self._config.alignment_max_stars
         )
@@ -611,7 +621,7 @@ class AlignmentMonitor:
 
         solve_result = self._plate_solver.solve_from_centroids(
             detection.centroids,
-            (image.width, image.height),
+            (capture_result.width, capture_result.height),
             fov_estimate=self._config.alignment_fov_estimate
         )
 

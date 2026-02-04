@@ -96,6 +96,52 @@ solving algorithm based on star pattern matching.
 
 ---
 
+## python-zwoasi
+
+**Purpose:** Python interface for ZWO ASI cameras
+**License:** MIT License
+**Copyright:** python-zwoasi contributors
+**Project:** https://github.com/python-zwoasi/python-zwoasi
+
+### MIT License
+
+```
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## ZWO ASI SDK
+
+**Purpose:** Native SDK for ZWO ASI camera control
+**License:** Freely redistributable with ZWO camera software
+**Copyright:** ZWO (Suzhou ZWO Co., Ltd.)
+**Source:** https://www.zwoastro.com/software/
+
+### Redistribution Terms
+
+The ZWO ASI SDK is provided by ZWO for free redistribution with software
+that supports ZWO cameras. The SDK binaries are bundled with this project
+to provide seamless camera support across platforms.
+
+---
+
 ## Summary Table
 
 | Library | Version | License | Use in This Project |
@@ -103,6 +149,8 @@ solving algorithm based on star pattern matching.
 | alpyca | >= 3.0.0 | MIT | Alpaca camera control |
 | sep | >= 1.2.0 | LGPLv3/BSD/MIT | Star detection |
 | tetra3 | >= 0.1.0 | Apache 2.0 | Plate solving |
+| python-zwoasi | >= 0.2.0 | MIT | ZWO camera Python bindings |
+| ZWO ASI SDK | 1.41+ | Freely redistributable | Native camera control |
 
 ---
 

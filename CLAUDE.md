@@ -43,9 +43,21 @@ TTS160 Alpyca/
 │
 ├── alignment_monitor.py     # Alignment quality monitoring orchestrator (V1)
 ├── alignment_geometry.py    # Geometry calculations for alignment decisions
+├── camera_source.py         # Abstract camera source interface
+├── camera_factory.py        # Camera source factory
+├── alpaca_camera.py         # Alpaca camera source (wraps camera_manager)
+├── zwo_camera_source.py     # ZWO native camera source
 ├── camera_manager.py        # Alpaca camera control (alpyca wrapper)
 ├── star_detector.py         # Star detection (SEP wrapper)
 ├── plate_solver.py          # Plate solving (tetra3 wrapper)
+│
+├── zwo_capture/             # ZWO camera capture package
+│   ├── __init__.py          # Public API
+│   ├── camera.py            # ZWOCamera class
+│   ├── sdk_loader.py        # Platform-specific SDK loading
+│   ├── exceptions.py        # ZWO exception hierarchy
+│   ├── config.py            # Default capture settings
+│   └── sdk/                 # Bundled SDK binaries (per platform)
 │
 ├── config.toml              # Server configuration
 ├── TTS160config.toml        # Telescope configuration
@@ -66,7 +78,10 @@ TTS160 Alpyca/
 | `exceptions.py`        | Alpaca-compliant exception classes                             |
 | `alignment_monitor.py` | Alignment quality monitoring with V1 decision engine           |
 | `alignment_geometry.py`| Geometry determinant and candidate evaluation calculations     |
+| `camera_source.py`     | Abstract camera source interface for alignment monitor         |
+| `camera_factory.py`    | Factory for creating Alpaca or ZWO camera sources              |
 | `camera_manager.py`    | Alpaca camera control via alpyca library                       |
+| `zwo_capture/`         | Native ZWO ASI camera support package                          |
 | `star_detector.py`     | Star detection and centroid extraction via SEP                 |
 | `plate_solver.py`      | Astrometric plate solving via tetra3                           |
 
@@ -84,6 +99,7 @@ Core dependencies from `requirements.txt`:
 Alignment Monitor dependencies:
 
 - `alpyca` - ASCOM Alpaca camera control (MIT License, ASCOM Initiative)
+- `zwoasi` - Native ZWO ASI camera control (MIT License, python-zwoasi)
 - `sep` - Star detection via Source Extractor (LGPLv3/BSD/MIT, Kyle Barbary)
 - `tetra3` - Astrometric plate solving (Apache 2.0, European Space Agency)
 
@@ -349,7 +365,9 @@ tests/
 │   ├── test_priority_queue.py
 │   ├── test_gps_manager.py  # GPS manager tests
 │   ├── test_alignment_monitor.py  # Alignment monitor tests (V1)
-│   └── test_alignment_geometry.py # Geometry calculation tests
+│   ├── test_alignment_geometry.py # Geometry calculation tests
+│   ├── test_zwo_capture.py  # ZWO capture package tests
+│   └── test_camera_source.py # Camera source abstraction tests
 ├── integration/             # Integration tests
 │   ├── test_api_endpoints.py
 │   ├── test_device.py
@@ -494,6 +512,7 @@ DISABLED → DISCONNECTED → CONNECTING → CONNECTED → CAPTURING → SOLVING
 [alignment]
 # === Core Settings ===
 enabled = false                 # Enable alignment monitoring
+camera_source = "alpaca"        # Camera source: "alpaca" or "zwo"
 camera_address = "127.0.0.1"    # Alpaca camera server address
 camera_port = 11111             # Alpaca camera server port
 camera_device = 0               # Camera device number
@@ -534,7 +553,26 @@ lockout_post_sync = 10.0        # After sync operation
 # === Health Monitoring ===
 health_window = 1800.0          # Window duration (seconds) - 30 minutes
 health_alert_threshold = 5      # Events within window to trigger alert
+
+# === ZWO Camera Settings (when camera_source = "zwo") ===
+[alignment.zwo]
+camera_id = 0                   # Camera index (0 for first ZWO camera)
+exposure_ms = 2000              # Exposure time in milliseconds
+gain = 100                      # Camera gain (0-500 typical)
+binning = 2                     # Pixel binning (1, 2, or 4)
+image_type = "RAW16"            # RAW8, RAW16, RGB24, Y8
 ```
+
+### Camera Source Selection
+
+The alignment monitor supports two camera sources:
+
+| Source | Description | When to Use |
+|--------|-------------|-------------|
+| `alpaca` | ASCOM Alpaca protocol | Camera exposed via Alpaca server (NINA, SharpCap, etc.) |
+| `zwo` | Native ZWO SDK | Direct ZWO camera connection, no server needed |
+
+Set `camera_source = "zwo"` to use native ZWO support. The ZWO SDK must be installed (bundled in `zwo_capture/sdk/`).
 
 ### Geometry Determinant
 
