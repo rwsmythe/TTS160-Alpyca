@@ -233,6 +233,9 @@ class TelescopeGUI:
 
     def start_services(self) -> None:
         """Start background services."""
+        # Start GPS manager if enabled (independent of telescope connection)
+        self._start_gps_manager()
+
         # Start data service
         self._data_service = DataService(
             state=self._state,
@@ -251,6 +254,39 @@ class TelescopeGUI:
             )
             self._alignment_service.start()
 
+    def _start_gps_manager(self) -> None:
+        """Start GPS manager if enabled in configuration.
+
+        GPS runs independently of telescope connection to provide
+        location data as soon as the application starts.
+        """
+        try:
+            from TTS160Global import get_gps_manager
+
+            gps_mgr = get_gps_manager(self._logger)
+            if gps_mgr is not None:
+                if gps_mgr.start():
+                    self._logger.info("GPS manager started successfully")
+                else:
+                    self._logger.warning("GPS manager failed to start")
+            else:
+                self._logger.debug("GPS manager not available (disabled or not configured)")
+        except Exception as e:
+            self._logger.warning(f"Failed to start GPS manager: {e}")
+
+    def _stop_gps_manager(self) -> None:
+        """Stop GPS manager if running."""
+        try:
+            from TTS160Global import get_gps_manager, reset_gps_manager
+
+            gps_mgr = get_gps_manager(self._logger)
+            if gps_mgr is not None:
+                gps_mgr.stop()
+                self._logger.info("GPS manager stopped")
+            reset_gps_manager()
+        except Exception as e:
+            self._logger.debug(f"Error stopping GPS manager: {e}")
+
     def stop_services(self) -> None:
         """Stop background services."""
         if self._data_service:
@@ -260,6 +296,9 @@ class TelescopeGUI:
         if self._alignment_service:
             self._alignment_service.stop()
             self._alignment_service = None
+
+        # Stop GPS manager
+        self._stop_gps_manager()
 
     def build_ui(self) -> None:
         """Build the main UI layout.
@@ -328,6 +367,7 @@ def run_app(
         host=host,
         port=port,
         reload=reload,
+        show=False,  # Browser opening is handled by app.py
         title="TTS-160 Telescope Control",
         favicon='🔭',
     )

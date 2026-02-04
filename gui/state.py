@@ -77,6 +77,9 @@ class TelescopeState:
     gps_enabled: bool = False
     gps_fix: bool = False
     gps_satellites: int = 0
+    gps_latitude: float = 0.0
+    gps_longitude: float = 0.0
+    gps_altitude: float = 0.0
 
     # Alignment monitor
     alignment_state: AlignmentState = AlignmentState.DISABLED

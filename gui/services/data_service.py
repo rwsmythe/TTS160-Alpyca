@@ -13,6 +13,15 @@ import time
 
 from ..state import TelescopeState, AlignmentState, DecisionResult
 
+# Import GPS manager accessor - late import to avoid circular dependencies
+def _get_gps_manager(logger):
+    """Get GPS manager instance."""
+    try:
+        from TTS160Global import get_gps_manager
+        return get_gps_manager(logger)
+    except Exception:
+        return None
+
 
 class DataService:
     """Service for fetching and updating telescope data.
@@ -93,17 +102,56 @@ class DataService:
 
     def _fetch_and_update(self) -> None:
         """Fetch data from device and update state."""
+        updates = {}
+
+        # GPS status - independent of telescope connection
+        try:
+            gps_mgr = _get_gps_manager(self._logger)
+            if gps_mgr is not None:
+                status = gps_mgr.get_status()
+                if status:
+                    # Use GPS state machine for accurate status
+                    # States: DISABLED=0, DISCONNECTED=1, CONNECTING=2, CONNECTED=3,
+                    #         ACQUIRING_FIX=4, FIX_VALID=5, ERROR=6
+                    state_value = status.state.value if hasattr(status.state, 'value') else status.state
+
+                    # gps_enabled: True if state indicates active connection attempt or connection
+                    # (CONNECTING, CONNECTED, ACQUIRING_FIX, FIX_VALID)
+                    updates['gps_enabled'] = state_value in (2, 3, 4, 5)
+
+                    # gps_fix: True only if we have a valid fix
+                    updates['gps_fix'] = state_value == 5  # FIX_VALID
+
+                    # Satellite count and position for tooltip
+                    if status.position:
+                        updates['gps_satellites'] = status.position.satellites
+                        # Store position for tooltip display
+                        if status.position.valid:
+                            updates['gps_latitude'] = status.position.latitude
+                            updates['gps_longitude'] = status.position.longitude
+                            updates['gps_altitude'] = status.position.altitude
+                else:
+                    updates['gps_enabled'] = False
+                    updates['gps_fix'] = False
+            else:
+                # GPS manager not available (disabled or not configured)
+                updates['gps_enabled'] = False
+                updates['gps_fix'] = False
+        except Exception as e:
+            self._logger.debug(f"Error fetching GPS status: {e}")
+
+        # Device data requires device instance
         if self._device is None:
+            if updates:
+                self._state.update(**updates)
             return
 
         try:
             # Connection status
             connected = getattr(self._device, 'Connected', False)
 
-            updates = {
-                'connected': connected,
-                'last_communication': datetime.now() if connected else None,
-            }
+            updates['connected'] = connected
+            updates['last_communication'] = datetime.now() if connected else None
 
             if not connected:
                 self._state.update(**updates)

@@ -111,8 +111,8 @@ class GPSManager:
     # Constants
     NMEA_SENTENCE_TIMEOUT = 5.0
     BACKGROUND_READ_RATE = 1.0
-    RECONNECT_DELAY_BASE = 5.0
-    RECONNECT_DELAY_MAX = 60.0
+    RECONNECT_DELAY_BASE = 3.0
+    RECONNECT_DELAY_MAX = 15.0
 
     def __init__(self, config, logger: logging.Logger):
         """Initialize GPS manager.
@@ -128,6 +128,7 @@ class GPSManager:
         # Serial connection
         self._serial: Optional[serial.Serial] = None
         self._detected_port: str = ""  # Actual port to use (may be autodetected)
+        self._auto_mode: bool = False  # True if port config is 'auto'
 
         # State tracking
         self._state = GPSState.DISABLED
@@ -156,6 +157,8 @@ class GPSManager:
         """Start GPS operations.
 
         Opens serial connection and starts background reading thread.
+        For 'auto' mode, the thread will continuously retry autodetection
+        if the initial detection fails (e.g., GPS not plugged in yet).
 
         Returns:
             True if started successfully, False otherwise
@@ -178,8 +181,11 @@ class GPSManager:
                 self._update_state(GPSState.ERROR)
                 return False
 
+            # Track if we're in auto mode for later re-detection
+            self._auto_mode = port.lower() == 'auto'
+
             # Autodetect GPS port if configured
-            if port.lower() == 'auto':
+            if self._auto_mode:
                 self._logger.info("Autodetecting GPS port...")
                 self._update_state(GPSState.CONNECTING)
                 detected_port = self._autodetect_port()
@@ -187,10 +193,10 @@ class GPSManager:
                     self._detected_port = detected_port
                     self._logger.info(f"GPS autodetected on {detected_port}")
                 else:
-                    self._logger.warning("GPS autodetect failed - no GPS device found")
-                    self._error_message = "No GPS device found"
-                    self._update_state(GPSState.ERROR)
-                    return False
+                    # Don't fail - start thread anyway to retry later
+                    self._logger.info("GPS not found yet - will retry when plugged in")
+                    self._detected_port = ""
+                    self._update_state(GPSState.DISCONNECTED)
             else:
                 self._detected_port = port
 
@@ -202,7 +208,10 @@ class GPSManager:
                 daemon=True
             )
             self._thread.start()
-            self._logger.info(f"GPS manager started on {self._detected_port}")
+            if self._detected_port:
+                self._logger.info(f"GPS manager started on {self._detected_port}")
+            else:
+                self._logger.info("GPS manager started (waiting for device)")
             return True
 
     def stop(self) -> None:
@@ -488,6 +497,8 @@ class GPSManager:
     def _connect(self) -> bool:
         """Establish GPS serial connection.
 
+        For auto mode, will retry autodetection if no port is currently detected.
+
         Returns:
             True if connection established, False otherwise
         """
@@ -497,9 +508,24 @@ class GPSManager:
 
             self._update_state(GPSState.CONNECTING)
 
+            # If in auto mode and no port detected, retry autodetection
+            if getattr(self, '_auto_mode', False) and not self._detected_port:
+                detected_port = self._autodetect_port()
+                if detected_port:
+                    self._detected_port = detected_port
+                    self._logger.info(f"GPS autodetected on {detected_port}")
+                else:
+                    self._update_state(GPSState.DISCONNECTED)
+                    self._error_message = "No GPS device found"
+                    return False
+
             try:
                 # Use detected port (may be from autodetect or config)
                 port = self._detected_port or self._config.gps_port
+                if not port or port.lower() == 'auto':
+                    self._update_state(GPSState.DISCONNECTED)
+                    return False
+
                 baudrate = self._config.gps_baudrate
                 timeout = self._config.gps_read_timeout
 
@@ -523,6 +549,10 @@ class GPSManager:
                 self._logger.warning(f"GPS connection failed: {e}")
                 self._error_message = str(e)
                 self._update_state(GPSState.DISCONNECTED)
+                # If in auto mode and connection failed, clear detected port
+                # so next attempt will re-autodetect (port may have changed)
+                if getattr(self, '_auto_mode', False):
+                    self._detected_port = ""
                 return False
 
     def _disconnect(self) -> None:

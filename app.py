@@ -80,7 +80,7 @@ from discovery import DiscoveryResponder
 from shr import set_shr_logger
 from datetime import datetime
 
-# Note: telescope_gui is imported lazily to support headless mode
+# Note: gui package is imported lazily to support headless mode
 
 ##############################
 # FOR EACH ASCOM DEVICE TYPE #
@@ -185,34 +185,38 @@ Examples:
     return parser.parse_args()
 
 
-def start_gui_thread_lazy(logger, port: int, bind: str = '0.0.0.0',
-                          theme: str = 'dark', refresh_interval: float = 1.0):
+def start_gui_thread_lazy(logger, port: int, bind: str = '0.0.0.0'):
     """Start GUI in separate thread with lazy import.
 
-    This function imports telescope_gui only when called, allowing
+    This function imports the gui package only when called, allowing
     headless mode to avoid loading NiceGUI dependencies entirely.
 
     Args:
         logger: Logger instance
         port: GUI server port
         bind: Bind address for GUI server
-        theme: Color theme - 'dark' or 'light'
-        refresh_interval: Status update interval in seconds
 
     Returns:
         threading.Thread: The GUI thread (already started)
     """
     def run_gui():
         try:
-            # Import GUI modules only when needed
-            from telescope_gui import TelescopeInterface
-            interface = TelescopeInterface(
-                logger, port, bind_address=bind,
-                theme=theme, refresh_interval=refresh_interval
+            from gui import create_app, run_app
+            from TTS160Global import get_device, get_config, get_alignment_monitor
+
+            logger.info("Starting GUI server")
+            gui = create_app(
+                config=get_config(),
+                device=get_device(logger),
+                logger=logger,
+                alignment_monitor=get_alignment_monitor(logger),
             )
-            interface.start_gui_server()
+            run_app(gui, host=bind, port=port)
         except Exception as e:
-            logger.error(f"GUI server error: {e}")
+            import traceback
+            error_msg = f"GUI server error: {e}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            print(error_msg, file=sys.stderr)
 
     gui_thread = threading.Thread(target=run_gui, daemon=True)
     gui_thread.start()
@@ -408,9 +412,7 @@ def main():
         logger.info(f'==STARTUP== Starting GUI server on port {gui_port}')
         try:
             _gui_thread = start_gui_thread_lazy(
-                logger, gui_port, server_cfg.gui_bind_address,
-                theme=server_cfg.gui_theme,
-                refresh_interval=server_cfg.gui_refresh_interval
+                logger, gui_port, server_cfg.gui_bind_address
             )
             logger.info('==STARTUP== GUI server thread started successfully')
         except Exception as e:

@@ -2,7 +2,7 @@
 """
 Main Application Layout
 
-Primary layout structure for the TTS160 GUI.
+Primary layout structure for the TTS160 GUI with left navigation.
 """
 
 from typing import Any, Callable, Dict, Optional
@@ -15,7 +15,21 @@ from ..components.panels import (
     control_panel,
     diagnostics_panel,
     config_panel,
+    server_status_panel,
 )
+
+
+# Navigation pages
+NAV_PAGES = {
+    'server': {
+        'label': 'Alpaca Server',
+        'icon': 'dns',
+    },
+    'mount': {
+        'label': 'TTS-160 Mount',
+        'icon': 'explore',
+    },
+}
 
 
 def main_layout(
@@ -26,19 +40,19 @@ def main_layout(
     on_disclosure_change: Callable[[int], None],
     on_config_save: Callable[[Dict[str, Any]], None],
 ) -> None:
-    """Main application layout.
+    """Main application layout with left navigation.
 
     Structure:
-    ┌─────────────────────────────────────────┐
-    │ Header: Title, Theme Toggle, Settings   │
-    ├────────────────────┬────────────────────┤
-    │                    │                    │
-    │   Status Panel     │   Control Panel    │
-    │   (Left, 60%)      │   (Right, 40%)     │
-    │                    │                    │
-    ├────────────────────┴────────────────────┤
-    │ Footer: Connection, Disclosure Toggle   │
-    └─────────────────────────────────────────┘
+    ┌──────────────────────────────────────────────────┐
+    │ Header: Title, Theme Toggle, Settings            │
+    ├─────────┬────────────────────────────────────────┤
+    │         │                                        │
+    │  Nav    │           Content Area                 │
+    │  Menu   │                                        │
+    │         │                                        │
+    ├─────────┴────────────────────────────────────────┤
+    │ Footer: Connection, Disclosure Toggle            │
+    └──────────────────────────────────────────────────┘
 
     Args:
         state: Telescope state instance.
@@ -57,28 +71,89 @@ def main_layout(
         document.body.classList.add('disclosure-level-{state.disclosure_level.value}');
     ''')
 
-    with ui.column().classes('w-full min-h-screen'):
-        # Header
-        header(state, on_theme_change, on_settings=lambda: show_settings_dialog(
-            config, state, on_theme_change, on_disclosure_change, on_config_save
-        ))
+    # Track current page
+    current_page = {'value': 'mount'}  # Default to mount page
 
-        # Main content area
-        with ui.row().classes('flex-grow w-full p-4 gap-4'):
-            # Status panel (left, 60%)
-            with ui.column().classes('w-3/5'):
-                main_status_panel(state)
+    # Create content containers that we'll show/hide
+    content_containers = {}
 
-            # Control panel (right, 40%)
-            with ui.column().classes('w-2/5'):
-                control_panel(state, handlers)
+    # Header
+    header(state, on_theme_change, on_settings=lambda: show_settings_dialog(
+        config, state, on_theme_change, on_disclosure_change, on_config_save
+    ))
 
-        # Diagnostics panel (Layer 3)
-        with ui.column().classes('w-full px-4'):
-            diagnostics_panel(state, handlers.get('send_command'))
+    # Left drawer for navigation
+    with ui.left_drawer(value=True).classes('bg-surface').style(
+        'background-color: var(--surface-color); border-right: 1px solid var(--border-color);'
+    ) as drawer:
+        drawer.props('width=200 bordered')
 
-        # Footer
-        footer(state, on_disclosure_change)
+        ui.label('Navigation').classes('text-lg font-semibold p-4')
+
+        with ui.column().classes('w-full'):
+            nav_buttons = {}
+
+            for page_id, page_info in NAV_PAGES.items():
+                btn = ui.button(
+                    page_info['label'],
+                    icon=page_info['icon'],
+                    on_click=lambda pid=page_id: switch_page(pid)
+                ).classes('w-full justify-start').props('flat align=left')
+
+                nav_buttons[page_id] = btn
+
+    def switch_page(page_id: str):
+        """Switch to a different page."""
+        current_page['value'] = page_id
+
+        # Update button styles
+        for pid, btn in nav_buttons.items():
+            if pid == page_id:
+                btn.props('color=primary')
+            else:
+                btn.props(remove='color')
+
+        # Show/hide content containers
+        for pid, container in content_containers.items():
+            if pid == page_id:
+                container.set_visibility(True)
+            else:
+                container.set_visibility(False)
+
+    # Main content area
+    with ui.column().classes('w-full p-4'):
+        # Server page content
+        with ui.column().classes('w-full').bind_visibility_from(
+            current_page, 'value', lambda v: v == 'server'
+        ) as server_container:
+            content_containers['server'] = server_container
+            server_status_panel(state, config)
+
+        # Mount page content
+        with ui.column().classes('w-full').bind_visibility_from(
+            current_page, 'value', lambda v: v == 'mount'
+        ) as mount_container:
+            content_containers['mount'] = mount_container
+
+            # Two-column layout for mount
+            with ui.row().classes('w-full gap-4'):
+                # Status panel (left, 60%)
+                with ui.column().classes('w-3/5'):
+                    main_status_panel(state)
+
+                # Control panel (right, 40%)
+                with ui.column().classes('w-2/5'):
+                    control_panel(state, handlers)
+
+            # Diagnostics panel (Layer 3)
+            with ui.column().classes('w-full mt-4'):
+                diagnostics_panel(state, handlers.get('send_command'))
+
+    # Footer
+    footer(state, on_disclosure_change)
+
+    # Set initial page styling
+    switch_page('mount')
 
 
 def header(
@@ -89,10 +164,10 @@ def header(
     """Application header.
 
     Contains:
+    - Menu toggle button
     - App title/logo
     - Theme selector (Light/Dark/Astronomy)
     - Settings button
-    - Notification area
 
     Args:
         state: Telescope state instance.
@@ -103,8 +178,9 @@ def header(
         Header element.
     """
     with ui.header().classes('gui-header') as hdr:
-        # Left: Title
+        # Left: Menu toggle and Title
         with ui.row().classes('items-center gap-2'):
+            ui.button(icon='menu', on_click=lambda: ui.left_drawer.toggle()).props('flat round')
             ui.icon('rocket_launch').classes('text-2xl')
             ui.label('TTS-160 Telescope Control').classes('text-xl font-semibold')
 
@@ -218,8 +294,86 @@ def footer(
 
             state.add_listener(on_level_change)
 
-        # Right: Version
-        ui.label('v0.1.0').classes('text-xs text-secondary')
+        # Right: Peripheral status indicators
+        with ui.row().classes('items-center gap-4'):
+            # GPS indicator with tooltip
+            with ui.row().classes('items-center gap-1') as gps_container:
+                gps_ind = ui.element('span').classes('indicator')
+                ui.label('GPS').classes('text-xs')
+
+                # Tooltip element for GPS coordinates
+                gps_tooltip = ui.tooltip('')
+
+                def update_gps():
+                    gps_ind.classes(
+                        remove='indicator-ok indicator-warning indicator-error indicator-inactive'
+                    )
+                    if state.gps_fix:
+                        # Green: connected with fix
+                        gps_ind.classes(add='indicator-ok')
+                        # Update tooltip with coordinates
+                        lat = state.gps_latitude
+                        lon = state.gps_longitude
+                        alt = state.gps_altitude
+                        sats = state.gps_satellites
+                        lat_dir = 'N' if lat >= 0 else 'S'
+                        lon_dir = 'E' if lon >= 0 else 'W'
+                        gps_tooltip.text = (
+                            f"{abs(lat):.6f}° {lat_dir}, {abs(lon):.6f}° {lon_dir}\n"
+                            f"Alt: {alt:.1f}m, Sats: {sats}"
+                        )
+                    elif state.gps_enabled:
+                        # Yellow: connected without fix
+                        gps_ind.classes(add='indicator-warning')
+                        gps_tooltip.text = f"Acquiring fix... ({state.gps_satellites} satellites)"
+                    else:
+                        # Red: not connected
+                        gps_ind.classes(add='indicator-error')
+                        gps_tooltip.text = "GPS not connected"
+
+                update_gps()
+
+                def on_gps_change(field, value):
+                    if field in ('gps_enabled', 'gps_fix', 'gps_latitude',
+                                 'gps_longitude', 'gps_altitude', 'gps_satellites'):
+                        update_gps()
+
+                state.add_listener(on_gps_change)
+
+            # Camera indicator (alignment monitor camera)
+            with ui.row().classes('items-center gap-1'):
+                cam_ind = ui.element('span').classes('indicator')
+                ui.label('Camera').classes('text-xs')
+
+                def update_camera():
+                    from ..state import AlignmentState
+                    cam_ind.classes(
+                        remove='indicator-ok indicator-error indicator-inactive'
+                    )
+                    # Camera is connected if alignment state is beyond DISCONNECTED
+                    connected_states = [
+                        AlignmentState.CONNECTED,
+                        AlignmentState.CAPTURING,
+                        AlignmentState.SOLVING,
+                        AlignmentState.MONITORING,
+                    ]
+                    if state.alignment_state in connected_states:
+                        # Green: connected
+                        cam_ind.classes(add='indicator-ok')
+                    else:
+                        # Red: not connected
+                        cam_ind.classes(add='indicator-error')
+
+                update_camera()
+
+                def on_camera_change(field, value):
+                    if field == 'alignment_state':
+                        update_camera()
+
+                state.add_listener(on_camera_change)
+
+            # Version
+            ui.label('v0.1.0').classes('text-xs text-secondary')
 
     return ftr
 
@@ -240,19 +394,25 @@ def show_settings_dialog(
         on_disclosure_change: Disclosure change callback.
         on_config_save: Config save callback.
     """
-    with ui.dialog() as dialog, ui.card().classes('w-full max-w-2xl'):
-        ui.label('Settings').classes('text-xl font-semibold mb-4')
+    with ui.dialog().props('persistent maximized=false') as dialog:
+        with ui.card().classes('w-full').style('max-width: 700px; max-height: 85vh;'):
+            with ui.row().classes('w-full justify-between items-center mb-4'):
+                ui.label('Settings').classes('text-xl font-semibold')
+                ui.button(icon='close', on_click=dialog.close).props('flat round dense')
 
-        config_panel(
-            config=config,
-            on_save=on_config_save,
-            on_theme_change=on_theme_change,
-            on_disclosure_change=on_disclosure_change,
-            state=state,
-        )
+            with ui.scroll_area().classes('w-full').style('max-height: calc(85vh - 120px);'):
+                config_panel(
+                    config=config,
+                    on_save=on_config_save,
+                    on_theme_change=on_theme_change,
+                    on_disclosure_change=on_disclosure_change,
+                    state=state,
+                )
 
-        with ui.row().classes('w-full justify-end mt-4'):
-            ui.button('Close', on_click=dialog.close).props('flat')
+            with ui.row().classes('w-full justify-end mt-4 pt-2').style(
+                'border-top: 1px solid var(--border-color);'
+            ):
+                ui.button('Close', on_click=dialog.close).props('flat')
 
     dialog.open()
 

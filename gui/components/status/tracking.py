@@ -155,7 +155,7 @@ def slew_progress(state: TelescopeState) -> ui.element:
                 ui.spinner(size='sm')
 
             # Progress bar (indeterminate since we don't know exact progress)
-            ui.linear_progress(indeterminate=True).props('instant-feedback')
+            ui.linear_progress().props('indeterminate instant-feedback')
 
         def update_visibility():
             if state.slewing:

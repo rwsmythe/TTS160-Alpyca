@@ -358,6 +358,260 @@ body {{
     align-items: center;
     font-size: var(--text-sm);
 }}
+
+/* ============================================ */
+/* NiceGUI / Quasar Component Overrides         */
+/* ============================================ */
+
+/* Force text color on all elements */
+.nicegui-content,
+.nicegui-content * {{
+    color: var(--text-color);
+}}
+
+/* Quasar card */
+.q-card {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}}
+
+/* Quasar labels and text */
+.q-field__label,
+.q-field__native,
+.q-field__prefix,
+.q-field__suffix,
+.q-select__dropdown-icon {{
+    color: var(--text-color) !important;
+}}
+
+/* Quasar input fields */
+.q-field--outlined .q-field__control {{
+    background-color: var(--surface-color) !important;
+}}
+
+.q-field--outlined .q-field__control:before {{
+    border-color: var(--border-color) !important;
+}}
+
+.q-field--outlined .q-field__control:hover:before {{
+    border-color: var(--primary-color) !important;
+}}
+
+.q-field--focused .q-field__control:after {{
+    border-color: var(--primary-color) !important;
+}}
+
+/* Quasar select dropdown */
+.q-menu {{
+    background-color: var(--surface-color) !important;
+}}
+
+.q-item {{
+    color: var(--text-color) !important;
+}}
+
+.q-item--active,
+.q-item:hover {{
+    background-color: var(--hover-color) !important;
+}}
+
+/* Quasar buttons */
+.q-btn {{
+    color: var(--text-color) !important;
+}}
+
+.q-btn--flat {{
+    color: var(--text-color) !important;
+}}
+
+.q-btn--outline {{
+    border-color: var(--border-color) !important;
+    color: var(--text-color) !important;
+}}
+
+.q-btn--unelevated {{
+    background-color: var(--primary-color) !important;
+    color: var(--bg-color) !important;
+}}
+
+/* Quasar header */
+.q-header {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+    border-bottom: 1px solid var(--border-color);
+}}
+
+/* Quasar footer */
+.q-footer {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+    border-top: 1px solid var(--border-color);
+}}
+
+/* Quasar page container */
+.q-page {{
+    background-color: var(--bg-color) !important;
+}}
+
+/* Quasar dialog */
+.q-dialog__inner {{
+    background-color: transparent !important;
+}}
+
+.q-dialog__inner > .q-card {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+    max-height: 90vh !important;
+    overflow: auto;
+}}
+
+/* Ensure dialog doesn't go fullscreen */
+.q-dialog__inner--minimized {{
+    padding: 24px !important;
+}}
+
+/* Quasar expansion panels */
+.q-expansion-item {{
+    background-color: var(--surface-color) !important;
+}}
+
+.q-expansion-item__container {{
+    background-color: var(--surface-color) !important;
+}}
+
+.q-expansion-item .q-item {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}}
+
+.q-expansion-item .q-item__label {{
+    color: var(--text-color) !important;
+}}
+
+.q-expansion-item__content {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}}
+
+/* Quasar tab panels */
+.q-tab-panels {{
+    background-color: var(--surface-color) !important;
+}}
+
+.q-tab-panel {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}}
+
+/* Quasar switch */
+.q-toggle__inner {{
+    color: var(--text-secondary) !important;
+}}
+
+.q-toggle__inner--truthy {{
+    color: var(--primary-color) !important;
+}}
+
+/* Quasar number input */
+.q-field__native {{
+    color: var(--text-color) !important;
+}}
+
+/* Quasar separator */
+.q-separator {{
+    background-color: var(--border-color) !important;
+}}
+
+/* Left drawer */
+.q-drawer {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}}
+
+.q-drawer .q-item {{
+    color: var(--text-color) !important;
+}}
+
+/* Page background */
+.q-page-container {{
+    background-color: var(--bg-color) !important;
+}}
+
+/* NiceGUI disconnect overlay */
+.nicegui-reconnecting,
+.nicegui-disconnected {{
+    background-color: rgba(0, 0, 0, 0.85) !important;
+    color: var(--text-color) !important;
+}}
+
+.nicegui-reconnecting *,
+.nicegui-disconnected * {{
+    color: var(--text-color) !important;
+}}
+
+/* Fallback for any disconnect/error overlays */
+[class*="disconnect"],
+[class*="reconnect"] {{
+    background-color: rgba(0, 0, 0, 0.85) !important;
+    color: #ffffff !important;
+}}
+
+[class*="disconnect"] *,
+[class*="reconnect"] * {{
+    color: #ffffff !important;
+}}
+
+/* Quasar tabs */
+.q-tab {{
+    color: var(--text-secondary) !important;
+}}
+
+.q-tab--active {{
+    color: var(--primary-color) !important;
+}}
+
+.q-tabs__content {{
+    border-bottom: 1px solid var(--border-color);
+}}
+
+/* Quasar table */
+.q-table {{
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}}
+
+.q-table th {{
+    color: var(--text-secondary) !important;
+}}
+
+/* Quasar spinner */
+.q-spinner {{
+    color: var(--primary-color) !important;
+}}
+
+/* Secondary text color class */
+.text-secondary {{
+    color: var(--text-secondary) !important;
+}}
+
+/* Fix labels in NiceGUI */
+.q-field__bottom {{
+    color: var(--text-secondary) !important;
+}}
+
+/* Icon colors */
+.q-icon {{
+    color: var(--text-color) !important;
+}}
+
+/* Links */
+a {{
+    color: var(--primary-color);
+}}
+
+a:hover {{
+    color: var(--accent-color);
+}}
 """
 
 

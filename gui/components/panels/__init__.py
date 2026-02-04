@@ -21,6 +21,10 @@ from .diagnostics import (
 from .config import (
     config_panel,
 )
+from .server_status import (
+    server_status_panel,
+    server_config_panel,
+)
 
 __all__ = [
     # Main status
@@ -35,4 +39,7 @@ __all__ = [
     'DiagnosticsPanel',
     # Config
     'config_panel',
+    # Server
+    'server_status_panel',
+    'server_config_panel',
 ]

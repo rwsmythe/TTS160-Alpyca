@@ -1,6 +1,6 @@
 # TTS160 GUI Package
 
-Modern, user-centric web interface for the TTS160 Alpaca Driver.
+Web interface for the TTS160 Alpaca Driver with three themes and progressive disclosure.
 
 ## Features
 
