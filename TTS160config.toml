@@ -59,6 +59,15 @@ lockout_post_sync = 10.0
 health_window = 1800.0
 health_alert_threshold = 5
 
+# QA Subsystem Settings
+[alignment.qa]
+enabled = true                      # Enable QA comparison calculations
+update_interval = 30.0              # QA calculation interval (seconds)
+quaternion_tolerance = 10.0         # Acceptable quaternion delta (arcseconds)
+position_tolerance = 10.0           # Acceptable position delta (arcseconds)
+history_size = 100                  # Number of QA snapshots to retain
+log_interval = 300.0                # QA history log interval (seconds)
+
 [alignment.zwo]
 camera_id = 0
 exposure_ms = 2000

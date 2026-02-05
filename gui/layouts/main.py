@@ -2,13 +2,13 @@
 """
 Main Application Layout
 
-Primary layout structure for the TTS160 GUI with left navigation.
+Primary layout structure for the TTS160 GUI with dashboard and detail navigation.
 """
 
 from typing import Any, Callable, Dict, Optional
 from nicegui import ui
 
-from ..state import TelescopeState, DisclosureLevel
+from ..state import TelescopeState, DisclosureLevel, AlignmentState
 from ..themes import THEMES, get_theme, generate_css
 from ..components.panels import (
     main_status_panel,
@@ -16,10 +16,15 @@ from ..components.panels import (
     diagnostics_panel,
     config_panel,
     server_status_panel,
+    dashboard,
+    position_panel,
+    hardware_panel,
+    alignment_panel,
 )
+from ..components.navigation import segmented_nav, NAV_GROUPS
 
 
-# Navigation pages
+# Top-level navigation pages
 NAV_PAGES = {
     'server': {
         'label': 'Alpaca Server',
@@ -40,16 +45,17 @@ def main_layout(
     on_disclosure_change: Callable[[int], None],
     on_config_save: Callable[[Dict[str, Any]], None],
 ) -> None:
-    """Main application layout with left navigation.
+    """Main application layout with dashboard and detail navigation.
 
     Structure:
     ┌──────────────────────────────────────────────────┐
     │ Header: Title, Theme Toggle, Settings            │
     ├─────────┬────────────────────────────────────────┤
-    │         │                                        │
-    │  Nav    │           Content Area                 │
-    │  Menu   │                                        │
-    │         │                                        │
+    │         │ Dashboard (compact summary)            │
+    │  Nav    ├────────────────────────────────────────┤
+    │  Menu   │ [Controls][Position][Hardware][...]    │
+    │         ├────────────────────────────────────────┤
+    │         │ Detail Panel (selected group)          │
     ├─────────┴────────────────────────────────────────┤
     │ Footer: Connection, Disclosure Toggle            │
     └──────────────────────────────────────────────────┘
@@ -71,21 +77,33 @@ def main_layout(
         document.body.classList.add('disclosure-level-{state.disclosure_level.value}');
     ''')
 
-    # Track current page
-    current_page = {'value': 'mount'}  # Default to mount page
+    # Track current page and group
+    current_page = {'value': 'mount'}
+    current_group = {'value': 'controls'}
 
-    # Create content containers that we'll show/hide
+    # Create content containers
     content_containers = {}
+    detail_containers = {}
+
+    # Store drawer reference for toggle
+    drawer_ref = {'drawer': None}
+
+    def toggle_drawer():
+        if drawer_ref['drawer']:
+            drawer_ref['drawer'].toggle()
 
     # Header
-    header(state, on_theme_change, on_settings=lambda: show_settings_dialog(
-        config, state, on_theme_change, on_disclosure_change, on_config_save
-    ))
+    header(state, on_theme_change,
+           on_settings=lambda: show_settings_dialog(
+               config, state, on_theme_change, on_disclosure_change, on_config_save
+           ),
+           on_toggle_drawer=toggle_drawer)
 
-    # Left drawer for navigation
+    # Left drawer for top-level navigation
     with ui.left_drawer(value=True).classes('bg-surface').style(
         'background-color: var(--surface-color); border-right: 1px solid var(--border-color);'
     ) as drawer:
+        drawer_ref['drawer'] = drawer
         drawer.props('width=200 bordered')
 
         ui.label('Navigation').classes('text-lg font-semibold p-4')
@@ -101,6 +119,7 @@ def main_layout(
                 ).classes('w-full justify-start').props('flat align=left')
 
                 nav_buttons[page_id] = btn
+
 
     def switch_page(page_id: str):
         """Switch to a different page."""
@@ -120,6 +139,19 @@ def main_layout(
             else:
                 container.set_visibility(False)
 
+    def switch_detail_group(group_id: str):
+        """Switch to a different detail group."""
+        current_group['value'] = group_id
+
+        # Show/hide detail containers
+        for gid, container in detail_containers.items():
+            if gid == group_id:
+                container.set_visibility(True)
+                container.classes(add='detail-panel-enter')
+            else:
+                container.set_visibility(False)
+                container.classes(remove='detail-panel-enter')
+
     # Main content area
     with ui.column().classes('w-full p-4'):
         # Server page content
@@ -129,25 +161,54 @@ def main_layout(
             content_containers['server'] = server_container
             server_status_panel(state, config)
 
-        # Mount page content
+        # Mount page content with new layout
         with ui.column().classes('w-full').bind_visibility_from(
             current_page, 'value', lambda v: v == 'mount'
         ) as mount_container:
             content_containers['mount'] = mount_container
 
-            # Two-column layout for mount
-            with ui.row().classes('w-full gap-4'):
-                # Status panel (left, 60%)
-                with ui.column().classes('w-3/5'):
-                    main_status_panel(state)
+            # Dashboard (always visible, compact summary)
+            dashboard(state)
 
-                # Control panel (right, 40%)
-                with ui.column().classes('w-2/5'):
-                    control_panel(state, handlers)
+            # Segmented navigation for detail groups
+            segmented_nav(state, on_select=switch_detail_group)
 
-            # Diagnostics panel (Layer 3)
-            with ui.column().classes('w-full mt-4'):
-                diagnostics_panel(state, handlers.get('send_command'))
+            # Detail panel container
+            with ui.column().classes('detail-panel w-full'):
+                # Controls panel
+                with ui.column().classes('w-full').bind_visibility_from(
+                    current_group, 'value', lambda v: v == 'controls'
+                ) as controls_container:
+                    detail_containers['controls'] = controls_container
+                    control_panel(state, handlers, config)
+
+                # Position panel
+                with ui.column().classes('w-full').bind_visibility_from(
+                    current_group, 'value', lambda v: v == 'position'
+                ) as position_container:
+                    detail_containers['position'] = position_container
+                    position_panel(state)
+
+                # Hardware panel
+                with ui.column().classes('w-full').bind_visibility_from(
+                    current_group, 'value', lambda v: v == 'hardware'
+                ) as hardware_container:
+                    detail_containers['hardware'] = hardware_container
+                    hardware_panel(state)
+
+                # Alignment panel
+                with ui.column().classes('w-full').bind_visibility_from(
+                    current_group, 'value', lambda v: v == 'alignment'
+                ) as alignment_container:
+                    detail_containers['alignment'] = alignment_container
+                    alignment_panel(state, handlers)
+
+                # Diagnostics panel
+                with ui.column().classes('w-full').bind_visibility_from(
+                    current_group, 'value', lambda v: v == 'diagnostics'
+                ) as diag_container:
+                    detail_containers['diagnostics'] = diag_container
+                    diagnostics_panel(state, handlers.get('send_command'))
 
     # Footer
     footer(state, on_disclosure_change)
@@ -160,6 +221,7 @@ def header(
     state: TelescopeState,
     on_theme_change: Callable[[str], None],
     on_settings: Callable[[], None],
+    on_toggle_drawer: Callable[[], None] = None,
 ) -> ui.element:
     """Application header.
 
@@ -173,14 +235,104 @@ def header(
         state: Telescope state instance.
         on_theme_change: Theme change callback.
         on_settings: Settings button callback.
+        on_toggle_drawer: Callback to toggle navigation drawer.
 
     Returns:
         Header element.
     """
+    # Pre-create dialogs so they exist before menu items are clicked
+    restart_dialog = ui.dialog()
+    stop_dialog = ui.dialog()
+
+    def _do_restart():
+        """Perform shutdown then restart via exec."""
+        import sys
+        import os
+        restart_dialog.close()
+        ui.notify('Restarting server...', type='warning')
+
+        def perform_restart():
+            python = sys.executable
+            args = sys.argv[:]
+            if sys.platform == 'win32':
+                import subprocess
+                subprocess.Popen([python] + args,
+                                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+                os._exit(0)
+            else:
+                os.execv(python, [python] + args)
+
+        ui.timer(0.5, perform_restart, once=True)
+
+    def _do_stop():
+        """Perform graceful shutdown with forced termination fallback."""
+        import os
+        import threading
+        stop_dialog.close()
+        ui.notify('Stopping server (graceful shutdown)...', type='warning')
+
+        def force_exit():
+            import time
+            time.sleep(5)
+            os._exit(0)
+
+        force_thread = threading.Thread(target=force_exit, daemon=True)
+        force_thread.start()
+
+        def graceful_shutdown():
+            try:
+                from nicegui import app
+                app.shutdown()
+            except Exception:
+                pass
+            os._exit(0)
+
+        ui.timer(0.3, graceful_shutdown, once=True)
+
+    # Build restart dialog content
+    with restart_dialog, ui.card():
+        ui.label('Restart Server?').classes('text-lg font-semibold')
+        ui.label(
+            'The server will shutdown and restart automatically.'
+        ).classes('text-sm text-secondary')
+        with ui.row().classes('w-full justify-end gap-2 mt-4'):
+            ui.button('Cancel', on_click=restart_dialog.close).props('flat')
+            ui.button('Restart', on_click=_do_restart, color='warning')
+
+    # Build stop dialog content
+    with stop_dialog, ui.card():
+        ui.label('Stop Server?').classes('text-lg font-semibold')
+        ui.label(
+            'This will terminate the server. A graceful shutdown will be '
+            'attempted first, with forced termination after 5 seconds.'
+        ).classes('text-sm text-secondary')
+        with ui.row().classes('w-full justify-end gap-2 mt-4'):
+            ui.button('Cancel', on_click=stop_dialog.close).props('flat')
+            ui.button('Stop Server', on_click=_do_stop, color='negative')
+
     with ui.header().classes('gui-header') as hdr:
-        # Left: Menu toggle and Title
+        # Left: Menu button and Title
         with ui.row().classes('items-center gap-2'):
-            ui.button(icon='menu', on_click=lambda: ui.left_drawer.toggle()).props('flat round')
+            # Hamburger menu with options
+            with ui.button(icon='menu').props('flat round') as menu_btn:
+                with ui.menu() as menu:
+                    ui.menu_item(
+                        'Toggle Navigation',
+                        on_click=on_toggle_drawer if on_toggle_drawer else lambda: None
+                    ).props('icon=view_sidebar')
+
+                    ui.separator()
+
+                    ui.menu_item(
+                        'Restart Server',
+                        on_click=restart_dialog.open
+                    ).props('icon=refresh')
+
+                    ui.menu_item(
+                        'Stop Server',
+                        on_click=stop_dialog.open
+                    ).classes('text-negative').props('icon=power_settings_new')
+
             ui.icon('rocket_launch').classes('text-2xl')
             ui.label('TTS-160 Telescope Control').classes('text-xl font-semibold')
 
@@ -346,7 +498,6 @@ def footer(
                 ui.label('Camera').classes('text-xs')
 
                 def update_camera():
-                    from ..state import AlignmentState
                     cam_ind.classes(
                         remove='indicator-ok indicator-error indicator-inactive'
                     )

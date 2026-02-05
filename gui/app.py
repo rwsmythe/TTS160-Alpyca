@@ -74,6 +74,8 @@ class TelescopeGUI:
     def _setup_handlers(self) -> None:
         """Set up default command handlers."""
         self._handlers = {
+            'connect': self._handle_connect,
+            'disconnect': self._handle_disconnect,
             'slew_start': self._handle_slew_start,
             'slew_stop': self._handle_slew_stop,
             'goto': self._handle_goto,
@@ -89,6 +91,36 @@ class TelescopeGUI:
             'enable_monitor': self._handle_enable_monitor,
             'send_command': self._handle_send_command,
         }
+
+    def _handle_connect(self) -> None:
+        """Handle connect command."""
+        if self._device is None:
+            self._logger.error("No device configured")
+            self._state.update(connection_error="No device configured")
+            return
+
+        try:
+            self._logger.info("Connecting to telescope...")
+            self._device.Connected = True
+            self._state.update(connected=True, connection_error=None)
+            self._logger.info("Connected successfully")
+        except Exception as e:
+            self._logger.error(f"Connection failed: {e}")
+            self._state.update(connected=False, connection_error=str(e))
+
+    def _handle_disconnect(self) -> None:
+        """Handle disconnect command."""
+        if self._device is None:
+            return
+
+        try:
+            self._logger.info("Disconnecting from telescope...")
+            self._device.Connected = False
+            self._state.update(connected=False, connection_error=None)
+            self._logger.info("Disconnected successfully")
+        except Exception as e:
+            self._logger.error(f"Disconnect error: {e}")
+            self._state.update(connection_error=str(e))
 
     def _handle_slew_start(self, direction: str) -> None:
         """Handle slew start command."""

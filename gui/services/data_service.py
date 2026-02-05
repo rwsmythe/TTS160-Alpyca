@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, Optional
 import threading
 import time
 
-from ..state import TelescopeState, AlignmentState, DecisionResult
+from ..state import TelescopeState, AlignmentState, DecisionResult, QAStatusCode
 
 # Import GPS manager accessor - late import to avoid circular dependencies
 def _get_gps_manager(logger):
@@ -153,6 +153,12 @@ class DataService:
             updates['connected'] = connected
             updates['last_communication'] = datetime.now() if connected else None
 
+            # Serial port from config (always update, even when disconnected)
+            try:
+                updates['serial_port'] = getattr(self._config, 'dev_port', '')
+            except Exception:
+                pass
+
             if not connected:
                 self._state.update(**updates)
                 return
@@ -201,12 +207,6 @@ class DataService:
             try:
                 pier = self._device.SideOfPier
                 updates['pier_side'] = 'east' if pier == 0 else 'west' if pier == 1 else 'unknown'
-            except Exception:
-                pass
-
-            # Serial port from config
-            try:
-                updates['serial_port'] = getattr(self._config, 'serial_port', '')
             except Exception:
                 pass
 
@@ -426,6 +426,28 @@ class AlignmentDataService:
                 self._state.update(
                     camera_source=self._monitor.camera_source_type
                 )
+
+            # Get QA subsystem status
+            if hasattr(self._monitor, 'is_qa_enabled') and self._monitor.is_qa_enabled():
+                self._state.update(qa_enabled=True)
+
+                qa_status = self._monitor.get_alignment_qa_status()
+                if qa_status:
+                    # Convert status code string to enum
+                    status_str = qa_status.status.value if hasattr(qa_status.status, 'value') else str(qa_status.status)
+                    try:
+                        qa_status_enum = QAStatusCode(status_str)
+                    except ValueError:
+                        qa_status_enum = QAStatusCode.DISABLED
+
+                    self._state.update(
+                        qa_status=qa_status_enum,
+                        qa_quaternion_delta=qa_status.quaternion_delta_arcsec,
+                        qa_synthetic_count=qa_status.synthetic_point_count,
+                        qa_model_valid=qa_status.model_valid,
+                    )
+            else:
+                self._state.update(qa_enabled=False)
 
         except Exception as e:
             self._logger.error(f"Error fetching alignment data: {e}")

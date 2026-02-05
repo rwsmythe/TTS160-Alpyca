@@ -41,6 +41,16 @@ class DecisionResult(Enum):
     ERROR = "error"
 
 
+class QAStatusCode(Enum):
+    """QA subsystem status codes."""
+    VALID = "valid"           # All calculations successful
+    INVALID = "invalid"       # Calculation failed or data invalid
+    STALE = "stale"           # Data is outdated
+    NO_DATA = "no_data"       # No firmware data available
+    SYNTHETIC = "synthetic"   # Contains synthetic alignment points
+    DISABLED = "disabled"     # QA subsystem is disabled
+
+
 @dataclass
 class TelescopeState:
     """Reactive state container for telescope data.
@@ -91,6 +101,13 @@ class TelescopeState:
     lockout_remaining_sec: float = 0.0
     health_alert: bool = False
     camera_source: str = "alpaca"
+
+    # QA Subsystem
+    qa_enabled: bool = False
+    qa_status: QAStatusCode = QAStatusCode.DISABLED
+    qa_quaternion_delta: float = 0.0
+    qa_synthetic_count: int = 0
+    qa_model_valid: bool = False
 
     # UI state
     current_theme: str = "dark"
@@ -200,6 +217,12 @@ class TelescopeState:
                 'last_decision': self.last_decision.value,
                 'lockout_remaining': self.lockout_remaining_sec,
                 'health_alert': self.health_alert,
+                # QA fields
+                'qa_enabled': self.qa_enabled,
+                'qa_status': self.qa_status.value,
+                'qa_quaternion_delta': self.qa_quaternion_delta,
+                'qa_synthetic_count': self.qa_synthetic_count,
+                'qa_model_valid': self.qa_model_valid,
             }
 
     def mark_stale(self, threshold_seconds: float = 5.0) -> bool:

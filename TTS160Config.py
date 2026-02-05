@@ -732,6 +732,67 @@ class TTS160Config:
     def zwo_image_type(self, value: str) -> None:
         self._put_toml(self.ZWO_SECTION, 'image_type', value.upper())
 
+    # -------------------
+    # QA Subsystem Settings
+    # -------------------
+
+    QA_SECTION = 'alignment.qa'
+
+    @property
+    def alignment_qa_enabled(self) -> bool:
+        """Enable QA comparison calculations."""
+        value = self._get_toml(self.QA_SECTION, 'enabled')
+        return True if value is None else value
+
+    @alignment_qa_enabled.setter
+    def alignment_qa_enabled(self, value: bool) -> None:
+        self._put_toml(self.QA_SECTION, 'enabled', value)
+
+    @property
+    def alignment_qa_update_interval(self) -> float:
+        """QA calculation interval in seconds."""
+        return self._get_toml(self.QA_SECTION, 'update_interval') or 30.0
+
+    @alignment_qa_update_interval.setter
+    def alignment_qa_update_interval(self, value: float) -> None:
+        self._put_toml(self.QA_SECTION, 'update_interval', value)
+
+    @property
+    def alignment_qa_quaternion_tolerance(self) -> float:
+        """Acceptable quaternion delta in arcseconds."""
+        return self._get_toml(self.QA_SECTION, 'quaternion_tolerance') or 10.0
+
+    @alignment_qa_quaternion_tolerance.setter
+    def alignment_qa_quaternion_tolerance(self, value: float) -> None:
+        self._put_toml(self.QA_SECTION, 'quaternion_tolerance', value)
+
+    @property
+    def alignment_qa_position_tolerance(self) -> float:
+        """Acceptable position delta in arcseconds."""
+        return self._get_toml(self.QA_SECTION, 'position_tolerance') or 10.0
+
+    @alignment_qa_position_tolerance.setter
+    def alignment_qa_position_tolerance(self, value: float) -> None:
+        self._put_toml(self.QA_SECTION, 'position_tolerance', value)
+
+    @property
+    def alignment_qa_history_size(self) -> int:
+        """Number of QA snapshots to retain."""
+        return self._get_toml(self.QA_SECTION, 'history_size') or 100
+
+    @alignment_qa_history_size.setter
+    def alignment_qa_history_size(self, value: int) -> None:
+        self._put_toml(self.QA_SECTION, 'history_size', value)
+
+    @property
+    def alignment_qa_log_interval(self) -> float:
+        """QA history log interval in seconds."""
+        return self._get_toml(self.QA_SECTION, 'log_interval') or 300.0
+
+    @alignment_qa_log_interval.setter
+    def alignment_qa_log_interval(self, value: float) -> None:
+        self._put_toml(self.QA_SECTION, 'log_interval', value)
+
     def __repr__(self) -> str:
         """Return string representation for debugging."""
         return (

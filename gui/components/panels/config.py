@@ -112,13 +112,12 @@ def _build_mount_section(
         # Connection Settings
         with ui.expansion('Connection', icon='usb').classes('w-full'):
             with ui.column().classes('w-full gap-3 p-2'):
-                # Serial port (required)
-                _field_input(
+                # Serial port (required) - with dropdown of available ports
+                _field_serial_port(
                     'Serial Port *',
                     'dev_port',
                     config,
                     pending,
-                    placeholder='COM5 or /dev/ttyUSB0',
                     hint='Mount serial port (required)'
                 )
 
@@ -313,12 +312,11 @@ def _build_gps_section(
                     hint='Enable GPS dongle for automatic location updates'
                 )
 
-                _field_input(
+                _field_serial_port_with_auto(
                     'Serial Port',
                     'gps_port',
                     config,
                     pending,
-                    placeholder='auto or COM3',
                     hint='"auto" to scan for GPS, or specific port'
                 )
 
@@ -996,3 +994,152 @@ def _field_select(
 
         sel.on('update:model-value', on_change)
         return sel
+
+
+def _get_serial_ports() -> Dict[str, str]:
+    """Get available serial ports with descriptions.
+
+    Returns:
+        Dict mapping port name to display label (port + description).
+    """
+    try:
+        import serial.tools.list_ports
+        ports = {}
+        for port_info in serial.tools.list_ports.comports():
+            # Format: "COM5 - USB Serial Device" or just "COM5" if no description
+            port_name = port_info.device
+            if port_info.description and port_info.description != port_name:
+                display = f"{port_name} - {port_info.description}"
+            else:
+                display = port_name
+            ports[port_name] = display
+        return ports
+    except Exception:
+        return {}
+
+
+def _field_serial_port(
+    label: str,
+    prop_name: str,
+    config: Any,
+    pending: Dict[str, Any],
+    hint: str = '',
+) -> ui.element:
+    """Create a serial port dropdown with refresh button.
+
+    Shows available COM ports with hardware descriptions.
+    """
+    with ui.column().classes('w-full gap-1') as container:
+        ui.label(label).classes('text-sm')
+
+        with ui.row().classes('w-full gap-2 items-center'):
+            # Get initial port list
+            ports = _get_serial_ports()
+
+            # Add current config value if not in list (might be disconnected)
+            current_value = getattr(config, prop_name, '')
+            if current_value and current_value not in ports:
+                ports[current_value] = f"{current_value} (not found)"
+
+            # If no ports found, add placeholder
+            if not ports:
+                ports[''] = '(No ports found)'
+
+            # Create dropdown
+            sel = ui.select(
+                options=ports,
+                value=current_value if current_value in ports else '',
+                with_input=True,  # Allow typing custom port
+            ).classes('flex-grow')
+            sel.props('dense')
+
+            def on_change(e):
+                value = e.value if e.value else ''
+                pending[prop_name] = value
+                setattr(config, prop_name, value)
+
+            sel.on('update:model-value', on_change)
+
+            # Refresh button
+            def refresh_ports():
+                new_ports = _get_serial_ports()
+                current = sel.value
+                if current and current not in new_ports:
+                    new_ports[current] = f"{current} (not found)"
+                if not new_ports:
+                    new_ports[''] = '(No ports found)'
+                sel.options = new_ports
+                sel.update()
+                ui.notify(f'Found {len([p for p in new_ports if p])} port(s)', type='info')
+
+            ui.button(
+                icon='refresh',
+                on_click=refresh_ports
+            ).props('flat dense').tooltip('Refresh port list')
+
+        if hint:
+            ui.label(hint).classes('text-xs text-secondary')
+
+    return container
+
+
+def _field_serial_port_with_auto(
+    label: str,
+    prop_name: str,
+    config: Any,
+    pending: Dict[str, Any],
+    hint: str = '',
+) -> ui.element:
+    """Create a serial port dropdown with 'auto' option and refresh button.
+
+    Like _field_serial_port but includes 'auto' for GPS auto-detection.
+    """
+    with ui.column().classes('w-full gap-1') as container:
+        ui.label(label).classes('text-sm')
+
+        with ui.row().classes('w-full gap-2 items-center'):
+            # Get initial port list with 'auto' option first
+            ports = {'auto': 'auto (scan for device)'}
+            ports.update(_get_serial_ports())
+
+            # Add current config value if not in list
+            current_value = getattr(config, prop_name, 'auto')
+            if current_value and current_value not in ports:
+                ports[current_value] = f"{current_value} (not found)"
+
+            # Create dropdown
+            sel = ui.select(
+                options=ports,
+                value=current_value if current_value in ports else 'auto',
+                with_input=True,  # Allow typing custom port
+            ).classes('flex-grow')
+            sel.props('dense')
+
+            def on_change(e):
+                value = e.value if e.value else 'auto'
+                pending[prop_name] = value
+                setattr(config, prop_name, value)
+
+            sel.on('update:model-value', on_change)
+
+            # Refresh button
+            def refresh_ports():
+                new_ports = {'auto': 'auto (scan for device)'}
+                new_ports.update(_get_serial_ports())
+                current = sel.value
+                if current and current not in new_ports:
+                    new_ports[current] = f"{current} (not found)"
+                sel.options = new_ports
+                sel.update()
+                port_count = len([p for p in new_ports if p and p != 'auto'])
+                ui.notify(f'Found {port_count} port(s)', type='info')
+
+            ui.button(
+                icon='refresh',
+                on_click=refresh_ports
+            ).props('flat dense').tooltip('Refresh port list')
+
+        if hint:
+            ui.label(hint).classes('text-xs text-secondary')
+
+    return container

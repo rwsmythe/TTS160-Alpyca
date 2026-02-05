@@ -612,6 +612,126 @@ a {{
 a:hover {{
     color: var(--accent-color);
 }}
+
+/* ============================================ */
+/* Dashboard Component                          */
+/* ============================================ */
+
+.dashboard {{
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+}}
+
+.dashboard-section {{
+    min-width: 120px;
+}}
+
+.dashboard-divider {{
+    width: 1px;
+    height: 60px;
+    background-color: var(--border-color);
+    margin: 0 var(--spacing-lg);
+}}
+
+.dashboard-label {{
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+
+.dashboard-label-sm {{
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 400;
+}}
+
+.dashboard-value {{
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: 500;
+}}
+
+.dashboard-value-sm {{
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}}
+
+.dashboard-status-text {{
+    font-size: var(--text-lg);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}}
+
+.dashboard-indicator-label {{
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}}
+
+/* Larger indicator for dashboard */
+.indicator-lg {{
+    width: 16px;
+    height: 16px;
+}}
+
+/* ============================================ */
+/* Segmented Navigation                         */
+/* ============================================ */
+
+.nav-segmented {{
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xs);
+    margin-bottom: var(--spacing-lg);
+}}
+
+.nav-segment-btn {{
+    border-radius: var(--radius-md) !important;
+    margin: 0 2px !important;
+    padding: var(--spacing-sm) var(--spacing-lg) !important;
+    transition: background-color var(--transition-fast), color var(--transition-fast) !important;
+}}
+
+.nav-segment-btn:hover {{
+    background-color: var(--hover-color) !important;
+}}
+
+.nav-segment-active {{
+    background-color: var(--primary-color) !important;
+    color: var(--bg-color) !important;
+}}
+
+.nav-segment-active .q-icon {{
+    color: var(--bg-color) !important;
+}}
+
+/* Quasar button group fixes */
+.q-btn-group .q-btn {{
+    border-radius: var(--radius-md) !important;
+}}
+
+/* ============================================ */
+/* Detail Panel Container                       */
+/* ============================================ */
+
+.detail-panel {{
+    min-height: 400px;
+}}
+
+.detail-panel-enter {{
+    animation: fadeIn 0.2s ease-out;
+}}
+
+@keyframes fadeIn {{
+    from {{ opacity: 0; transform: translateY(8px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
+}}
 """
 
 

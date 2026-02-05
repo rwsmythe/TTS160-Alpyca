@@ -1425,6 +1425,152 @@ class SerialManager:
         result = self.execute_set_command(SetCommand.PARK_UNPARK, data, priority)
         return len(result) > 0 and result[0][1] == 0
 
+    # =========================================================================
+    # V1 Alignment Monitor Commands (firmware v357+)
+    # =========================================================================
+
+    def align_point(
+        self,
+        index: int,
+        ra_hours: float,
+        dec_degrees: float,
+        priority: Optional[CommandPriority] = None
+    ) -> Tuple[bool, int]:
+        """Replace an alignment point with plate-solved coordinates.
+
+        Captures current encoder ticks and stores with the provided sky
+        coordinates. The alignment model is NOT automatically recalculated;
+        call perform_alignment() after replacing points.
+
+        Args:
+            index: Alignment point index (1, 2, or 3)
+            ra_hours: Plate-solved Right Ascension in hours (0.0 to 24.0)
+            dec_degrees: Plate-solved Declination in degrees (-90.0 to +90.0)
+            priority: Command priority (default: NORMAL)
+
+        Returns:
+            Tuple of (success, error_code) where:
+                - success: True if point was stored successfully
+                - error_code: 0=success, 1=invalid index, 2=invalid coords,
+                             3=mount busy, 4=function failed
+
+        Example:
+            >>> # Replace point 2 with plate-solved coordinates
+            >>> success, error = serial_mgr.align_point(2, 12.5, 45.0)
+            >>> if success:
+            ...     serial_mgr.perform_alignment()
+        """
+        # Validate input ranges
+        if index < 1 or index > 3:
+            self._logger.error(f"Invalid alignment point index: {index}")
+            return (False, 1)
+
+        if ra_hours < 0.0 or ra_hours >= 24.0:
+            self._logger.error(f"Invalid RA hours: {ra_hours}")
+            return (False, 2)
+
+        if dec_degrees < -90.0 or dec_degrees > 90.0:
+            self._logger.error(f"Invalid Dec degrees: {dec_degrees}")
+            return (False, 2)
+
+        # Pack payload: index (uint8) + ra_hours (float) + dec_degrees (float)
+        data = struct.pack('<Bff', index, ra_hours, dec_degrees)
+
+        self._logger.info(
+            f"Replacing alignment point {index}: RA={ra_hours:.4f}h, Dec={dec_degrees:.4f}°"
+        )
+
+        result = self.execute_set_command(SetCommand.ALIGN_POINT, data, priority)
+
+        if len(result) > 0:
+            error_code = result[0][1]
+            success = (error_code == 0)
+            if not success:
+                self._logger.warning(f"align_point failed with error code: {error_code}")
+            return (success, error_code)
+        else:
+            self._logger.error("No response from align_point command")
+            return (False, -1)
+
+    def perform_alignment(
+        self,
+        priority: Optional[CommandPriority] = None
+    ) -> Tuple[bool, int]:
+        """Recalculate the 3-point alignment model from current points.
+
+        Should be called after replacing one or more alignment points with
+        align_point() to update the pointing model.
+
+        Args:
+            priority: Command priority (default: NORMAL)
+
+        Returns:
+            Tuple of (success, error_code) where:
+                - success: True if alignment recalculation succeeded
+                - error_code: 0=success, 1=insufficient points,
+                             2=calculation error
+
+        Example:
+            >>> success, error = serial_mgr.perform_alignment()
+            >>> if not success:
+            ...     print(f"Alignment failed with error {error}")
+        """
+        self._logger.info("Recalculating alignment model")
+
+        # No payload for PERFORM_ALIGNMENT command
+        result = self.execute_set_command(SetCommand.PERFORM_ALIGNMENT, b'', priority)
+
+        if len(result) > 0:
+            error_code = result[0][1]
+            success = (error_code == 0)
+            if success:
+                self._logger.info("Alignment model recalculated successfully")
+            else:
+                self._logger.warning(f"perform_alignment failed with error code: {error_code}")
+            return (success, error_code)
+        else:
+            self._logger.error("No response from perform_alignment command")
+            return (False, -1)
+
+    def get_alignment_status(
+        self,
+        priority: Optional[CommandPriority] = None
+    ) -> Dict[str, Any]:
+        """Query V1 alignment monitor status variables.
+
+        Returns current alignment point count, flags, timestamps,
+        RMS error, and model validity.
+
+        Args:
+            priority: Command priority (default: NORMAL)
+
+        Returns:
+            Dictionary with keys:
+                - point_count: Number of valid alignment points (0-3)
+                - point_flags: Bitfield (bits 0-2: sat flags, bits 3-5: manual flags)
+                - star1_timestamp: Star 1 capture time (IS_MSECS)
+                - star2_timestamp: Star 2 capture time (IS_MSECS)
+                - star3_timestamp: Star 3 capture time (IS_MSECS)
+                - rms_error: Alignment model RMS error (arcseconds)
+                - model_valid: True if alignment model is valid
+
+        Example:
+            >>> status = serial_mgr.get_alignment_status()
+            >>> if status['model_valid'] and status['rms_error'] < 60:
+            ...     print("Alignment is good")
+        """
+        result = self.query_group('alignment_full', priority=priority)
+
+        return {
+            'point_count': result.get('A16', 0),
+            'point_flags': result.get('A17', 0),
+            'star1_timestamp': result.get('A18', 0),
+            'star2_timestamp': result.get('A19', 0),
+            'star3_timestamp': result.get('A20', 0),
+            'rms_error': result.get('A21', 0.0),
+            'model_valid': bool(result.get('A22', 0))
+        }
+
     def clear_buffers(self) -> None:
         """Clear serial input/output buffers and purge queued responses."""
         with self._lock:

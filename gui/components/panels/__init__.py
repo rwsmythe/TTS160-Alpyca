@@ -25,6 +25,18 @@ from .server_status import (
     server_status_panel,
     server_config_panel,
 )
+from .dashboard import (
+    dashboard,
+)
+from .position_panel import (
+    position_panel,
+)
+from .hardware_panel import (
+    hardware_panel,
+)
+from .alignment_panel import (
+    alignment_panel,
+)
 
 __all__ = [
     # Main status
@@ -42,4 +54,9 @@ __all__ = [
     # Server
     'server_status_panel',
     'server_config_panel',
+    # New layout panels
+    'dashboard',
+    'position_panel',
+    'hardware_panel',
+    'alignment_panel',
 ]

@@ -17,13 +17,126 @@ from ..controls import (
 )
 
 
+def _connection_control(
+    state: TelescopeState,
+    on_connect: Callable,
+    on_disconnect: Callable,
+    config: Any = None,
+) -> ui.element:
+    """Connection control card with connect/disconnect button.
+
+    Args:
+        state: Telescope state instance.
+        on_connect: Connect callback.
+        on_disconnect: Disconnect callback.
+        config: Optional config object for connection options.
+
+    Returns:
+        Container element.
+    """
+    with ui.card().classes('gui-card w-full') as container:
+        ui.label('Mount Connection').classes('section-header')
+
+        with ui.row().classes('items-center justify-between w-full'):
+            # Status indicator and text
+            with ui.row().classes('items-center gap-2'):
+                conn_ind = ui.element('span').classes('indicator')
+                conn_label = ui.label()
+
+            # Connect/Disconnect button
+            conn_btn = ui.button().classes('w-32')
+
+            def update_connection():
+                conn_ind.classes(
+                    remove='indicator-ok indicator-error indicator-inactive'
+                )
+
+                if state.connected:
+                    conn_ind.classes(add='indicator-ok')
+                    conn_label.text = 'Connected'
+                    conn_btn.text = 'Disconnect'
+                    conn_btn.props('color=negative')
+                    conn_btn._props['icon'] = 'link_off'
+                elif state.connection_error:
+                    conn_ind.classes(add='indicator-error')
+                    conn_label.text = 'Error'
+                    conn_btn.text = 'Retry'
+                    conn_btn.props(remove='color')
+                    conn_btn.props('color=warning')
+                    conn_btn._props['icon'] = 'refresh'
+                else:
+                    conn_ind.classes(add='indicator-inactive')
+                    conn_label.text = 'Disconnected'
+                    conn_btn.text = 'Connect'
+                    conn_btn.props(remove='color')
+                    conn_btn.props('color=primary')
+                    conn_btn._props['icon'] = 'link'
+
+            def on_btn_click():
+                if state.connected:
+                    on_disconnect()
+                else:
+                    on_connect()
+
+            conn_btn.on('click', on_btn_click)
+            update_connection()
+
+            def on_change(field, value):
+                if field in ('connected', 'connection_error'):
+                    update_connection()
+
+            state.add_listener(on_change)
+
+        # Serial port info
+        with ui.row().classes('items-center gap-2'):
+            ui.label('Port:').classes('label text-sm')
+            port_label = ui.label().classes('mono text-sm')
+            port_label.bind_text_from(
+                state, 'serial_port',
+                lambda p: p if p else 'Not configured'
+            )
+
+        # Connection options (only show if config available)
+        if config is not None:
+            ui.separator().classes('my-1')
+
+            with ui.column().classes('w-full gap-1'):
+                # Sync time on connect checkbox
+                sync_time_value = getattr(config, 'sync_time_on_connect', True)
+                sync_time_cb = ui.checkbox(
+                    'Sync time on connect',
+                    value=sync_time_value,
+                ).classes('text-sm')
+
+                def on_sync_time_change(e):
+                    setattr(config, 'sync_time_on_connect', e.value)
+
+                sync_time_cb.on('update:model-value', on_sync_time_change)
+
+                # GPS push on connect checkbox
+                gps_push_value = getattr(config, 'gps_push_on_connect', False)
+                gps_push_cb = ui.checkbox(
+                    'Push GPS location on connect',
+                    value=gps_push_value,
+                ).classes('text-sm')
+
+                def on_gps_push_change(e):
+                    setattr(config, 'gps_push_on_connect', e.value)
+
+                gps_push_cb.on('update:model-value', on_gps_push_change)
+
+    return container
+
+
 def control_panel(
     state: TelescopeState,
     handlers: Dict[str, Callable],
+    config: Any = None,
 ) -> ui.element:
     """Main control panel.
 
     Combines all control components:
+    - Connection controls (Layer 1)
     - Slew controls (Layer 1)
     - Tracking controls (Layer 1)
     - Park controls (Layer 1)
@@ -32,6 +145,8 @@ def control_panel(
     Args:
         state: Telescope state instance.
         handlers: Dict of callback handlers:
+            - connect: () -> None
+            - disconnect: () -> None
             - slew_start: (direction: str) -> None
             - slew_stop: () -> None
             - goto: (ra: float, dec: float) -> None
@@ -45,6 +160,7 @@ def control_panel(
             - sync: (ra: float, dec: float) -> None
             - measure: () -> None
             - enable_monitor: (enabled: bool) -> None
+        config: Optional config object for connection options.
 
     Returns:
         Container element with control panel.
@@ -53,6 +169,8 @@ def control_panel(
     def noop(*args, **kwargs):
         pass
 
+    connect = handlers.get('connect', noop)
+    disconnect = handlers.get('disconnect', noop)
     slew_start = handlers.get('slew_start', noop)
     slew_stop = handlers.get('slew_stop', noop)
     goto = handlers.get('goto', noop)
@@ -69,6 +187,9 @@ def control_panel(
 
     with ui.column().classes('w-full gap-4') as container:
         # Layer 1: Primary Controls
+        # Connection control - fundamental action at top
+        _connection_control(state, connect, disconnect, config)
+
         # Slew controls - most frequently used
         slew_controls(
             state=state,

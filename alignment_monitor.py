@@ -35,6 +35,13 @@ from camera_factory import create_camera_source
 from star_detector import StarDetector
 from plate_solver import PlateSolver
 import alignment_geometry as geometry
+from alignment_qa import (
+    AlignmentQA,
+    FirmwareAlignmentData,
+    QAStatus,
+    QAStatusCode,
+)
+from tts160_types import QUERY_GROUPS
 
 
 class AlignmentState(IntEnum):
@@ -87,6 +94,12 @@ class AlignmentStatus:
     health_alert_active: bool = False
     last_decision: str = ""
     lockout_remaining: float = 0.0
+    # QA Subsystem additions
+    qa_enabled: bool = False
+    qa_status: Optional[str] = None
+    qa_quaternion_delta: float = 0.0
+    qa_synthetic_count: int = 0
+    qa_model_valid: bool = False
 
 
 # =============================================================================
@@ -321,8 +334,20 @@ class AlignmentMonitor:
         self._sync_callback: Optional[Callable[[float, float], bool]] = None
         self._alignment_data_callback: Optional[Callable[[], List[AlignmentPointRecord]]] = None
 
-        # V1 Firmware support flag (false until firmware implements ALIGN_POINT)
+        # V1 Firmware alignment commands (firmware v357+)
+        self._align_point_callback: Optional[Callable[[int, float, float], Tuple[bool, int]]] = None
+        self._perform_alignment_callback: Optional[Callable[[], Tuple[bool, int]]] = None
+
+        # V1 Firmware support flag (auto-enabled when callbacks are set)
         self._firmware_supports_align_point = False
+
+        # QA Subsystem
+        self._alignment_qa: Optional[AlignmentQA] = None
+        self._serial_manager_callback: Optional[Callable] = None
+        self._last_qa_update: Optional[datetime] = None
+        if self._config.alignment_qa_enabled:
+            self._alignment_qa = AlignmentQA(self._logger)
+            self._alignment_qa._max_history_size = self._config.alignment_qa_history_size
 
     def start(self) -> bool:
         """Start the alignment monitor.
@@ -442,6 +467,21 @@ class AlignmentMonitor:
                 remaining = (self._lockout_until - datetime.now()).total_seconds()
                 lockout_remaining = max(0.0, remaining)
 
+            # Get QA status if enabled
+            qa_enabled = self._alignment_qa is not None
+            qa_status_str = None
+            qa_quat_delta = 0.0
+            qa_synthetic = 0
+            qa_model_valid = False
+
+            if self._alignment_qa is not None:
+                qa_result = self._alignment_qa.get_qa_status()
+                if qa_result:
+                    qa_status_str = qa_result.status.value
+                    qa_quat_delta = qa_result.quaternion_delta_arcsec
+                    qa_synthetic = qa_result.synthetic_point_count
+                    qa_model_valid = qa_result.model_valid
+
             return AlignmentStatus(
                 state=self._state,
                 camera_connected=camera_connected,
@@ -461,7 +501,13 @@ class AlignmentMonitor:
                 geometry_determinant=self._geometry_determinant,
                 health_alert_active=self._health_monitor.alert_active,
                 last_decision=self._last_decision.value,
-                lockout_remaining=lockout_remaining
+                lockout_remaining=lockout_remaining,
+                # QA Subsystem additions
+                qa_enabled=qa_enabled,
+                qa_status=qa_status_str,
+                qa_quaternion_delta=qa_quat_delta,
+                qa_synthetic_count=qa_synthetic,
+                qa_model_valid=qa_model_valid
             )
 
     def get_history(self, limit: int = 50) -> List[AlignmentPoint]:
@@ -800,6 +846,50 @@ class AlignmentMonitor:
             self._alignment_data_callback = callback
             self._logger.debug("Alignment data callback set")
 
+    def set_align_point_callback(
+        self,
+        callback: Callable[[int, float, float], Tuple[bool, int]]
+    ) -> None:
+        """Set callback to replace an alignment point via firmware.
+
+        This callback is called when the V1 decision engine determines that
+        an alignment point should be replaced with plate-solved coordinates.
+
+        Args:
+            callback: Function accepting (index, ra_hours, dec_degrees),
+                     returning (success, error_code) tuple.
+
+        Note:
+            Setting this callback automatically enables firmware V1 support.
+            The callback should call SerialManager.align_point() internally.
+        """
+        with self._lock:
+            self._align_point_callback = callback
+            self._firmware_supports_align_point = (callback is not None)
+            self._logger.info(
+                f"Align point callback set, firmware V1 support: "
+                f"{self._firmware_supports_align_point}"
+            )
+
+    def set_perform_alignment_callback(
+        self,
+        callback: Callable[[], Tuple[bool, int]]
+    ) -> None:
+        """Set callback to recalculate alignment model via firmware.
+
+        This callback is called after replacing alignment points to trigger
+        the firmware to recalculate the pointing model.
+
+        Args:
+            callback: Function returning (success, error_code) tuple.
+
+        Note:
+            The callback should call SerialManager.perform_alignment() internally.
+        """
+        with self._lock:
+            self._perform_alignment_callback = callback
+            self._logger.debug("Perform alignment callback set")
+
     # =========================================================================
     # V1 Lockout System
     # =========================================================================
@@ -880,6 +970,20 @@ class AlignmentMonitor:
             self._alignment_points = self._alignment_data_callback()
             if self._alignment_points:
                 self._update_geometry_determinant()
+
+            # Update QA subsystem if enabled and interval has passed
+            if self._alignment_qa is not None:
+                should_update = False
+                if self._last_qa_update is None:
+                    should_update = True
+                else:
+                    elapsed = (datetime.now() - self._last_qa_update).total_seconds()
+                    if elapsed >= self._config.alignment_qa_update_interval:
+                        should_update = True
+
+                if should_update:
+                    self._update_qa_from_firmware()
+
         except Exception as e:
             self._logger.debug(f"Failed to refresh alignment points: {e}")
 
@@ -1053,30 +1157,75 @@ class AlignmentMonitor:
                 self._check_health_alert()
 
             # Step 11: Perform alignment or fall back to sync
-            if self._firmware_supports_align_point:
-                # Future: call firmware ALIGN_POINT command
+            alignment_succeeded = False
+
+            if self._firmware_supports_align_point and self._align_point_callback:
+                # Attempt firmware ALIGN_POINT command
                 self._logger.info(
                     f"V1 Alignment: replacing point {selected.point.index} "
                     f"(reason: {selected.reason}, det: {selected.new_det:.3f})"
                 )
-                selected.point.reset_weighted_error()
-                self._sync_tracker.reset()
-                self._start_lockout(self._config.alignment_lockout_post_align)
-                self._last_decision = DecisionResult.ALIGN
-                return DecisionResult.ALIGN
+
+                # Get the plate-solved coordinates from the last measurement
+                if (self._last_measurement is not None and
+                    self._last_measurement.solved_ra is not None and
+                    self._last_measurement.solved_dec is not None):
+                    ra_hours = self._last_measurement.solved_ra
+                    dec_degrees = self._last_measurement.solved_dec
+
+                    # Call firmware to replace the alignment point
+                    success, error_code = self._align_point_callback(
+                        selected.point.index, ra_hours, dec_degrees
+                    )
+
+                    if success:
+                        self._logger.info(
+                            f"Alignment point {selected.point.index} replaced successfully"
+                        )
+
+                        # Recalculate alignment model if callback is available
+                        if self._perform_alignment_callback:
+                            align_success, align_error = self._perform_alignment_callback()
+                            if align_success:
+                                self._logger.info("Alignment model recalculated")
+                            else:
+                                self._logger.warning(
+                                    f"Alignment recalculation failed: error {align_error}"
+                                )
+
+                        selected.point.reset_weighted_error()
+                        self._sync_tracker.reset()
+                        self._start_lockout(self._config.alignment_lockout_post_align)
+                        self._last_decision = DecisionResult.ALIGN
+                        alignment_succeeded = True
+                    else:
+                        self._logger.warning(
+                            f"ALIGN_POINT command failed with error {error_code}, "
+                            "falling back to sync"
+                        )
+                else:
+                    self._logger.warning(
+                        "No plate-solved coordinates available, falling back to sync"
+                    )
             else:
-                # Firmware doesn't support ALIGN_POINT, log intent and sync instead
+                # Firmware doesn't support ALIGN_POINT, log intent
                 self._logger.info(
                     f"V1 Alignment would replace point {selected.point.index} "
                     f"(reason: {selected.reason}, det: {selected.new_det:.3f}) - "
                     "firmware unsupported, falling back to sync"
                 )
-                if self._perform_sync():
-                    self._start_lockout(self._config.alignment_lockout_post_sync)
-                    self._last_decision = DecisionResult.SYNC
-                    return DecisionResult.SYNC
-                self._last_decision = DecisionResult.NO_ACTION
-                return DecisionResult.NO_ACTION
+
+            # Return ALIGN if successful, otherwise fall back to sync
+            if alignment_succeeded:
+                return DecisionResult.ALIGN
+
+            # Sync fallback for all failure cases
+            if self._perform_sync():
+                self._start_lockout(self._config.alignment_lockout_post_sync)
+                self._last_decision = DecisionResult.SYNC
+                return DecisionResult.SYNC
+            self._last_decision = DecisionResult.NO_ACTION
+            return DecisionResult.NO_ACTION
 
     def _find_replacement_candidates(self) -> List[ReplacementCandidate]:
         """Find valid replacement candidates for alignment points.
@@ -1184,3 +1333,181 @@ class AlignmentMonitor:
         """
         with self._lock:
             return list(self._alignment_points)
+
+    # =========================================================================
+    # QA Subsystem Integration
+    # =========================================================================
+
+    def set_serial_manager_callback(
+        self,
+        callback: Callable
+    ) -> None:
+        """Set callback to access serial manager for QA queries.
+
+        Args:
+            callback: Function returning SerialManager instance.
+        """
+        with self._lock:
+            self._serial_manager_callback = callback
+            self._logger.debug("Serial manager callback set for QA subsystem")
+
+    def _update_qa_from_firmware(self) -> bool:
+        """Update QA data from firmware via serial manager.
+
+        Queries alignment variables from firmware and populates the
+        AlignmentQA subsystem for independent verification.
+
+        Returns:
+            True if update succeeded, False otherwise.
+        """
+        if self._alignment_qa is None:
+            return False
+
+        if self._serial_manager_callback is None:
+            self._logger.debug("No serial manager callback for QA update")
+            return False
+
+        try:
+            serial_mgr = self._serial_manager_callback()
+            if serial_mgr is None:
+                return False
+
+            # Query firmware data in batches (max 10 variables per command)
+            all_data = {}
+            for group_name in ['alignment_qa_1', 'alignment_qa_2',
+                               'alignment_qa_3', 'alignment_qa_4']:
+                variables = QUERY_GROUPS.get(group_name, [])
+                if variables:
+                    result = serial_mgr.query_variables(variables)
+                    all_data.update(result)
+
+            # Build FirmwareAlignmentData from query results
+            firmware_data = self._build_firmware_alignment_data(all_data)
+            if firmware_data is None:
+                self._logger.debug("Failed to build firmware alignment data")
+                return False
+
+            # Update QA subsystem
+            self._alignment_qa.set_firmware_data(firmware_data)
+            self._alignment_qa.recalculate_driver_quaternion()
+            self._last_qa_update = datetime.now()
+
+            if self._config.alignment_verbose_logging:
+                qa_status = self._alignment_qa.get_qa_status()
+                if qa_status:
+                    self._logger.debug(
+                        f"QA update: status={qa_status.status.value}, "
+                        f"quat_delta={qa_status.quaternion_delta_arcsec:.1f}\", "
+                        f"synthetic={qa_status.synthetic_point_count}"
+                    )
+
+            return True
+
+        except Exception as e:
+            self._logger.debug(f"QA firmware update failed: {e}")
+            return False
+
+    def _build_firmware_alignment_data(
+        self,
+        data: dict
+    ) -> Optional[FirmwareAlignmentData]:
+        """Build FirmwareAlignmentData from query results.
+
+        Args:
+            data: Dictionary of variable IDs to values.
+
+        Returns:
+            FirmwareAlignmentData instance, or None if data is incomplete.
+        """
+        try:
+            # Extract star tick positions (A4-A9)
+            star_ticks = []
+            for i in range(3):
+                h_var = f'A{4 + i * 2}'
+                e_var = f'A{5 + i * 2}'
+                h_ticks = data.get(h_var, 0) or 0
+                e_ticks = data.get(e_var, 0) or 0
+                star_ticks.append((int(h_ticks), int(e_ticks)))
+
+            # Extract star coordinates (A10-A15) - already in radians
+            star_coords = []
+            for i in range(3):
+                ra_var = f'A{10 + i * 2}'
+                dec_var = f'A{11 + i * 2}'
+                ra_rad = data.get(ra_var, 0.0) or 0.0
+                dec_rad = data.get(dec_var, 0.0) or 0.0
+                star_coords.append((float(ra_rad), float(dec_rad)))
+
+            # Extract timestamps (A18-A20)
+            star_timestamps = [
+                int(data.get('A18', 0) or 0),
+                int(data.get('A19', 0) or 0),
+                int(data.get('A20', 0) or 0),
+            ]
+
+            # Extract quaternions (T31, T32)
+            # These are returned as tuples (w, x, y, z)
+            firmware_quat = data.get('T31', (1.0, 0.0, 0.0, 0.0))
+            inverse_quat = data.get('T32', (1.0, 0.0, 0.0, 0.0))
+
+            # Handle case where quaternions might be lists
+            if isinstance(firmware_quat, (list, tuple)) and len(firmware_quat) == 4:
+                firmware_quat = tuple(float(x) for x in firmware_quat)
+            else:
+                firmware_quat = (1.0, 0.0, 0.0, 0.0)
+
+            if isinstance(inverse_quat, (list, tuple)) and len(inverse_quat) == 4:
+                inverse_quat = tuple(float(x) for x in inverse_quat)
+            else:
+                inverse_quat = (1.0, 0.0, 0.0, 0.0)
+
+            return FirmwareAlignmentData(
+                point_count=int(data.get('A16', 0) or 0),
+                point_flags=int(data.get('A17', 0) or 0),
+                star_ticks=star_ticks,
+                star_coords=star_coords,
+                star_timestamps=star_timestamps,
+                start_sid_time=float(data.get('A2', 0.0) or 0.0),
+                align_sid_time=float(data.get('A3', 0.0) or 0.0),
+                rms_error=float(data.get('A21', 0.0) or 0.0),
+                model_valid=bool(data.get('A22', False)),
+                ticks_per_rev_h=int(data.get('M8', 0) or 0),
+                ticks_per_rev_e=int(data.get('M9', 0) or 0),
+                longitude=float(data.get('C17', 0.0) or 0.0),
+                latitude=float(data.get('C18', 0.0) or 0.0),
+                firmware_quaternion=firmware_quat,
+                inverse_quaternion=inverse_quat,
+            )
+
+        except Exception as e:
+            self._logger.debug(f"Failed to build firmware alignment data: {e}")
+            return None
+
+    def get_alignment_qa_status(self) -> Optional[QAStatus]:
+        """Get current QA subsystem status.
+
+        Returns:
+            QAStatus object with QA metrics, or None if QA disabled.
+        """
+        with self._lock:
+            if self._alignment_qa is None:
+                return None
+            return self._alignment_qa.get_qa_status()
+
+    def trigger_qa_update(self) -> bool:
+        """Manually trigger a QA update from firmware.
+
+        Returns:
+            True if update succeeded, False otherwise.
+        """
+        with self._lock:
+            return self._update_qa_from_firmware()
+
+    def is_qa_enabled(self) -> bool:
+        """Check if QA subsystem is enabled.
+
+        Returns:
+            True if QA is enabled and initialized.
+        """
+        with self._lock:
+            return self._alignment_qa is not None

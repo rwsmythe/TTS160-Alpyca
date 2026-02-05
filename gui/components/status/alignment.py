@@ -7,7 +7,7 @@ Shows alignment monitor status, errors, and geometry quality.
 
 from nicegui import ui
 
-from ...state import TelescopeState, AlignmentState, DecisionResult, format_error
+from ...state import TelescopeState, AlignmentState, DecisionResult, QAStatusCode, format_error
 
 
 # State display configuration
@@ -30,6 +30,16 @@ DECISION_DISPLAY = {
     DecisionResult.ALIGN: 'Align',
     DecisionResult.LOCKOUT: 'Lockout',
     DecisionResult.ERROR: 'Error',
+}
+
+# QA Status display configuration
+QA_STATUS_DISPLAY = {
+    QAStatusCode.VALID: ('Valid', 'indicator-ok', 'Quaternions match'),
+    QAStatusCode.INVALID: ('Invalid', 'indicator-error', 'Calculation error'),
+    QAStatusCode.STALE: ('Stale', 'indicator-warning', 'Data outdated'),
+    QAStatusCode.NO_DATA: ('No Data', 'indicator-inactive', 'No firmware data'),
+    QAStatusCode.SYNTHETIC: ('Synthetic', 'indicator-warning', 'Synthetic points detected'),
+    QAStatusCode.DISABLED: ('Disabled', 'indicator-inactive', 'QA disabled'),
 }
 
 
@@ -230,6 +240,126 @@ def alignment_status(state: TelescopeState) -> ui.element:
                     state, 'camera_source',
                     lambda s: s.upper()
                 )
+
+            # QA Subsystem section (Layer 3)
+            qa_section = ui.column().classes('gap-2 disclosure-3')
+            with qa_section:
+                ui.separator().classes('my-1')
+                ui.label('QA Verification').classes('section-header text-sm')
+
+                # QA Status indicator
+                with ui.row().classes('items-center gap-3'):
+                    qa_ind = ui.element('span').classes('indicator')
+                    qa_label = ui.label()
+                    qa_tooltip = ui.label().classes('text-xs text-gray-500')
+
+                    def update_qa_status():
+                        display = QA_STATUS_DISPLAY.get(
+                            state.qa_status,
+                            ('Unknown', 'indicator-inactive', '')
+                        )
+                        text, indicator_class, tooltip = display
+
+                        qa_ind.classes(
+                            remove='indicator-ok indicator-warning indicator-error indicator-inactive'
+                        )
+                        qa_ind.classes(add=indicator_class)
+                        qa_label.text = text
+                        qa_tooltip.text = tooltip
+
+                    update_qa_status()
+
+                    def on_qa_change(field, value):
+                        if field == 'qa_status':
+                            update_qa_status()
+
+                    state.add_listener(on_qa_change)
+
+                # Quaternion delta (only show if QA enabled)
+                with ui.column().classes('gap-1') as quat_section:
+                    ui.label('Quaternion Delta').classes('label')
+                    with ui.row().classes('items-baseline gap-2'):
+                        quat_delta = ui.label().classes('value-normal mono')
+
+                        def format_quat_delta(arcsec):
+                            if arcsec < 10:
+                                return f'{arcsec:.2f}"'
+                            elif arcsec < 60:
+                                return f'{arcsec:.1f}"'
+                            else:
+                                return f"{arcsec / 60:.1f}'"
+
+                        quat_delta.bind_text_from(
+                            state, 'qa_quaternion_delta',
+                            format_quat_delta
+                        )
+
+                        # Color indicator
+                        def get_quat_color(arcsec):
+                            if arcsec < 5:
+                                return 'text-green-500'
+                            elif arcsec < 10:
+                                return 'text-yellow-500'
+                            else:
+                                return 'text-orange-500'
+
+                # Synthetic points indicator
+                synth_row = ui.row().classes('items-center gap-2')
+                with synth_row:
+                    ui.icon('auto_fix_high').classes('text-sm text-warning')
+                    synth_label = ui.label().classes('text-sm')
+                    synth_label.bind_text_from(
+                        state, 'qa_synthetic_count',
+                        lambda c: f'{c} synthetic point{"s" if c != 1 else ""}' if c > 0 else ''
+                    )
+
+                def update_synth_visibility():
+                    synth_row.set_visibility(state.qa_synthetic_count > 0)
+
+                update_synth_visibility()
+
+                def on_synth_change(field, value):
+                    if field == 'qa_synthetic_count':
+                        update_synth_visibility()
+
+                state.add_listener(on_synth_change)
+
+                # Model valid indicator
+                with ui.row().classes('items-center gap-2'):
+                    model_icon = ui.icon('check_circle').classes('text-sm')
+                    model_label = ui.label().classes('text-sm')
+
+                    def update_model_status():
+                        if state.qa_model_valid:
+                            model_icon.classes(remove='text-error')
+                            model_icon.classes(add='text-success')
+                            model_icon.text = 'check_circle'
+                            model_label.text = 'Model valid'
+                        else:
+                            model_icon.classes(remove='text-success')
+                            model_icon.classes(add='text-error')
+                            model_icon.text = 'cancel'
+                            model_label.text = 'Model invalid'
+
+                    update_model_status()
+
+                    def on_model_change(field, value):
+                        if field == 'qa_model_valid':
+                            update_model_status()
+
+                    state.add_listener(on_model_change)
+
+            # Hide QA section if disabled
+            def update_qa_visibility():
+                qa_section.set_visibility(state.qa_enabled)
+
+            update_qa_visibility()
+
+            def on_qa_enabled_change(field, value):
+                if field == 'qa_enabled':
+                    update_qa_visibility()
+
+            state.add_listener(on_qa_enabled_change)
 
     return container
 

@@ -29,7 +29,7 @@ class V357Category(str, Enum):
     TRACKING = 'T'    # Position, RA/Dec, alignment quaternion (max ID: 32)
     CONTROL = 'C'     # Park, location, date/time, speeds (max ID: 25)
     MOUNT = 'M'       # Motor config, ticks, field rotation (max ID: 22)
-    ALIGNMENT = 'A'   # Star positions, alignment status (max ID: 15)
+    ALIGNMENT = 'A'   # Star positions, alignment status, V1 monitor (max ID: 22)
     LX200 = 'L'       # Slew state, sync, goto flags (max ID: 13)
     MOTOR = 'O'       # Jerk, position, numerator/denominator (max ID: 16)
     DISPLAY = 'D'     # Menu state, scroll flags (max ID: 5)
@@ -138,6 +138,14 @@ class AlignmentVar(IntEnum):
     STAR2_DEC = 13           # float: Star 2 DEC (radians)
     STAR3_RA = 14            # float: Star 3 RA (radians)
     STAR3_DEC = 15           # float: Star 3 DEC (radians)
+    # V1 Alignment Monitor variables (firmware v357+)
+    POINT_COUNT = 16         # uint8: Number of valid alignment points (0-3)
+    POINT_FLAGS = 17         # uint8: Bitfield (bits 0-2: sat flags, bits 3-5: manual flags)
+    STAR1_TIMESTAMP = 18     # uint32: Star 1 capture timestamp (IS_MSECS)
+    STAR2_TIMESTAMP = 19     # uint32: Star 2 capture timestamp (IS_MSECS)
+    STAR3_TIMESTAMP = 20     # uint32: Star 3 capture timestamp (IS_MSECS)
+    RMS_ERROR = 21           # float: Alignment model RMS error (arcseconds)
+    MODEL_VALID = 22         # uint8: Alignment model valid flag (1=valid, 0=invalid)
 
 
 class LX200Var(IntEnum):
@@ -215,6 +223,9 @@ class SetCommand(IntEnum):
     SYNC_FUNCTIONS = 0x0F    # Sync: sync_type (uint8) + [points (uint8)]
     INITIALIZE = 0x10        # Initialize mount: no parameters
     SET_LOCATION = 0x11      # Set site location: 22-byte payload
+    # V1 Alignment Monitor commands (firmware v357+)
+    ALIGN_POINT = 0x12       # Replace alignment point: index (uint8) + ra_hours (float) + dec_deg (float)
+    PERFORM_ALIGNMENT = 0x13 # Recalculate alignment model: no parameters
 
 
 class SlewType(IntEnum):
@@ -388,6 +399,14 @@ VARIABLE_TYPES: Dict[Tuple[str, int], str] = {
     ('A', 13): 'f',   # STAR2_DEC
     ('A', 14): 'f',   # STAR3_RA
     ('A', 15): 'f',   # STAR3_DEC
+    # V1 Alignment Monitor variables
+    ('A', 16): 'B',   # POINT_COUNT
+    ('A', 17): 'B',   # POINT_FLAGS
+    ('A', 18): 'I',   # STAR1_TIMESTAMP
+    ('A', 19): 'I',   # STAR2_TIMESTAMP
+    ('A', 20): 'I',   # STAR3_TIMESTAMP
+    ('A', 21): 'f',   # RMS_ERROR
+    ('A', 22): 'B',   # MODEL_VALID
 
     # LX200 variables
     ('L', 1): 'B',    # GOTO_OBJECT
@@ -472,6 +491,25 @@ QUERY_GROUPS: Dict[str, List[str]] = {
 
     # Alignment stars
     'alignment_stars': ['A10', 'A11', 'A12', 'A13', 'A14', 'A15'],  # Star RA/Dec
+
+    # V1 Alignment Monitor status (firmware v357+)
+    'alignment_status': ['A16', 'A17', 'A21', 'A22'],  # PointCount, Flags, RMS, Valid
+
+    # V1 Alignment Monitor full data (firmware v357+)
+    'alignment_full': ['A16', 'A17', 'A18', 'A19', 'A20', 'A21', 'A22'],  # All V1 vars
+
+    # QA Subsystem query groups (split to stay under 10-var limit)
+    # Batch 1: Sidereal times + star ticks (8 vars)
+    'alignment_qa_1': ['A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9'],
+
+    # Batch 2: Star coords + point status (8 vars)
+    'alignment_qa_2': ['A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'A16', 'A17'],
+
+    # Batch 3: Timestamps + model status + quaternions (7 vars)
+    'alignment_qa_3': ['A18', 'A19', 'A20', 'A21', 'A22', 'T31', 'T32'],
+
+    # Batch 4: Mount config + site location (4 vars)
+    'alignment_qa_4': ['M8', 'M9', 'C17', 'C18'],
 }
 
 

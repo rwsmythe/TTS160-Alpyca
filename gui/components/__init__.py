@@ -10,3 +10,6 @@ from .common import *
 from .status import *
 from .controls import *
 from .panels import *
+
+# Navigation component
+from .navigation import segmented_nav, NAV_GROUPS
