@@ -2,8 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(wc:*)",
-      "Bash(cd /c/Users/astronomy/TTS160 Alpyca)",
-      "Bash(git -C \"c:\\\\Users\\\\astronomy\\\\TTS160 Alpyca\" remote -v)",
+      "Bash(cd /c/Users/astronomy/TTS160/TTS160\\ Alpyca)",
+      "Bash(git -C \"c:\\\\Users\\\\astronomy\\\\TTS160\\\\TTS160 Alpyca\" remote -v)",
       "Bash(gh repo view:*)",
       "Bash(gh auth login:*)",
       "Bash(winget install:*)",
@@ -17,7 +17,22 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:github.com)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nProduction infrastructure and v357 protocol implementation\n\n- Replace wsgiref with waitress for multi-threaded HTTP handling\n- Implement v357 binary protocol for efficient mount communication\n- Add cache integration to Alpaca API responders with per-property staleness\n- Add command priority queue to prevent cache thread blocking user operations\n- Fix ASCOM V4 compliance for deprecated sync slew methods\n- Add testing infrastructure with pytest fixtures and unit tests\n- Add CLAUDE.md project documentation\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nImplement Phase 9: GUI strategy and headless mode support\n\n- Add CLI argument parsing for operating modes \\(--headless, --gui-available\\)\n- Add GUI configuration section to config.toml \\(theme, refresh interval, bind address\\)\n- Add GUI config properties to Config class with defaults\n- Update TelescopeInterface to accept theme, bind_address, refresh_interval params\n- Apply dark/light theme support via NiceGUI dark_mode\\(\\)\n- Use configurable refresh intervals instead of hardcoded values\n- Pass bind address to NiceGUI ui.run\\(\\) for proper network binding\n- Fix socket.close\\(\\) bugs \\(missing parentheses\\) in telescope_data.py\n- Fix bare except clause and variable scope issue in telescope_gui.py\n- Add comprehensive GUI configuration tests \\(18 new test cases\\)\n- Update CLAUDE.md with operating modes, CLI arguments, and test documentation\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "WebFetch(domain:deepwiki.com)",
+      "Read(//c/Users/astronomy/**)",
+      "Bash(ls:*)",
+      "Bash(for dir in zwo_capture/sdk/windows/x64 zwo_capture/sdk/windows/x86 zwo_capture/sdk/macos zwo_capture/sdk/linux/x64 zwo_capture/sdk/linux/armv7 zwo_capture/sdk/linux/armv8)",
+      "Bash(do touch \"$dir/.gitkeep\")",
+      "Bash(done)",
+      "Bash(find:*)",
+      "Bash(git rm:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\astronomy\\TTS160\\TTS160-Test-Harness"
     ]
   }
 }
