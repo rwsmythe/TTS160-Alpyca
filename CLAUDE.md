@@ -37,12 +37,16 @@ TTS160 Alpyca/
 ├── tts160_cache.py          # Thread-safe property cache
 ├── tts160_types.py          # Type definitions
 │
-├── telescope_gui.py         # NiceGUI web interface
-├── telescope_data.py        # GUI data management
-├── telescope_commands.py    # GUI command handlers
+├── gui/                     # NiceGUI web interface package
+│   ├── components/          # Reusable UI components
+│   ├── panels/              # Tab panel implementations
+│   ├── services/            # GUI data services
+│   ├── layouts/             # Page layout templates
+│   └── themes/              # Theme configuration
 │
 ├── alignment_monitor.py     # Alignment quality monitoring orchestrator (V1)
 ├── alignment_geometry.py    # Geometry calculations for alignment decisions
+├── alignment_qa.py          # Alignment QA subsystem (firmware verification)
 ├── camera_source.py         # Abstract camera source interface
 ├── camera_factory.py        # Camera source factory
 ├── alpaca_camera.py         # Alpaca camera source (wraps camera_manager)
@@ -50,6 +54,7 @@ TTS160 Alpyca/
 ├── camera_manager.py        # Alpaca camera control (alpyca wrapper)
 ├── star_detector.py         # Star detection (SEP wrapper)
 ├── plate_solver.py          # Plate solving (tetra3 wrapper)
+├── gps_manager.py           # GPS NMEA serial integration
 │
 ├── zwo_capture/             # ZWO camera capture package
 │   ├── __init__.py          # Public API
@@ -74,16 +79,18 @@ TTS160 Alpyca/
 | `tts160_serial.py`     | Serial port communication, LX200 commands, binary parsing      |
 | `tts160_cache.py`      | Background property updates (0.5s interval), thread-safe cache |
 | `telescope.py`         | Alpaca API endpoint responders                                 |
-| `telescope_gui.py`     | NiceGUI web interface                                          |
+| `gui/`                 | NiceGUI web interface (components, panels, services, themes)   |
 | `exceptions.py`        | Alpaca-compliant exception classes                             |
 | `alignment_monitor.py` | Alignment quality monitoring with V1 decision engine           |
 | `alignment_geometry.py`| Geometry determinant and candidate evaluation calculations     |
+| `alignment_qa.py`      | Alignment QA subsystem (firmware quaternion verification)      |
 | `camera_source.py`     | Abstract camera source interface for alignment monitor         |
 | `camera_factory.py`    | Factory for creating Alpaca or ZWO camera sources              |
 | `camera_manager.py`    | Alpaca camera control via alpyca library                       |
 | `zwo_capture/`         | Native ZWO ASI camera support package                          |
 | `star_detector.py`     | Star detection and centroid extraction via SEP                 |
 | `plate_solver.py`      | Astrometric plate solving via tetra3                           |
+| `gps_manager.py`       | GPS NMEA serial integration for site location                  |
 
 ## Dependencies
 
@@ -419,10 +426,9 @@ cd C:\Users\astronomy\TTS160\TTS160-Test-Harness
 python -m pytest tests/ -v
 ```
 
-**Current Status (as of 2026-02-02):**
+**Current Status (as of 2026-02-04):**
 
-- 9 tests passing
-- 32 tests skipped (firmware/configuration incomplete)
+- 68 tests passing (35 binary + 21 commands + 12 protocol)
 - 0 failures
 
 ---
@@ -652,53 +658,27 @@ The alignment status is displayed in the Telescope Status tab with:
 
 ### Firmware Compatibility Note
 
-The TTS-160 firmware currently only supports the SYNC command (`:CM#`). The V1 implementation includes full alignment replacement logic, but falls back to SYNC operations until firmware implements ALIGN_POINT and PERFORM_ALIGNMENT commands. When this occurs, the driver logs "alignment replacement would occur" messages for validation.
+The TTS-160 firmware v357 supports ALIGN_POINT (0x12) and PERFORM_ALIGNMENT (0x13) binary commands, enabling the V1 decision engine to replace individual alignment points and trigger model recalculation. The driver auto-detects firmware support and falls back to SYNC-only mode (`:CM#`) on older firmware versions.
 
 ---
 
 ## V2 Alignment Monitor Roadmap
 
-The following features are planned for V2:
+### Completed (Now in V1)
 
-### Firmware Integration (Requires TTS-Central Updates)
+- ALIGN_POINT command (0x12) - Firmware v357
+- PERFORM_ALIGNMENT command (0x13) - Firmware v357
+- Alignment data GET variables (A16-A22) - Firmware v357
 
-| Feature | Description | Status |
-| ------- | ----------- | ------ |
-| ALIGN_POINT command | Direct alignment point replacement via serial | Waiting for firmware |
-| PERFORM_ALIGNMENT command | Trigger alignment recalculation | Waiting for firmware |
-| A1-A15 variable access | Read/write alignment matrix directly | Waiting for firmware |
+### Planned for V2
 
-### Enhanced Decision Logic
-
-| Feature | Description |
-| ------- | ----------- |
-| Multi-star error weighting | Weight errors by star brightness/confidence |
-| Atmospheric refraction compensation | Account for refraction in error calculations |
-| Time-of-night adaptation | Adjust thresholds based on sky conditions |
-| Meridian flip awareness | Special handling around meridian crossings |
-
-### Advanced Geometry
-
-| Feature | Description |
-| ------- | ----------- |
-| N-point alignment support | Extend beyond 3-point alignment |
-| Zone-based tracking | Different weights for different sky regions |
-| Pointing model fitting | Build pointing model from accumulated data |
-
-### Observability & Diagnostics
-
-| Feature | Description |
-| ------- | ----------- |
-| Error trend analysis | Detect drift patterns over time |
-| Alignment quality reports | Generate session summaries |
-| Integration with ASCOM logs | Standard logging format |
-| Remote alerting | Webhook/email for health alerts |
-
-### GUI Enhancements
-
-| Feature | Description |
-| ------- | ----------- |
-| Alignment point visualization | Sky map showing point positions |
-| Error history graph | Time-series plot of pointing errors |
-| Manual alignment controls | UI for manual point management |
-| Configuration wizard | Guided setup for alignment parameters |
+| Category | Feature | Description |
+| -------- | ------- | ----------- |
+| Firmware | A1-A15 variable access | Read/write alignment matrix directly |
+| Decision | Multi-star error weighting | Weight errors by star brightness/confidence |
+| Decision | Atmospheric refraction | Account for refraction in error calculations |
+| Decision | Meridian flip awareness | Special handling around meridian crossings |
+| Geometry | N-point alignment | Extend beyond 3-point alignment |
+| Geometry | Pointing model fitting | Build pointing model from accumulated data |
+| GUI | Error history graph | Time-series plot of pointing errors |
+| GUI | Alignment point visualization | Sky map showing point positions |
