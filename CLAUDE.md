@@ -682,3 +682,22 @@ The TTS-160 firmware v357 supports ALIGN_POINT (0x12) and PERFORM_ALIGNMENT (0x1
 | Geometry | Pointing model fitting | Build pointing model from accumulated data |
 | GUI | Error history graph | Time-series plot of pointing errors |
 | GUI | Alignment point visualization | Sky map showing point positions |
+
+---
+
+## Claude Code Automation
+
+### Skills (invoke with `/skill-name`)
+
+| Skill | Description |
+|-------|-------------|
+| `/run-tests` | Run unit tests, integration tests, or all with coverage |
+
+### Hooks
+
+- **PreToolUse (Edit/Write)**: Blocks edits to `AlpycaDevice/`, `zwo_capture/sdk/`, `.venv/`
+
+### Linting
+
+- `.flake8` configured with `max-line-length = 120`
+- `flake8` and `mypy` available in `requirements-dev.txt`
