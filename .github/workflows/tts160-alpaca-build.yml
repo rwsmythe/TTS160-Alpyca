@@ -47,10 +47,14 @@ jobs:
           python-version: '3.11'
       
       - name: Install dependencies
-        run: pip install -r requirements.txt pyinstaller
-      
+        run: pip install -r requirements.txt -r requirements-dev.txt pyinstaller
+
       - name: Test requirements
         run: python -c "import app"
+
+      - name: Run unit tests
+        if: matrix.is_pi != true
+        run: python -m pytest tests/unit/ -v
       
       - name: Build with PyInstaller (ARM64)
         if: matrix.is_pi == true

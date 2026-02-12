@@ -1,0 +1,30 @@
+# Virtual environment
+.venv/
+
+# Upstream Alpaca device reference (separate git repo)
+AlpycaDevice/
+
+# Build artifacts
+build/
+dist/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Test/coverage caches
+.pytest_cache/
+htmlcov/
+.coverage
+
+# ZWO SDK binaries
+zwo_capture/sdk/
+
+# Log files
+TTS160.log*
+
+# IDE files
+.idea/
+.vs/
+*.swp

@@ -32,7 +32,9 @@
       "Bash(git rm:*)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\astronomy\\TTS160\\TTS160-Test-Harness"
+      "C:\\Users\\astronomy\\TTS160\\TTS160-Test-Harness",
+      "c:\\Users\\astronomy\\TTS160\\TTS160 Alpyca\\.claude\\skills",
+      "C:\\Users\\astronomy\\TTS160\\TTS160-Test-Harness\\.claude\\skills"
     ]
   }
 }
