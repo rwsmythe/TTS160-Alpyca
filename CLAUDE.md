@@ -701,3 +701,8 @@ The TTS-160 firmware v357 supports ALIGN_POINT (0x12) and PERFORM_ALIGNMENT (0x1
 
 - `.flake8` configured with `max-line-length = 120`
 - `flake8` and `mypy` available in `requirements-dev.txt`
+
+### GitHub Integration
+
+- GitHub MCP plugin (`plugin:github`) is configured — use `mcp__plugin_github_github__*` tools instead of `gh` CLI
+- Classic PAT with `repo` + `workflow` scopes covers both `rwsmythe/TTS160-Alpyca` and `astrodane/TTS-Central`
