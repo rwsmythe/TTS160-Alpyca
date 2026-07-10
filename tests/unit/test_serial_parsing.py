@@ -21,6 +21,7 @@ from tts160_serial import (
     SerialManager,
     TTS160SerialError,
     ResponseError,
+    V357Protocol,
 )
 
 
@@ -377,3 +378,32 @@ class TestTypeMap:
         assert BinaryParser.TYPE_MAP['h'][1] == 2  # int16 = 2 bytes
         assert BinaryParser.TYPE_MAP['b'][1] == 1  # int8 = 1 byte
         assert BinaryParser.TYPE_MAP['f'][1] == 4  # float32 = 4 bytes
+
+
+class TestV357ProtocolCategoryValidation:
+    """Regression tests for the build_query category allow-list (C1 fix).
+
+    The allow-list at tts160_serial.py:345 must equal the 8 valid V357Category
+    values (T,C,M,A,L,O,D,X). A prior typo ('TCMALODK') dropped the real X
+    (COMPUTED = real-time alt/az) and admitted a bogus 'K', which broke every
+    X-category query and the position/cache_position groups on the alt-az mount.
+    """
+
+    @pytest.mark.unit
+    def test_x_category_variable_accepted(self):
+        """An X-category variable (COMPUTED alt/az) must validate, not raise."""
+        assert V357Protocol.build_query(['X1']) == ':*!G X1#'
+
+    @pytest.mark.unit
+    def test_position_group_builds_without_raising(self):
+        """The position group ['T16','T17','X1','X2'] must build (includes X)."""
+        assert (
+            V357Protocol.build_query(['T16', 'T17', 'X1', 'X2'])
+            == ':*!G T16,T17,X1,X2#'
+        )
+
+    @pytest.mark.unit
+    def test_bogus_k_category_rejected(self):
+        """The bogus 'K' category (from the old typo) must be rejected."""
+        with pytest.raises(ValueError, match="Invalid category"):
+            V357Protocol.build_query(['K5'])

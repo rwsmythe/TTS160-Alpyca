@@ -342,7 +342,7 @@ class V357Protocol:
             if not var or len(var) < 2:
                 raise ValueError(f"Invalid variable format: {var}")
             category = var[0].upper()
-            if category not in 'TCMALODK':
+            if category not in 'TCMALODX':
                 raise ValueError(f"Invalid category in variable: {var}")
             try:
                 var_id = int(var[1:])
