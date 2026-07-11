@@ -2017,15 +2017,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             import TTS160Global
             alignment_mgr = TTS160Global.get_alignment_monitor(self._logger)
             if alignment_mgr is None:
-                # PARKED (P2): the alignment-monitor subsystem is inactive by
-                # design -- alignment_enabled defaults to False (TTS160Config
-                # alignment_enabled; TTS160config.toml [alignment] enabled=false).
-                # Surface one honest, prominent line so the disabled state is not
-                # silent. See docs/reviews/tts160-alignment-findings.md (PARK
-                # matrix; AM1/AM2/AM3) and ALIGNMENT_MONITOR.md.
+                # The subsystem is disabled by default (alignment_enabled=False);
+                # surface one honest line so the disabled state is not silent.
                 self._logger.info(
-                    "Alignment monitor is PARKED (disabled in configuration); "
-                    "subsystem is inactive by design")
+                    "Alignment monitor is disabled in configuration "
+                    "(alignment_enabled=false); subsystem not started")
                 return
 
             # Set callback for getting mount position (RA/Dec)
@@ -2037,22 +2033,28 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             alignment_mgr.set_sync_callback(self._perform_sync_for_alignment)
             alignment_mgr.set_alignment_data_callback(self._get_alignment_data_for_alignment)
 
+            # Epoch gate (F2/AM4): give the monitor the J2000->JNOW converter so
+            # a J2000 plate solve is compared/synced in the mount's of-date frame.
+            alignment_mgr.set_epoch_convert_callback(self._astro_services.icrs_to_jnow)
+
+            # Firmware action trio (F4/AM3): wire the 0x12/0x13 commands and the
+            # serial-manager accessor so ALIGN_POINT / PERFORM_ALIGNMENT and the
+            # QA firmware read become reachable (firmware v357+).
+            alignment_mgr.set_align_point_callback(self._align_point_for_alignment)
+            alignment_mgr.set_perform_alignment_callback(self._perform_alignment_for_alignment)
+            alignment_mgr.set_serial_manager_callback(self._get_serial_manager_for_alignment)
+
             # Start the alignment background thread
             if alignment_mgr.start():
                 self._logger.info("Alignment monitor started successfully")
             else:
-                # PARKED (P2): the subsystem is non-functional as wired (dead
-                # decision engine + broken plate-solver seam; see the PARK matrix in
-                # docs/reviews/tts160-alignment-findings.md, AM1/AM2/AM3). Surface
-                # one prominent warning rather than leaving an active-looking state.
                 self._logger.warning(
-                    "Alignment monitor failed to start and is PARKED (inactive); "
-                    "the plate-solve auto-alignment subsystem is not operational "
-                    "(see tts160-alignment-findings.md PARK matrix). Mount operation "
-                    "is unaffected")
+                    "Alignment monitor failed to start; the plate-solve "
+                    "auto-alignment subsystem is not operational. Mount "
+                    "operation is unaffected")
 
         except Exception as ex:
-            self._logger.warning(f"Failed to start alignment monitor (subsystem PARKED/inactive): {ex}")
+            self._logger.warning(f"Failed to start alignment monitor: {ex}")
 
     def _stop_alignment(self) -> None:
         """Stop alignment monitor if running.
@@ -2123,23 +2125,102 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             self._logger.error(f"V1 alignment sync failed: {ex}")
             return False
 
-    def _get_alignment_data_for_alignment(self) -> list:
-        """Get current alignment point data from mount for V1 tracking.
+    def _align_point_for_alignment(self, index: int, ra_hours: float,
+                                   dec_degrees: float) -> tuple:
+        """Replace a firmware alignment point (0x12 ALIGN_POINT) for V1.
 
-        Note:
-            The TTS-160 firmware does not currently expose individual alignment
-            point data via commands. This returns an empty list until firmware
-            support is available.
+        Wired as the align-point callback (F4/AM3); delegates to
+        SerialManager.align_point.
 
-            Future v357 firmware may expose alignment data via the A1-A15
-            variables, which would allow populating this data.
+        Args:
+            index: Alignment point index (1, 2, or 3).
+            ra_hours: Plate-solved RA in hours (JNOW frame).
+            dec_degrees: Plate-solved Dec in degrees (JNOW frame).
 
         Returns:
-            List of AlignmentPointRecord objects (empty until firmware support).
+            Tuple of (success, error_code).
         """
-        # Firmware does not currently support retrieving individual alignment points
-        # Return empty list - the V1 logic will fall back to sync-only mode
-        return []
+        return self._serial_manager.align_point(index, ra_hours, dec_degrees)
+
+    def _perform_alignment_for_alignment(self) -> tuple:
+        """Recalculate the firmware alignment model (0x13 PERFORM_ALIGNMENT).
+
+        Wired as the perform-alignment callback (F4/AM3); delegates to
+        SerialManager.perform_alignment.
+
+        Returns:
+            Tuple of (success, error_code).
+        """
+        return self._serial_manager.perform_alignment()
+
+    def _get_serial_manager_for_alignment(self):
+        """Return the active SerialManager for the QA subsystem (F4/AM3).
+
+        Returns:
+            The SerialManager instance, or None if not connected.
+        """
+        return getattr(self, '_serial_manager', None)
+
+    def _get_alignment_data_for_alignment(self) -> list:
+        """Read current firmware alignment points for V1 tracking (F4/AM3).
+
+        Queries the alignment A-variables (point count/flags A16/A17, per-star
+        ticks A4-A9, per-star equatorial coords A10-A15, ticks-per-rev M8/M9)
+        and builds one AlignmentPointRecord per valid firmware point.
+
+        Note (tick zero-point, F6/AM7): alt/az is derived from raw encoder ticks
+        assuming the encoder zero-point coincides with the mount home position;
+        no home-offset correction is applied.  A non-home zero-point offsets the
+        derived alt/az by a constant, which the downstream geometry inherits.
+
+        Returns:
+            List of AlignmentPointRecord (empty if unavailable or no points).
+        """
+        from alignment_monitor import AlignmentPointRecord
+
+        serial_mgr = getattr(self, '_serial_manager', None)
+        if serial_mgr is None:
+            return []
+
+        try:
+            data = {}
+            data.update(serial_mgr.query_variable_group('alignment_qa_1'))
+            data.update(serial_mgr.query_variable_group('alignment_qa_2'))
+            data.update(serial_mgr.query_variable_group('alignment_qa_4'))
+        except Exception as ex:
+            self._logger.debug(f"Alignment data read failed: {ex}")
+            return []
+
+        point_count = int(data.get('A16', 0) or 0)
+        point_flags = int(data.get('A17', 0) or 0)
+        rev_h = int(data.get('M8', 0) or 0)
+        rev_e = int(data.get('M9', 0) or 0)
+
+        two_pi = 2.0 * math.pi
+        records = []
+        for i in range(min(point_count, 3)):
+            h_ticks = int(data.get(f'A{4 + i * 2}', 0) or 0)
+            e_ticks = int(data.get(f'A{5 + i * 2}', 0) or 0)
+            ra_rad = float(data.get(f'A{10 + i * 2}', 0.0) or 0.0)
+            dec_rad = float(data.get(f'A{11 + i * 2}', 0.0) or 0.0)
+
+            # Ticks -> alt/az (see tick zero-point note above).
+            az_rad = (h_ticks * (two_pi / rev_h)) % two_pi if rev_h else 0.0
+            alt_rad = (e_ticks * (two_pi / rev_e)) if rev_e else 0.0
+
+            # point_flags bits 3-5 are the per-point manual flags.
+            manual = bool(point_flags & (1 << (3 + i)))
+
+            records.append(AlignmentPointRecord(
+                index=i + 1,
+                equatorial=(ra_rad, dec_rad),
+                altaz=(alt_rad, az_rad),
+                ticks=(h_ticks, e_ticks),
+                timestamp=datetime.now(),
+                manual=manual,
+            ))
+
+        return records
 
     def _push_gps_location_to_mount(
         self,

@@ -139,6 +139,11 @@ class QAStatus:
     rms_error_arcsec: float             # Firmware RMS error (arcseconds)
     last_update: datetime               # When QA was last calculated
     error_message: str = ""             # Error description if status != VALID
+    # Per-point residuals are not yet implemented (needs the full quaternion
+    # transform); this flag surfaces that honestly so a 0.0 residual is never
+    # read as a real "zero error" (F6/AM7).  False => residual_arcsec values in
+    # ``alignment_points`` are placeholders, NOT computed residuals.
+    residuals_computed: bool = False
 
 
 @dataclass
@@ -224,9 +229,14 @@ class AlignmentQA:
         Returns:
             Tuple of (altitude_rad, azimuth_rad).
 
-        Note:
-            The conversion assumes zero-point calibration. Actual mount
-            may require offset corrections based on home position.
+        Note (tick zero-point assumption, F6/AM7):
+            This maps raw encoder ticks directly to alt/az, ASSUMING the
+            encoder zero-point coincides with the mount home position; NO
+            home-offset correction is applied.  If the mount's actual
+            zero-point differs from home, the derived alt/az is offset by a
+            constant, and every downstream consumer (geometry determinant,
+            replacement-candidate selection, QA) inherits that offset.  A real
+            home-offset calibration is out of scope here.
         """
         two_pi = 2.0 * math.pi
 
@@ -750,19 +760,21 @@ class AlignmentQA:
                 return False
 
     def _calculate_point_residuals(self) -> None:
-        """Calculate pointing residual at each alignment point.
+        """Per-point pointing residuals -- NOT YET COMPUTED (F6/AM7).
 
-        The residual is the angular separation between the expected position
-        (from the driver quaternion) and the actual position.
+        A real residual is the angular separation between the position
+        predicted by the driver quaternion and the observed position, which
+        requires the full quaternion transform.  That is not implemented, so
+        ``residual_arcsec`` stays a placeholder (0.0) and QAStatus surfaces
+        ``residuals_computed=False`` so the placeholder is never read as a real
+        "zero error" (no silent zeros).
         """
         if self._driver_quaternion is None or self._firmware_data is None:
             return
 
-        # For now, use a simplified residual calculation
-        # Full implementation would transform through the driver quaternion
-        # and compare with observed positions
+        # NOT COMPUTED: residual_arcsec is left as a placeholder; the QAStatus
+        # residuals_computed flag marks it as not-computed rather than "zero".
         for point in self._alignment_points_qa:
-            # Placeholder: actual implementation needs quaternion transformation
             point.residual_arcsec = 0.0
 
     # =========================================================================
@@ -836,7 +848,8 @@ class AlignmentQA:
                 model_valid=data.model_valid,
                 rms_error_arcsec=data.rms_error * RAD_TO_ARCSEC,
                 last_update=self._last_calculation or datetime.now(),
-                error_message=self._error_message
+                error_message=self._error_message,
+                residuals_computed=False,  # per-point residuals not implemented (F6/AM7)
             )
 
             # Add to history

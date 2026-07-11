@@ -6,20 +6,22 @@ Provides alignment quality monitoring by periodically capturing images,
 detecting stars, plate solving, and comparing solved position against
 mount-reported position.
 
-============================== PARKED / INACTIVE ==============================
-This subsystem is PARKED by operator decision and is NON-FUNCTIONAL as wired.
-It is disabled by default (alignment_enabled=False) and must not be treated as
-a live capability. Grounded review: docs/reviews/tts160-alignment-findings.md
-(Arc 9, OPERATOR DECISION MATRIX -> PARK). Key defects, quarantined below:
-  - AM1: the decision engine evaluate() has ZERO callers -> no SYNC/ALIGN can
-         ever fire (the loop runs only _perform_measurement()).
-  - AM2: the PlateSolver seam is written against an older solver API; start()
-         fails on an AttributeError before any measurement (dead on arrival).
-  - AM3: the firmware-action callbacks (align_point / perform_alignment /
-         serial_manager) are never wired -> 0x12/0x13 unreachable, QA NO_DATA.
-Finishing the subsystem (wiring the engine + epoch conversion) is the FINISH
-decision (NOT taken); until then the code below is retained but inactive.
-==============================================================================
+Behavior (Phase B1 FINISH -- the subsystem is wired live):
+  - The background loop runs a full measurement (capture -> detect -> solve)
+    and then invokes the decision engine evaluate() on each successful
+    measurement (SYNC / ALIGN / LOCKOUT logic is reachable).
+  - Plate solves are J2000/ICRS; they are converted to the mount's of-date
+    (JNOW) frame at the exposure mid-time before ANY comparison with the
+    mount's reported position and before any sync/align write (epoch gate).
+  - The firmware-action callbacks (align_point / perform_alignment /
+    serial_manager) are wired by the Device, so the 0x12/0x13 path and QA are
+    reachable when firmware v357+ is present.
+  - Capture/detect/solve run OUTSIDE the monitor lock; the lock guards only
+    state transitions and shared history, so get_status()/stop() stay
+    responsive during a capture.
+The feature stays disabled by default (alignment_enabled=False); the operator
+enables it deliberately (hardware-dependent). Grounded review + FINISH matrix:
+docs/reviews/tts160-alignment-findings.md (Arc 9).
 
 Components:
     - CameraSource: Abstract camera interface (Alpaca or ZWO)
@@ -39,7 +41,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import IntEnum, Enum
 from typing import Optional, List, Callable, Tuple
 
@@ -57,6 +59,7 @@ from alignment_qa import (
     QAStatusCode,
 )
 from tts160_types import QUERY_GROUPS
+from astro_services import TimestampedPosition
 
 
 class AlignmentState(IntEnum):
@@ -294,6 +297,9 @@ class AlignmentMonitor:
 
     HISTORY_LIMIT = 100
     MIN_INTERVAL = 5.0
+    # Plate-solve timeout (ms). No dedicated config knob exists; a bounded
+    # solver timeout keeps a failed solve from stalling the loop (F1).
+    SOLVE_TIMEOUT_MS = 5000
 
     def __init__(
         self,
@@ -349,6 +355,15 @@ class AlignmentMonitor:
         self._sync_callback: Optional[Callable[[float, float], bool]] = None
         self._alignment_data_callback: Optional[Callable[[], List[AlignmentPointRecord]]] = None
 
+        # Epoch conversion callback (F2/AM4): converts a J2000/ICRS (ra_hours,
+        # dec_degrees) solve to the mount's of-date JNOW frame at an explicit
+        # time.  Wired by the Device to AstroServices.icrs_to_jnow.  MANDATORY
+        # before any measurement can emit a sync/align -- if unset, a
+        # measurement is skipped rather than differencing mismatched epochs.
+        self._epoch_convert_callback: Optional[
+            Callable[[float, float, object], Tuple[float, float]]
+        ] = None
+
         # V1 Firmware alignment commands (firmware v357+)
         self._align_point_callback: Optional[Callable[[int, float, float], Tuple[bool, int]]] = None
         self._perform_alignment_callback: Optional[Callable[[], Tuple[bool, int]]] = None
@@ -393,18 +408,14 @@ class AlignmentMonitor:
                     return False
 
                 self._star_detector = StarDetector(self._logger)
-                # PARKED (AM2): BROKEN SOLVER SEAM. This call matches an older
-                # PlateSolver API. The current constructor is
-                # __init__(self, logger, fov_estimate=1.0, database_path=None), so
-                # the args below are mis-bound (logger <- database-path string) and
-                # construction raises AttributeError -> start() returns False and
-                # the monitor never runs a measurement. Left AS-IS (PARK, not
-                # FINISH). See tts160-alignment-findings.md AM2. Do not "fix" this
-                # in isolation -- AM4 (J2000/JNOW epoch gap) is a mandatory gate
-                # before wiring the subsystem live.
+                # PlateSolver signature: __init__(logger, fov_estimate, database_path).
+                # (F1/AM2) Construct with logger first and database_path by keyword;
+                # the prior (database_path, logger) order mis-bound the args and
+                # raised AttributeError inside the constructor's logging calls.
                 self._plate_solver = PlateSolver(
-                    self._config.alignment_database_path,
-                    self._logger
+                    self._logger,
+                    fov_estimate=self._config.alignment_fov_estimate,
+                    database_path=self._config.alignment_database_path
                 )
 
                 self._logger.info(f"Using camera source: {self._camera_source.source_type}")
@@ -441,13 +452,15 @@ class AlignmentMonitor:
 
     def stop(self) -> None:
         """Stop the alignment monitor and clean up resources."""
-        with self._lock:
-            # Always set stop event for safety
-            self._stop_event.set()
+        # Signal stop BEFORE acquiring the lock (F5/AM5): an in-flight
+        # measurement no longer holds the lock across capture/solve, but
+        # setting the event lock-free guarantees the loop sees it even if the
+        # lock is momentarily contended.
+        self._stop_event.set()
 
+        with self._lock:
             if self._monitor_thread is None:
                 return
-
             self._logger.info("Stopping alignment monitor...")
 
         # Wait for thread outside lock
@@ -455,16 +468,20 @@ class AlignmentMonitor:
             self._monitor_thread.join(timeout=5.0)
 
         with self._lock:
-            # Disconnect camera
-            if self._camera_source is not None:
-                self._camera_source.disconnect()
+            # Disconnect camera -- guaranteed even if disconnect() raises
+            # (F5/AM5: no camera/USB handle leak on stop paths).
+            try:
+                if self._camera_source is not None:
+                    self._camera_source.disconnect()
+            except Exception as ex:
+                self._logger.warning(f"Camera disconnect on stop failed: {ex}")
+            finally:
                 self._camera_source = None
-
-            self._star_detector = None
-            self._plate_solver = None
-            self._monitor_thread = None
-            self._update_state(AlignmentState.DISABLED)
-            self._logger.info("Alignment monitor stopped")
+                self._star_detector = None
+                self._plate_solver = None
+                self._monitor_thread = None
+                self._update_state(AlignmentState.DISABLED)
+                self._logger.info("Alignment monitor stopped")
 
     def get_status(self) -> AlignmentStatus:
         """Get current alignment status.
@@ -481,7 +498,10 @@ class AlignmentMonitor:
                 self._camera_source.get_info()
                 if self._camera_source else None
             )
-            camera_name = camera_info.name if camera_info else ""
+            # get_info() returns a Dict[str, Any] (F7/AM8): read 'name' as a
+            # dict key, not an attribute (camera_info.name raised AttributeError
+            # whenever a camera was connected).
+            camera_name = camera_info.get('name', '') if camera_info else ""
 
             last_point = self._last_measurement
 
@@ -552,6 +572,8 @@ class AlignmentMonitor:
         Returns:
             AlignmentPoint if successful, None otherwise.
         """
+        # Pre-checks under the lock; the measurement itself runs OUTSIDE the
+        # lock (F5/AM5) so a manual trigger cannot stall get_status().
         with self._lock:
             if self._state == AlignmentState.DISABLED:
                 self._logger.warning("Cannot trigger measurement: monitor disabled")
@@ -561,7 +583,11 @@ class AlignmentMonitor:
                 self._logger.warning("Cannot trigger measurement: camera not connected")
                 return None
 
-            return self._perform_measurement()
+        point = self._perform_measurement()
+        if point is not None:
+            # Run the decision engine on a successful manual measurement (F3/AM1).
+            self.evaluate()
+        return point
 
     def clear_history(self) -> None:
         """Clear measurement history and reset statistics."""
@@ -586,6 +612,26 @@ class AlignmentMonitor:
             self._mount_position_callback = callback
             self._logger.debug("Mount position callback set")
 
+    def set_epoch_convert_callback(
+        self,
+        callback: Callable[[float, float, object], Tuple[float, float]]
+    ) -> None:
+        """Set callback converting a J2000/ICRS solve to the mount JNOW frame.
+
+        Args:
+            callback: Function accepting (ra_hours, dec_degrees, t) in J2000/ICRS
+                and returning (ra_hours, dec_degrees) in the of-date (JNOW)
+                frame at time ``t`` (e.g. AstroServices.icrs_to_jnow).
+
+        Note:
+            This is the MANDATORY epoch gate (F2/AM4).  Until it is set, a
+            measurement is skipped rather than differencing a J2000 solve
+            against the mount's JNOW position.
+        """
+        with self._lock:
+            self._epoch_convert_callback = callback
+            self._logger.debug("Epoch conversion callback set")
+
     def _background_monitor(self) -> None:
         """Background thread for periodic measurements."""
         self._logger.debug("Background monitor thread started")
@@ -596,10 +642,14 @@ class AlignmentMonitor:
                 if not self._camera_source.is_connected():
                     self._connect_camera()
 
-                # Perform measurement if connected
+                # Perform measurement if connected. Capture/detect/solve run
+                # OUTSIDE the lock (F5/AM5); _perform_measurement takes the lock
+                # only for its history/state mutation.  On a successful
+                # measurement, run the decision engine (F3/AM1).
                 if self._camera_source.is_connected():
-                    with self._lock:
-                        self._perform_measurement()
+                    point = self._perform_measurement()
+                    if point is not None:
+                        self.evaluate()
 
                 # Wait for next interval
                 interval = max(
@@ -655,23 +705,45 @@ class AlignmentMonitor:
             self._logger.warning("No mount position callback set")
             return None
 
-        try:
-            mount_ra, mount_dec = self._mount_position_callback()
-        except Exception as e:
-            self._logger.error(f"Failed to get mount position: {e}")
+        # Epoch gate precondition (F2/AM4): without a J2000->JNOW converter we
+        # cannot safely difference the (J2000) solve against the mount's (JNOW)
+        # position, so we do not run a measurement at all rather than emit a
+        # bogus ~15-arcmin error or a mis-framed sync.
+        if self._epoch_convert_callback is None:
+            self._logger.warning(
+                "No epoch-conversion callback set; skipping measurement "
+                "(cannot difference J2000 solve against JNOW mount position)"
+            )
+            self._update_state(AlignmentState.CONNECTED)
             return None
 
-        # Capture image
+        # Capture image, bracketing the exposure with UTC timestamps so the
+        # solve is converted at the exposure MID-TIME (F2/AM4).
         self._update_state(AlignmentState.CAPTURING)
+        capture_start = datetime.now(timezone.utc)
         capture_result = self._camera_source.capture(
             self._config.alignment_exposure_time,
             self._config.alignment_binning
         )
+        capture_end = datetime.now(timezone.utc)
 
         if capture_result is None:
             self._error_message = f"Image capture failed: {self._camera_source.get_error_message()}"
             self._update_state(AlignmentState.ERROR)
             return None
+
+        exposure_mid = capture_start + (capture_end - capture_start) / 2
+
+        # Sample the mount position immediately after the exposure and bind it
+        # to the exposure mid-time (F2/AM4): a single sample paired with an
+        # explicit timestamp, so the epoch conversion below uses that same t.
+        try:
+            mount_ra, mount_dec = self._mount_position_callback()
+        except Exception as e:
+            self._logger.error(f"Failed to get mount position: {e}")
+            self._update_state(AlignmentState.CONNECTED)
+            return None
+        mount_sample = TimestampedPosition.at((mount_ra, mount_dec), exposure_mid)
 
         # Detect stars
         detection = self._star_detector.detect_stars(
@@ -685,27 +757,46 @@ class AlignmentMonitor:
             self._update_state(AlignmentState.CONNECTED)
             return None
 
-        # Plate solve
+        # Plate solve. width/height are two positionals (F1); a bounded solve
+        # timeout keeps a failed solve from stalling the loop (F1).
         self._update_state(AlignmentState.SOLVING)
         solve_start = time.time()
 
         solve_result = self._plate_solver.solve_from_centroids(
             detection.centroids,
-            (capture_result.width, capture_result.height),
-            fov_estimate=self._config.alignment_fov_estimate
+            capture_result.width,
+            capture_result.height,
+            fov_estimate=self._config.alignment_fov_estimate,
+            timeout_ms=self.SOLVE_TIMEOUT_MS
         )
 
         solve_time_ms = (time.time() - solve_start) * 1000
 
-        if solve_result is None:
-            self._error_message = "Plate solve failed"
+        # solve_from_centroids never returns None -- it returns success=False on
+        # failure (F1/AM2): guard on the success flag, not `is None`.
+        if not solve_result.success:
+            self._error_message = f"Plate solve failed: {solve_result.error_message}"
             self._update_state(AlignmentState.CONNECTED)
             return None
 
-        # Calculate errors
+        # Epoch gate (F2/AM4): the solve is J2000/ICRS; convert to the mount's
+        # of-date JNOW frame at the exposure mid-time BEFORE differencing it
+        # against the mount's JNOW position and BEFORE it can be used for a
+        # sync/align write.  The JNOW-frame coordinates are what gets stored.
+        try:
+            solved_ra, solved_dec = self._epoch_convert_callback(
+                solve_result.ra, solve_result.dec, exposure_mid
+            )
+        except Exception as e:
+            self._logger.error(f"Epoch conversion failed: {e}")
+            self._update_state(AlignmentState.CONNECTED)
+            return None
+
+        # Calculate errors (both operands now in the mount's JNOW frame).
+        mount_ra, mount_dec = mount_sample.value
         ra_error, dec_error, total_error = self._calculate_error(
             mount_ra, mount_dec,
-            solve_result.ra_hours, solve_result.dec_degrees
+            solved_ra, solved_dec
         )
 
         # Create measurement point
@@ -713,8 +804,8 @@ class AlignmentMonitor:
             timestamp=datetime.now(),
             mount_ra=mount_ra,
             mount_dec=mount_dec,
-            solved_ra=solve_result.ra_hours,
-            solved_dec=solve_result.dec_degrees,
+            solved_ra=solved_ra,
+            solved_dec=solved_dec,
             ra_error=ra_error,
             dec_error=dec_error,
             total_error=total_error,
@@ -723,17 +814,19 @@ class AlignmentMonitor:
             confidence=solve_result.confidence
         )
 
-        # Update history and statistics
-        self._history.append(point)
-        if len(self._history) > self.HISTORY_LIMIT:
-            self._history.pop(0)
+        # Update history and statistics under the lock (F5/AM5): only the
+        # shared-state mutation is guarded, not the capture/solve above.
+        with self._lock:
+            self._history.append(point)
+            if len(self._history) > self.HISTORY_LIMIT:
+                self._history.pop(0)
 
-        self._last_measurement = point
-        self._measurement_count += 1
-        self._update_statistics()
+            self._last_measurement = point
+            self._measurement_count += 1
+            self._update_statistics()
 
-        self._update_state(AlignmentState.MONITORING)
-        self._error_message = ""
+            self._update_state(AlignmentState.MONITORING)
+            self._error_message = ""
 
         if self._config.alignment_verbose_logging:
             self._logger.info(
@@ -886,12 +979,7 @@ class AlignmentMonitor:
         Note:
             Setting this callback automatically enables firmware V1 support.
             The callback should call SerialManager.align_point() internally.
-
-            PARKED (AM3): this setter is NEVER CALLED. TTS160Device wires only five
-            callbacks; set_align_point_callback is not among them, so
-            _firmware_supports_align_point stays False forever and the 0x12
-            ALIGN_POINT path is unreachable. Retained under PARK. See
-            docs/reviews/tts160-alignment-findings.md AM3.
+            Wired by TTS160Device._start_alignment_if_enabled (F4/AM3).
         """
         with self._lock:
             self._align_point_callback = callback
@@ -915,10 +1003,7 @@ class AlignmentMonitor:
 
         Note:
             The callback should call SerialManager.perform_alignment() internally.
-
-            PARKED (AM3): this setter is NEVER CALLED, so the 0x13
-            PERFORM_ALIGNMENT path is unreachable. Retained under PARK. See
-            docs/reviews/tts160-alignment-findings.md AM3.
+            Wired by TTS160Device._start_alignment_if_enabled (F4/AM3).
         """
         with self._lock:
             self._perform_alignment_callback = callback
@@ -1127,13 +1212,10 @@ class AlignmentMonitor:
     def evaluate(self) -> DecisionResult:
         """Execute V1 decision logic after a measurement.
 
-        PARKED / DEAD CODE (AM1): this decision engine has ZERO callers. The
-        background loop (_background_monitor) calls only _perform_measurement();
-        nothing invokes evaluate(), so no SYNC/ALIGN/LOCKOUT action can ever fire.
-        Retained (not deleted) under the PARK decision. See
-        docs/reviews/tts160-alignment-findings.md AM1. Wiring this into the loop is
-        part of the FINISH decision (NOT taken) and is gated on AM4 (epoch
-        conversion) to avoid corrupting the mount model.
+        Invoked by the measurement path (the background loop and manual
+        trigger) after each successful measurement (F3/AM1).  The epoch gate
+        (F2/AM4) ensures the stored solved coordinates are already in the
+        mount's JNOW frame, so a SYNC writes correctly-framed coordinates.
 
         This is the main V1 decision engine that evaluates pointing error
         and decides whether to sync, replace an alignment point, or do nothing.
@@ -1390,10 +1472,8 @@ class AlignmentMonitor:
             callback: Function returning SerialManager instance.
 
         Note:
-            PARKED (AM3): this setter is NEVER CALLED, so _serial_manager_callback
-            stays None, _update_qa_from_firmware() always returns early, and
-            AlignmentQA is permanently NO_DATA. Retained under PARK. See
-            docs/reviews/tts160-alignment-findings.md AM3.
+            Wired by TTS160Device._start_alignment_if_enabled (F4/AM3); the QA
+            subsystem reads firmware alignment variables through it.
         """
         with self._lock:
             self._serial_manager_callback = callback

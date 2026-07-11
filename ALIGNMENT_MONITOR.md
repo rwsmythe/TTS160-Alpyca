@@ -1,18 +1,24 @@
 # Alignment Monitor (V1)
 
-> **STATUS: PARKED / INACTIVE (not currently functional).** By operator decision
-> this subsystem is disabled by default (`[alignment] enabled = false`) and is
-> **non-functional as wired**: the decision engine `evaluate()` has no callers, the
-> `PlateSolver` seam fails on construction (dead on arrival), and the firmware
-> action callbacks are never wired (so ALIGN_POINT/PERFORM_ALIGNMENT and QA are
-> unreachable). The V1 capabilities described below are **aspirational, not live**.
-> See the grounded review and the FINISH-vs-PARK decision matrix in the harness
-> register `tts160-alignment-findings.md` (findings AM1, AM2, AM3). Making it live
-> is the FINISH decision, which has NOT been taken.
+> **STATUS: LIVE, but disabled by default (`[alignment] enabled = false`).**
+> This is a hardware-dependent feature (it needs a camera and a plate-solve
+> database); the operator enables it deliberately. When enabled, the subsystem
+> is fully wired: the capture -> detect -> solve pipeline runs, the decision
+> engine `evaluate()` is invoked after each successful measurement, plate solves
+> are converted from J2000/ICRS to the mount's of-date (JNOW) frame at the
+> exposure mid-time before any comparison or sync/align write (the epoch gate),
+> and the firmware ALIGN_POINT (0x12) / PERFORM_ALIGNMENT (0x13) commands plus
+> the QA firmware read are wired. Grounded review + FINISH matrix:
+> `tts160-alignment-findings.md` (findings AM1-AM5; Phase B1 FINISH).
+>
+> **Operator-only validation:** the closed-loop behavior with a real camera on
+> the sky (does auto-sync/auto-align actually improve pointing?) can only be
+> validated on-mount/on-sky. The math (epoch conversion, error), the wire
+> protocol (0x12/0x13), and the threading are verified in the test suite.
 
-The alignment monitor is a background subsystem intended to continuously evaluate pointing accuracy by capturing images, detecting stars, plate solving, and comparing the solved position against the mount's reported position.
+The alignment monitor is a background subsystem that continuously evaluates pointing accuracy by capturing images, detecting stars, plate solving, and comparing the solved position against the mount's reported position.
 
-**Current Version:** V1 (Decision Engine) -- **PARKED, see status note above**
+**Current Version:** V1 (Decision Engine) -- live when enabled
 
 ## V1 Features
 
@@ -27,10 +33,10 @@ The V1 implementation adds autonomous decision-making capabilities:
 
 ## Data Flow
 
-> **PARKED:** the diagram below shows the INTENDED design. In the code as it
-> stands the `evaluate()` box is NOT in any live loop (it has zero callers, AM1)
-> and the `PlateSolver` box never constructs successfully (AM2), so no branch of
-> this flow actually executes.
+The background loop runs the pipeline below and calls `evaluate()` on each
+successful measurement. The solved position is converted J2000 -> JNOW at the
+exposure mid-time before the comparison (the epoch gate), so the "Comparison"
+box differences like-for-like frames.
 
 ```text
 ┌──────────────┐    ┌───────────────┐    ┌──────────────┐    ┌─────────────┐
@@ -40,6 +46,8 @@ The V1 implementation adds autonomous decision-making capabilities:
 │ capture_image│    │ detect_stars  │    │ solve_from_  │    │ mount_pos - │
 │ -> ImageData │    │ -> centroids  │    │ centroids    │    │ solved_pos  │
 │ (numpy array)│    │ (Nx2 array)   │    │ -> RA,Dec    │    │ = error     │
+│              │    │               │    │ (J2000 ->    │    │ (JNOW vs    │
+│              │    │               │    │  JNOW gate)  │    │  JNOW)      │
 └──────────────┘    └───────────────┘    └──────────────┘    └─────────────┘
                                                                     │
                                                                     ▼
@@ -55,9 +63,9 @@ The V1 implementation adds autonomous decision-making capabilities:
 
 ## State Machine
 
-> **PARKED:** intended state machine. The `evaluate()` transitions shown below do
-> not occur -- `evaluate()` is never called (AM1) -- and the pipeline does not
-> advance past start-up because the `PlateSolver` seam raises on construction (AM2).
+`evaluate()` runs after each successful measurement (from the background loop
+and the manual "Measure Now" trigger). Capture / detect / solve run OUTSIDE the
+monitor lock, so `get_status()` and `stop()` stay responsive during a capture.
 
 ```text
 DISABLED → DISCONNECTED → CONNECTING → CONNECTED → CAPTURING → SOLVING → MONITORING
@@ -94,7 +102,10 @@ verbose_logging = false
 # === V1 Decision Thresholds (arcseconds) ===
 error_ignore = 30.0             # Below this, take no action
 error_sync = 120.0              # Above this, sync if not aligning
-error_concern = 300.0           # Above this, evaluate alignment replacement
+error_concern = 300.0           # RESERVED: a config/GUI knob NOT currently read
+                                # by the decision engine (the engine uses
+                                # error_ignore / error_sync / error_max). Kept
+                                # for compatibility; wiring it is a future item.
 error_max = 600.0               # Above this, force action and log health event
 
 # === Geometry Thresholds (determinant, dimensionless 0-1) ===
@@ -202,11 +213,9 @@ The alignment status is displayed in the Telescope Status tab with:
 3. Configure camera address, port, and exposure settings
 4. Provide a tetra3 star database file (or use default path)
 5. Connect the telescope - alignment monitor starts automatically
-
-> **PARKED / not implemented as wired:** the former step 6 claimed "the V1 decision
-> engine runs automatically after each plate solve." This is **false** -- `evaluate()`
-> has zero callers, so no automatic sync/align decision occurs (AM1). Even the
-> capture/solve loop does not run because the `PlateSolver` seam fails on start (AM2).
+6. The V1 decision engine runs automatically after each successful measurement
+   (the solved position is epoch-converted to JNOW first, so sync/align act in
+   the mount's frame).
 
 ## Module Files
 
@@ -214,7 +223,9 @@ The alignment status is displayed in the Telescope Status tab with:
 | -------------------------- | ------------------------------------------ |
 | `alignment_monitor.py`     | Main orchestrator with V1 decision engine  |
 | `alignment_geometry.py`    | Determinant and candidate evaluation logic |
-| `camera_manager.py`        | Alpyca camera wrapper                      |
+| `alignment_qa.py`          | Independent QA (Davenport Q-method) subsystem |
+| `camera_source.py`         | Camera source interface (Alpaca / ZWO)     |
+| `camera_factory.py`        | Builds the configured camera source        |
 | `star_detector.py`         | SEP star detection wrapper                 |
 | `plate_solver.py`          | tetra3 plate solving wrapper               |
 | `LICENSE_THIRD_PARTY.md`   | License attributions                       |
@@ -223,13 +234,18 @@ The alignment status is displayed in the Telescope Status tab with:
 
 The TTS-160 firmware v357 implements the ALIGN_POINT (0x12) and PERFORM_ALIGNMENT (0x13) binary commands (present and correct in `tts160_serial.py`).
 
-> **PARKED / not wired:** the claim that "the driver auto-detects firmware support
-> and falls back to SYNC-only mode" is **false today**. The driver never wires the
-> `set_align_point_callback` / `set_perform_alignment_callback` /
-> `set_serial_manager_callback` callbacks (AM3), so `_firmware_supports_align_point`
-> is never enabled, the 0x12/0x13 path is unreachable, and the SYNC fallback lives
-> inside the dead `evaluate()` (AM1). The firmware commands exist but the driver
-> does not call them.
+The driver wires the `set_align_point_callback` / `set_perform_alignment_callback`
+/ `set_serial_manager_callback` callbacks in
+`TTS160Device._start_alignment_if_enabled`, so `_firmware_supports_align_point`
+is enabled and `evaluate()` can take the firmware ALIGN_POINT branch (replacing
+an alignment point + recalculating the model) when the geometry warrants it,
+falling back to SYNC otherwise. The QA subsystem reads the alignment A-variables
+(A2-A22, plus M8/M9/C17/C18, T31/T32) through the serial-manager callback.
+
+> **Note (QA per-point residuals):** the QA subsystem's per-point
+> `residual_arcsec` is not yet computed (it needs the full quaternion
+> transform). `QAStatus.residuals_computed` is `False` to surface this
+> honestly -- a `0.0` residual is a placeholder, not a measured zero.
 
 ---
 
