@@ -1344,6 +1344,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     HOME_POSITION_TOLERANCE_ALT = 2.0
     HOME_POSITION_TOLERANCE_AZ = 5.0
     MAX_ALTITUDE_FOR_COMPENSATION = 89.0
+    # D12: upper bound for the deprecated synchronous ConnectedSet busy-wait.
+    CONNECT_TIMEOUT_SEC = 60.0
 
     def __init__(self, logger: Logger) -> None:
         """
@@ -1685,14 +1687,17 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         with self._lock:
             # Handle already connected (ASCOM shared connection pattern)
             if self._Connected:
-                self._serial_manager._connection_count += 1
+                # T1 fix: single-owner ref count. add_client() recomputes
+                # _connection_count = len(_client_list) under the serial lock; the
+                # prior manual "+= 1" under the *device* lock double-counted and
+                # raced that recompute. Rely solely on add_client/remove_client.
                 self._serial_manager.add_client(client)
                 self._logger.info(f"Already connected, reference count: {self._serial_manager._connection_count}")
                 return
-            
+
             # Handle connection in progress
             if self._Connecting:
-                self._serial_manager._connection_count += 1
+                # T1 fix: see above -- add_client() is the sole owner of the count.
                 self._serial_manager.add_client(client)
                 self._logger.info(f"Connection already in progress, reference count: {self._serial_manager._connection_count}")
                 return
@@ -2013,7 +2018,15 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             import TTS160Global
             alignment_mgr = TTS160Global.get_alignment_monitor(self._logger)
             if alignment_mgr is None:
-                self._logger.debug("Alignment monitor is disabled in configuration")
+                # PARKED (P2): the alignment-monitor subsystem is inactive by
+                # design -- alignment_enabled defaults to False (TTS160Config
+                # alignment_enabled; TTS160config.toml [alignment] enabled=false).
+                # Surface one honest, prominent line so the disabled state is not
+                # silent. See docs/reviews/tts160-alignment-findings.md (PARK
+                # matrix; AM1/AM2/AM3) and ALIGNMENT_MONITOR.md.
+                self._logger.info(
+                    "Alignment monitor is PARKED (disabled in configuration); "
+                    "subsystem is inactive by design")
                 return
 
             # Set callback for getting mount position (RA/Dec)
@@ -2029,10 +2042,18 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             if alignment_mgr.start():
                 self._logger.info("Alignment monitor started successfully")
             else:
-                self._logger.warning("Alignment monitor failed to start")
+                # PARKED (P2): the subsystem is non-functional as wired (dead
+                # decision engine + broken plate-solver seam; see the PARK matrix in
+                # docs/reviews/tts160-alignment-findings.md, AM1/AM2/AM3). Surface
+                # one prominent warning rather than leaving an active-looking state.
+                self._logger.warning(
+                    "Alignment monitor failed to start and is PARKED (inactive); "
+                    "the plate-solve auto-alignment subsystem is not operational "
+                    "(see tts160-alignment-findings.md PARK matrix). Mount operation "
+                    "is unaffected")
 
         except Exception as ex:
-            self._logger.warning(f"Failed to start alignment monitor: {ex}")
+            self._logger.warning(f"Failed to start alignment monitor (subsystem PARKED/inactive): {ex}")
 
     def _stop_alignment(self) -> None:
         """Stop alignment monitor if running.
@@ -2249,7 +2270,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
             # Handle shared connection - decrement reference count
             if self._serial_manager._connection_count > 1:
-                self._serial_manager._connection_count -= 1
+                # T1 fix: single-owner ref count. remove_client() recomputes
+                # _connection_count = len(_client_list) under the serial lock; the
+                # prior manual "-= 1" under the *device* lock double-decremented and
+                # raced that recompute. Rely solely on add_client/remove_client.
                 self._serial_manager.remove_client(client)
                 self._logger.info(f"Decremented connection reference count to {self._serial_manager._connection_count}")
                 return
@@ -2775,8 +2799,23 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         try:
             if value:
                 self.Connect( client )
-                #simulate synchronous execution
+                # D12 fix: simulate synchronous execution with a bounded wait.
+                # Connect() sets _Connecting=True synchronously before returning
+                # and the async task clears it (to False) on BOTH success and
+                # failure. The prior loop inspected only _Connected, so a failed
+                # connect (bad/absent port, mount off) left _Connected False forever
+                # and spun without bound. Detect failure (Connecting cleared without
+                # Connected) and cap the total wait so the caller cannot hang.
+                deadline = time.monotonic() + self.CONNECT_TIMEOUT_SEC
                 while not self._Connected:
+                    if not self._Connecting:
+                        raise RuntimeError(
+                            "Connect failed: mount connection did not complete "
+                            f"(port {self._config.dev_port})")
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError(
+                            "Connect timed out after "
+                            f"{self.CONNECT_TIMEOUT_SEC:.0f}s waiting for mount connection")
                     time.sleep(0.1)
             else:
                 self.Disconnect( client )
@@ -2996,15 +3035,16 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             DriverException: If pier side calculation fails
         """
         try:
-            # Input validation            
+            # Input validation
             self._validate_coordinates(ra = ra, dec = dec)
 
-            self._logger.debug(f"Calculating destination pier side for RA {ra:.3f}h, Dec {dec:.3f}°")
-            
-            pier_side = self._calculate_side_of_pier(ra)
-            self._logger.debug(f"Destination pier side: {pier_side}")
-            return pier_side
-            
+            # A1 fix: alt-az mount (algAltAz, CanSetPierSide=False). Per ASCOM
+            # ITelescopeV3/V4, side-of-pier is a GEM concept; a non-GEM mount's
+            # destination pointing state is indeterminate -> pierUnknown. The prior
+            # hour-angle prediction had no physical meaning here.
+            self._logger.debug(f"Destination pier side for RA {ra:.3f}h, Dec {dec:.3f}° is pierUnknown (alt-az mount)")
+            return PierSide.pierUnknown
+
         except ValueError:
             self._logger.error(f"Invalid coordinates for pier side calculation: RA={ra}, Dec={dec}")
             raise
@@ -3185,7 +3225,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         try:
             self._logger.debug("Assembling device state information")
             
-            vars = "X1,C5,X2,T18,17"
+            # D1 fix: query current DEC (T17) then current RA (T16). The prior
+            # "T18,17" resolved (via firmware category stickiness, binary.c:406-408
+            # -- a bare token inherits the previous request's category) to T18,T17,
+            # i.e. TARGET_RA and DEC, so DeviceState published Target-RA as
+            # "Declination" and DEC as "RightAscension". Explicit "T17,T16" prefixes
+            # avoid stickiness entirely: data[3]=T17=DEC, data[4]=T16=RA.
+            vars = "X1,C5,X2,T17,T16"
             cmd = ":*!G " + vars + "#"
 
             self._logger.debug(f'Sending {cmd} as {CommandType.AUTO}')
@@ -3368,11 +3414,18 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def _calculate_side_of_pier(self, right_ascension: float) -> PierSide:
         """
         Calculate which side of pier telescope should be on for given RA.
-        
+
+        DEAD CODE (A1): the TTS-160 is an alt-az mount (AlignmentMode = algAltAz,
+        CanSetPierSide = False), so hour-angle-derived pier side has no physical
+        meaning. As of the A1 fix, SideOfPier and DestinationSideOfPier return
+        PierSide.pierUnknown per the ASCOM ITelescopeV3/V4 spec and no longer call
+        this helper -- it has NO live callers. Retained (not deleted) for history
+        and in case a future GEM/equatorial variant is supported.
+
         Determines pier side based on hour angle. Positive hour angles
         (object west of meridian) use East pier side, negative hour angles
         (object east of meridian) use West pier side.
-        
+
         Args:
             right_ascension: Right ascension in decimal hours (0-24)
             
@@ -3406,8 +3459,19 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
     @property
     def SideOfPier(self) -> PierSide:
-        """Calculates and returns SideofPier"""
-        sideofpier = self._calculate_side_of_pier(self.RightAscension)
+        """Report pointing state (side of pier).
+
+        A1 fix: the TTS-160 is an alt-az mount (AlignmentMode = algAltAz,
+        CanSetPierSide = False). Per the ASCOM ITelescopeV3/V4 specification,
+        SideOfPier is a German-equatorial (GEM) concept; for a non-GEM mount the
+        pointing state is indeterminate, and returning PierSide.pierUnknown (-1)
+        is the conformant value (ASCOM Conform accepts pierUnknown for a
+        non-GEM/alt-az mount). The prior implementation fabricated East/West from
+        hour-angle math, which has no physical meaning on this mount. The
+        hour-angle helper _calculate_side_of_pier is retained but dead (see its
+        note).
+        """
+        sideofpier = PierSide.pierUnknown
         self.TTS160_cache.update_property('SideOfPier', sideofpier)
         return sideofpier
 
@@ -4021,12 +4085,21 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 if settle_time > 0:
                     self._logger.info(f"Applying slew settle time: {settle_time}s")
                     time.sleep(settle_time)
-                self._goto_in_progress = False
                 self._logger.info("Slew operation completed")
 
         except Exception as ex:
             self._logger.error(f"Unexpected error in slew monitoring: {ex}")
             raise RuntimeError(f"Slew status monitoring error", ex)
+        finally:
+            # D2 fix: guarantee the operational flags are cleared on EVERY exit
+            # path. Previously a serial error on the :D# poll raised out of this
+            # (un-awaited) monitor future and left _goto_in_progress=True for the
+            # session, permanently blocking MoveAxis/FindHome. The exception is
+            # still surfaced via the error log above; here we only ensure state
+            # cannot leak. (No behavioral redesign -- reset + visibility only.)
+            with self._lock:
+                self._goto_in_progress = False
+                self._slewing_hold = False
 
     def _home_arrival_monitor(self, target_azimuth: float, target_altitude: float) -> None:
         """
@@ -4065,22 +4138,23 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             if altitude_error < self.HOME_POSITION_TOLERANCE_ALT and azimuth_error < self.HOME_POSITION_TOLERANCE_AZ:
                 self.AtHome = True
                 self._logger.info(f"Arrived at home: Alt={current_alt:.1f}°, Az={current_az:.1f}°")
-                with self._lock:
-                    self._slewing_hold = False
             else:
                 error_msg = f"Home position verification failed - Alt: {current_alt:.1f}°, Az: {current_az:.1f}°"
                 self._logger.error(error_msg)
-                with self._lock:
-                    self._slewing_hold = False
                 raise RuntimeError(error_msg)
-            
+
             self.Tracking = False
 
         except Exception as ex:
             self._logger.error(f"Home arrival monitoring failed: {ex}")
-            with self._lock:
-                    self._slewing_hold = False
             raise RuntimeError(f"Home arrival monitoring error", ex)
+        finally:
+            # D2 fix: guarantee _slewing_hold is cleared on EVERY exit path of this
+            # (un-awaited) monitor future -- consolidated from the three scattered
+            # resets so no branch can leak the hold. Exception still surfaced via
+            # the error log above.
+            with self._lock:
+                self._slewing_hold = False
     
     def MoveAxis(self, axis: TelescopeAxes, rate: float) -> None:
         """

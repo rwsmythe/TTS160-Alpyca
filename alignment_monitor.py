@@ -6,6 +6,21 @@ Provides alignment quality monitoring by periodically capturing images,
 detecting stars, plate solving, and comparing solved position against
 mount-reported position.
 
+============================== PARKED / INACTIVE ==============================
+This subsystem is PARKED by operator decision and is NON-FUNCTIONAL as wired.
+It is disabled by default (alignment_enabled=False) and must not be treated as
+a live capability. Grounded review: docs/reviews/tts160-alignment-findings.md
+(Arc 9, OPERATOR DECISION MATRIX -> PARK). Key defects, quarantined below:
+  - AM1: the decision engine evaluate() has ZERO callers -> no SYNC/ALIGN can
+         ever fire (the loop runs only _perform_measurement()).
+  - AM2: the PlateSolver seam is written against an older solver API; start()
+         fails on an AttributeError before any measurement (dead on arrival).
+  - AM3: the firmware-action callbacks (align_point / perform_alignment /
+         serial_manager) are never wired -> 0x12/0x13 unreachable, QA NO_DATA.
+Finishing the subsystem (wiring the engine + epoch conversion) is the FINISH
+decision (NOT taken); until then the code below is retained but inactive.
+==============================================================================
+
 Components:
     - CameraSource: Abstract camera interface (Alpaca or ZWO)
     - StarDetector: Star detection via SEP
@@ -378,6 +393,15 @@ class AlignmentMonitor:
                     return False
 
                 self._star_detector = StarDetector(self._logger)
+                # PARKED (AM2): BROKEN SOLVER SEAM. This call matches an older
+                # PlateSolver API. The current constructor is
+                # __init__(self, logger, fov_estimate=1.0, database_path=None), so
+                # the args below are mis-bound (logger <- database-path string) and
+                # construction raises AttributeError -> start() returns False and
+                # the monitor never runs a measurement. Left AS-IS (PARK, not
+                # FINISH). See tts160-alignment-findings.md AM2. Do not "fix" this
+                # in isolation -- AM4 (J2000/JNOW epoch gap) is a mandatory gate
+                # before wiring the subsystem live.
                 self._plate_solver = PlateSolver(
                     self._config.alignment_database_path,
                     self._logger
@@ -862,6 +886,12 @@ class AlignmentMonitor:
         Note:
             Setting this callback automatically enables firmware V1 support.
             The callback should call SerialManager.align_point() internally.
+
+            PARKED (AM3): this setter is NEVER CALLED. TTS160Device wires only five
+            callbacks; set_align_point_callback is not among them, so
+            _firmware_supports_align_point stays False forever and the 0x12
+            ALIGN_POINT path is unreachable. Retained under PARK. See
+            docs/reviews/tts160-alignment-findings.md AM3.
         """
         with self._lock:
             self._align_point_callback = callback
@@ -885,6 +915,10 @@ class AlignmentMonitor:
 
         Note:
             The callback should call SerialManager.perform_alignment() internally.
+
+            PARKED (AM3): this setter is NEVER CALLED, so the 0x13
+            PERFORM_ALIGNMENT path is unreachable. Retained under PARK. See
+            docs/reviews/tts160-alignment-findings.md AM3.
         """
         with self._lock:
             self._perform_alignment_callback = callback
@@ -1092,6 +1126,14 @@ class AlignmentMonitor:
 
     def evaluate(self) -> DecisionResult:
         """Execute V1 decision logic after a measurement.
+
+        PARKED / DEAD CODE (AM1): this decision engine has ZERO callers. The
+        background loop (_background_monitor) calls only _perform_measurement();
+        nothing invokes evaluate(), so no SYNC/ALIGN/LOCKOUT action can ever fire.
+        Retained (not deleted) under the PARK decision. See
+        docs/reviews/tts160-alignment-findings.md AM1. Wiring this into the loop is
+        part of the FINISH decision (NOT taken) and is gated on AM4 (epoch
+        conversion) to avoid corrupting the mount model.
 
         This is the main V1 decision engine that evaluates pointing error
         and decides whether to sync, replace an alignment point, or do nothing.
@@ -1346,6 +1388,12 @@ class AlignmentMonitor:
 
         Args:
             callback: Function returning SerialManager instance.
+
+        Note:
+            PARKED (AM3): this setter is NEVER CALLED, so _serial_manager_callback
+            stays None, _update_qa_from_firmware() always returns early, and
+            AlignmentQA is permanently NO_DATA. Retained under PARK. See
+            docs/reviews/tts160-alignment-findings.md AM3.
         """
         with self._lock:
             self._serial_manager_callback = callback
