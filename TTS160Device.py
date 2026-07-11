@@ -2163,6 +2163,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         Returns:
             True if location was pushed successfully, False otherwise.
         """
+        # --- Build and send the SET_LOCATION command (its own error handling).
+        # The return value of this method reflects ONLY whether the mount
+        # accepted the push; local-state bookkeeping is handled separately below
+        # so a bookkeeping error cannot report a committed push as failed (G8).
         try:
             from tts160_serial import V357Protocol, SetCommand
 
@@ -2192,40 +2196,49 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 SetCommand.SET_LOCATION,
                 payload
             )
-
-            # A SET response is a non-empty list for BOTH success and failure
-            # (an INT reject code or an ERROR is still non-empty), so test the
-            # VALUE, not mere truthiness: success is an INT status of 0.
-            if result and result[0][1] == 0:
-                self._logger.info(
-                    f"GPS location pushed to mount: {location_name} "
-                    f"({latitude:.6f}°, {longitude:.6f}°)"
-                )
-
-                # Update local config and site location
-                with self._lock:
-                    self._config.site_latitude = latitude
-                    self._config.site_longitude = longitude
-
-                    # Update AstroPy location
-                    from astropy.coordinates import EarthLocation
-                    import astropy.units as u
-                    elevation = float(self._config.site_elevation) if self._config.site_elevation else 0.0
-                    self._site_location = EarthLocation(
-                        lat=latitude * u.deg,
-                        lon=longitude * u.deg,
-                        height=elevation * u.m
-                    )
-
-                self._invalidate_cache('altaz')
-                return True
-            else:
-                self._logger.warning("Failed to push GPS location to mount")
-                return False
-
         except Exception as ex:
             self._logger.error(f"Error pushing GPS location to mount: {ex}")
             return False
+
+        # A SET response is a non-empty list for BOTH success and failure
+        # (an INT reject code or an ERROR is still non-empty), so test the
+        # VALUE, not mere truthiness: success is an INT status of 0.
+        if not (result and result[0][1] == 0):
+            self._logger.warning("Failed to push GPS location to mount")
+            return False
+
+        self._logger.info(
+            f"GPS location pushed to mount: {location_name} "
+            f"({latitude:.6f}°, {longitude:.6f}°)"
+        )
+
+        # --- Post-send local bookkeeping. The mount has already committed the
+        # push; a failure updating local driver state must NOT flip the reported
+        # result to failure -- log it and still return True (G8).
+        try:
+            # Update local config and site location
+            with self._lock:
+                self._config.site_latitude = latitude
+                self._config.site_longitude = longitude
+
+                # Update AstroPy location
+                from astropy.coordinates import EarthLocation
+                import astropy.units as u
+                elevation = float(self._config.site_elevation) if self._config.site_elevation else 0.0
+                self._site_location = EarthLocation(
+                    lat=latitude * u.deg,
+                    lon=longitude * u.deg,
+                    height=elevation * u.m
+                )
+
+            self._invalidate_cache('altaz')
+        except Exception as ex:
+            self._logger.error(
+                f"GPS location committed to mount, but updating local driver "
+                f"state failed: {ex}"
+            )
+
+        return True
 
     def Disconnect(self, client: dict) -> None:
         """
@@ -4562,56 +4575,60 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         if self.Slewing:
             raise RuntimeError("Cannot pulse guide while slewing")
 
-        with self._lock:
-            
-            self._logger.debug("Pulseguide - Checking for pulseguide conflicts")
-            # Check for axis conflicts
-            if not self._config.pulse_guide_equatorial_frame: #equatorial frame guiding will use both axes for each guide
-                self._check_pulse_guide_conflicts(direction)
-            self._logger.debug("Pulseguide - No conflicts found, initializing monitors as necessary")
+        try:
+            # --- Compute pulse parameters OUTSIDE the device lock (D8). The
+            # equatorial conversion performs several serial reads (RA / Dec /
+            # GuideRateDeclination) plus astropy math but mutates no shared
+            # pulse-guide monitor state, so it must not hold self._lock; the
+            # serial manager's own lock serializes the wire inside each getter.
+            cache_refresh_needed = []
+            if self._config.pulse_guide_equatorial_frame:
+                # Check cache freshness before timing-critical conversion
+                cache_refresh_needed = self._check_cache_freshness(['altaz', 'gcrs'])
+                if cache_refresh_needed:
+                    self._logger.debug(f"Deferring cache refresh for timing-critical pulse guide: {cache_refresh_needed}")
 
-            # Initialize monitoring infrastructure if needed
-            self._initialize_pulse_guide_monitoring()
-            self._logger.debug("Pulse guide monitors initialized")
+                self._logger.info(f"PulseGuide - Converting {direction} for {duration} msec to the equatorial frame.")
+                ns_dir, ns_dur, ew_dir, ew_dur, additional_refresh = self._convert_equatorial_pulse(
+                    direction, duration, timing_critical=True
+                )
+                # Merge any additional refresh needs from conversion
+                if additional_refresh:
+                    cache_refresh_needed.extend(additional_refresh)
+                    cache_refresh_needed = list(set(cache_refresh_needed))  # Remove duplicates
+                self._logger.info(f"PulseGuide Equatorial results: {ns_dir} for {ns_dur} msec; {ew_dir} for {ew_dur} msec")
+            else:
+                ns_dir, ns_dur, ew_dir, ew_dur = self._get_standard_pulse_params(direction, duration)
 
-            try:
-                # Cache management for timing-critical operations
-                cache_refresh_needed = []
-                if self._config.pulse_guide_equatorial_frame:
-                    # Check cache freshness before timing-critical conversion
-                    cache_refresh_needed = self._check_cache_freshness(['altaz', 'gcrs'])
-                    if cache_refresh_needed:
-                        self._logger.debug(f"Deferring cache refresh for timing-critical pulse guide: {cache_refresh_needed}")
-                
-                # Determine pulse parameters based on configuration
-                if self._config.pulse_guide_equatorial_frame:
-                    self._logger.info(f"PulseGuide - Converting {direction} for {duration} msec to the equatorial frame.")
-                    ns_dir, ns_dur, ew_dir, ew_dur, additional_refresh = self._convert_equatorial_pulse(
-                        direction, duration, timing_critical=True
-                    )
-                    # Merge any additional refresh needs from conversion
-                    if additional_refresh:
-                        cache_refresh_needed.extend(additional_refresh)
-                        cache_refresh_needed = list(set(cache_refresh_needed))  # Remove duplicates
-                    self._logger.info(f"PulseGuide Equatorial results: {ns_dir} for {ns_dur} msec; {ew_dir} for {ew_dur} msec")
-                else:
-                    ns_dir, ns_dur, ew_dir, ew_dur = self._get_standard_pulse_params(direction, duration)
-                
-                # Execute pulse guide commands
+            # --- Conflict-check + axis claim, atomic under the device lock (D8).
+            # The conflict check and the monitor claim performed inside
+            # _execute_pulse_guide must be indivisible so a second same-axis
+            # pulse cannot slip between the check and the claim. Only this short
+            # region holds self._lock; the :Mg writes stay coupled to the claim
+            # (send-then-start-timer) and so remain inside it.
+            with self._lock:
+                self._logger.debug("Pulseguide - Checking for pulseguide conflicts")
+                # Check for axis conflicts
+                if not self._config.pulse_guide_equatorial_frame: #equatorial frame guiding will use both axes for each guide
+                    self._check_pulse_guide_conflicts(direction)
+                # Initialize monitoring infrastructure if needed
+                self._initialize_pulse_guide_monitoring()
+                # Execute pulse guide commands (send + monitor claim, atomic with the check)
                 self._logger.debug("PulseGuide - Commencing")
                 self._execute_pulse_guide(ns_dir, ns_dur, ew_dir, ew_dur, duration)
-                
-                # Refresh stale caches after timing-critical operation completes
-                if cache_refresh_needed:
-                    try:
-                        self._logger.debug("Refreshing coordinate frame caches after pulse guide completion")
-                        self._refresh_expired_caches(cache_refresh_needed)
-                    except Exception as ex:
-                        # Cache refresh failure shouldn't fail the pulse guide
-                        self._logger.debug(f"Post-pulse cache refresh failed: {ex}")
-                
-            except Exception as ex:
-                raise RuntimeError("Pulse guide failed", ex)
+
+            # --- Refresh stale caches AFTER releasing the lock (D8): a
+            # background coordinate-frame refresh must not extend the held window.
+            if cache_refresh_needed:
+                try:
+                    self._logger.debug("Refreshing coordinate frame caches after pulse guide completion")
+                    self._refresh_expired_caches(cache_refresh_needed)
+                except Exception as ex:
+                    # Cache refresh failure shouldn't fail the pulse guide
+                    self._logger.debug(f"Post-pulse cache refresh failed: {ex}")
+
+        except Exception as ex:
+            raise RuntimeError("Pulse guide failed", ex)
 
 
     def _check_pulse_guide_conflicts(self, direction: GuideDirections) -> None:
@@ -4951,12 +4968,16 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 time.sleep(0.5)
             
             #Once the slew is stopped, query the mount until the parked flag is set
-            #This prevents a gap after the slew while the mount is completeing 
-            #its park routine
-            with self._lock:
-                while not self._is_parked:
-                    self.AtPark
-                    time.sleep(0.5)
+            #This prevents a gap after the slew while the mount is completeing
+            #its park routine.
+            # Poll WITHOUT holding the device lock across the sleep (D3): AtPark
+            # acquires self._lock internally for each C5 query + _is_parked write,
+            # so the state transition stays atomic while other device-lock
+            # operations interleave between polls instead of blocking for the
+            # entire park-completion window.
+            while not self._is_parked:
+                self.AtPark
+                time.sleep(0.5)
                 
         except Exception as ex:
             self._logger.error(f"Park monitoring failed: {ex}")

@@ -276,14 +276,11 @@ class TestBinaryParserUnpack:
 class TestSerialManagerFormatRegistry:
     """Test SerialManager binary format registry."""
 
-    @pytest.mark.unit
-    def test_default_formats_registered(self, mock_logger):
-        """Default formats should be registered on init."""
-        manager = SerialManager(mock_logger)
-
-        # Check some default formats exist
-        assert '0' in manager._binary_formats
-        assert '2' in manager._binary_formats
+    # NOTE: test_default_formats_registered was removed (Fix Arc 7). The
+    # SerialManager no longer auto-registers default binary formats on init
+    # (_binary_formats starts empty); v357 binary parsing now uses the
+    # module-level BINARY_TYPE_SPECS table. The register_binary_format
+    # mechanism itself is still exercised by the tests below.
 
     @pytest.mark.unit
     def test_register_custom_format(self, mock_logger):

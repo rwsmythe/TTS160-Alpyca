@@ -28,9 +28,9 @@ class V357Category(str, Enum):
     """v357 binary protocol variable categories."""
     TRACKING = 'T'    # Position, RA/Dec, alignment quaternion (max ID: 32)
     CONTROL = 'C'     # Park, location, date/time, speeds (max ID: 25)
-    MOUNT = 'M'       # Motor config, ticks, field rotation (max ID: 22)
+    MOUNT = 'M'       # Motor config, ticks, field rotation (max ID: 16)
     ALIGNMENT = 'A'   # Star positions, alignment status, V1 monitor (max ID: 22)
-    LX200 = 'L'       # Slew state, sync, goto flags (max ID: 13)
+    LX200 = 'L'       # Slew state, sync, goto flags (max ID: 12)
     MOTOR = 'O'       # Jerk, position, numerator/denominator (max ID: 16)
     DISPLAY = 'D'     # Menu state, scroll flags (max ID: 5)
     COMPUTED = 'X'    # Real-time alt/az, free memory (max ID: 3)

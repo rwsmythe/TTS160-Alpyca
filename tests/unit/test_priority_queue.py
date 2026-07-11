@@ -270,8 +270,15 @@ class TestSerialManagerWorker:
         manager._stop_worker()
 
 
-class TestGetCaseDataPriority:
-    """Test get_case_data priority parameter."""
+class TestQueryVariablesPriority:
+    """Test the data-query method's priority parameter.
+
+    (Fix Arc 7) Retargeted from the removed ``get_case_data`` method to its
+    successor ``query_variables`` -- the live batch v357 data-query entry
+    point that carries the priority parameter. Its signature default is now
+    ``None`` (the effective priority is resolved from the thread-local
+    context via ``get_default_priority``), not the old hard ``NORMAL``.
+    """
 
     @pytest.fixture
     def manager(self, mock_logger):
@@ -279,15 +286,15 @@ class TestGetCaseDataPriority:
         return SerialManager(mock_logger)
 
     @pytest.mark.unit
-    def test_get_case_data_accepts_priority(self, manager):
-        """get_case_data should accept priority parameter."""
+    def test_query_variables_accepts_priority(self, manager):
+        """query_variables should accept a priority parameter."""
         import inspect
-        sig = inspect.signature(manager.get_case_data)
+        sig = inspect.signature(manager.query_variables)
         assert 'priority' in sig.parameters
 
     @pytest.mark.unit
-    def test_get_case_data_default_priority(self, manager):
-        """get_case_data should default to NORMAL priority."""
+    def test_query_variables_default_priority(self, manager):
+        """query_variables priority should default to None (thread-local context)."""
         import inspect
-        sig = inspect.signature(manager.get_case_data)
-        assert sig.parameters['priority'].default == CommandPriority.NORMAL
+        sig = inspect.signature(manager.query_variables)
+        assert sig.parameters['priority'].default is None

@@ -24,7 +24,7 @@ import pytest
 
 from TTS160Device import TTS160Device
 from tts160_types import CommandType
-from telescope import PierSide
+from telescope import PierSide, GuideDirections
 
 
 def _bare_device():
@@ -168,3 +168,117 @@ class TestSideOfPierAltAz:
         dev = _bare_device()
         dev._validate_coordinates = Mock()
         assert dev.DestinationSideOfPier(3.0, 45.0) == PierSide.pierUnknown
+
+
+# ---------------------------------------------------------------------------
+# D3 -- _park_arrival_monitor must not hold the device lock across the poll
+# ---------------------------------------------------------------------------
+
+def _lock_is_free_from_another_thread(lock, timeout=1.0):
+    """Try to acquire ``lock`` from a fresh thread (RLock is reentrant, so the
+    calling thread cannot be used to prove the lock is unheld). Returns True if
+    the competing thread got the lock -> the monitored code is NOT holding it."""
+    result = {'acquired': False}
+
+    def _grab():
+        if lock.acquire(timeout=timeout):
+            result['acquired'] = True
+            lock.release()
+
+    t = threading.Thread(target=_grab)
+    t.start()
+    t.join(timeout + 1.0)
+    return result['acquired']
+
+
+class TestParkMonitorLockScope:
+    def test_park_poll_does_not_hold_device_lock(self):
+        """D3: the park-completion poll loop must release self._lock across the
+        AtPark query + sleep. Pre-change (lock wrapped the whole loop) a
+        competing thread could not take the lock during the poll; post-change it
+        can."""
+        dev = _bare_device()
+        dev._is_parked = False
+        observed = {'lock_free': None}
+
+        def at_park_side_effect():
+            # Runs on the monitor's own thread while the loop body executes.
+            observed['lock_free'] = _lock_is_free_from_another_thread(dev._lock)
+            dev._is_parked = True   # end the loop after this single poll
+            return True
+
+        with patch.object(type(dev), 'Slewing', new_callable=PropertyMock,
+                          return_value=False), \
+             patch.object(type(dev), 'AtPark', new_callable=PropertyMock,
+                          side_effect=at_park_side_effect), \
+             patch('TTS160Device.time.sleep', Mock()):
+            dev._park_arrival_monitor()
+
+        assert observed['lock_free'] is True
+
+
+# ---------------------------------------------------------------------------
+# D8 -- PulseGuide must run the equatorial conversion outside the device lock,
+#       while keeping conflict-check + monitor claim atomic under it.
+# ---------------------------------------------------------------------------
+
+class TestPulseGuideLockScope:
+    def test_equatorial_conversion_runs_without_device_lock(self):
+        """D8: the equatorial conversion (several serial reads) must not hold
+        self._lock. Pre-change it ran inside the held window; post-change a
+        competing thread can take the lock during the conversion."""
+        dev = _bare_device()
+        dev._is_parked = False
+        dev._config = Mock(pulse_guide_equatorial_frame=True)
+        dev._check_cache_freshness = Mock(return_value=[])
+        dev._initialize_pulse_guide_monitoring = Mock()
+        dev._execute_pulse_guide = Mock()
+        observed = {'lock_free': None}
+
+        def convert_side_effect(direction, duration, timing_critical=False):
+            observed['lock_free'] = _lock_is_free_from_another_thread(dev._lock)
+            # (ns_dir, ns_dur, ew_dir, ew_dur, additional_refresh)
+            return (GuideDirections.guideNorth, duration,
+                    GuideDirections.guideEast, 0, [])
+
+        dev._convert_equatorial_pulse = Mock(side_effect=convert_side_effect)
+
+        with patch.object(type(dev), 'Slewing', new_callable=PropertyMock,
+                          return_value=False):
+            dev.PulseGuide(GuideDirections.guideNorth, 500)
+
+        # conversion happened lock-free ...
+        assert observed['lock_free'] is True
+        # ... and the send/claim step still ran (under the lock, after the check)
+        dev._execute_pulse_guide.assert_called_once()
+
+    def test_conflict_check_and_claim_share_the_lock(self):
+        """D8: the conflict check and the monitor claim (_execute_pulse_guide)
+        must run under the SAME lock acquisition so a second same-axis pulse
+        cannot slip between them. In standard mode both are invoked while the
+        device lock is held."""
+        dev = _bare_device()
+        dev._is_parked = False
+        dev._config = Mock(pulse_guide_equatorial_frame=False)
+        dev._get_standard_pulse_params = Mock(
+            return_value=(GuideDirections.guideNorth, 500,
+                          GuideDirections.guideEast, 0))
+        dev._initialize_pulse_guide_monitoring = Mock()
+        held = {'during_check': None, 'during_execute': None}
+
+        def _lock_held_here():
+            # The monitor thread holds a reentrant RLock; a competing thread
+            # cannot acquire it -> _lock_is_free_from_another_thread is False.
+            return not _lock_is_free_from_another_thread(dev._lock, timeout=0.3)
+
+        dev._check_pulse_guide_conflicts = Mock(
+            side_effect=lambda direction: held.__setitem__('during_check', _lock_held_here()))
+        dev._execute_pulse_guide = Mock(
+            side_effect=lambda *a, **k: held.__setitem__('during_execute', _lock_held_here()))
+
+        with patch.object(type(dev), 'Slewing', new_callable=PropertyMock,
+                          return_value=False):
+            dev.PulseGuide(GuideDirections.guideNorth, 500)
+
+        assert held['during_check'] is True
+        assert held['during_execute'] is True
