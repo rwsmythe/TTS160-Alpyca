@@ -184,6 +184,11 @@ class GPSManager:
             # Track if we're in auto mode for later re-detection
             self._auto_mode = port.lower() == 'auto'
 
+            # Clear any stop request left by a prior stop() BEFORE scanning,
+            # so the autodetect scan (which now honors _stop_event) is not
+            # aborted on a restart (G2).
+            self._stop_event.clear()
+
             # Autodetect GPS port if configured
             if self._auto_mode:
                 self._logger.info("Autodetecting GPS port...")
@@ -200,7 +205,6 @@ class GPSManager:
             else:
                 self._detected_port = port
 
-            self._stop_event.clear()
             self._reconnect_delay = self.RECONNECT_DELAY_BASE
             self._thread = threading.Thread(
                 target=self._background_reader,
@@ -434,6 +438,11 @@ class GPSManager:
         skip_patterns = ['bluetooth', 'bt', 'modem']
 
         for port_info in available_ports:
+            # Honor a stop request between port probes so shutdown is prompt
+            if self._stop_event.is_set():
+                self._logger.debug("GPS autodetect aborted (stop requested)")
+                return None
+
             port_name = port_info.device
             port_desc = port_info.description.lower()
 
@@ -465,6 +474,13 @@ class GPSManager:
                     buffer = ""
 
                     while time.time() - start_time < 3.0:
+                        # Honor a stop request during the per-port read window
+                        if self._stop_event.is_set():
+                            self._logger.debug(
+                                "GPS autodetect aborted (stop requested)"
+                            )
+                            return None
+
                         if test_serial.in_waiting > 0:
                             try:
                                 data = test_serial.read(test_serial.in_waiting)
@@ -508,9 +524,18 @@ class GPSManager:
 
             self._update_state(GPSState.CONNECTING)
 
-            # If in auto mode and no port detected, retry autodetection
-            if getattr(self, '_auto_mode', False) and not self._detected_port:
-                detected_port = self._autodetect_port()
+            # Decide (under the lock) whether a port scan is needed; run the
+            # scan itself WITHOUT the lock below so a multi-second, multi-port
+            # scan cannot stall stop()/get_status() (G2).
+            need_autodetect = (
+                getattr(self, '_auto_mode', False) and not self._detected_port
+            )
+
+        # Perform the multi-second autodetect scan OUTSIDE the lock (G2). The
+        # scan honors _stop_event, so shutdown remains prompt during a scan.
+        if need_autodetect:
+            detected_port = self._autodetect_port()
+            with self._lock:
                 if detected_port:
                     self._detected_port = detected_port
                     self._logger.info(f"GPS autodetected on {detected_port}")
@@ -519,6 +544,7 @@ class GPSManager:
                     self._error_message = "No GPS device found"
                     return False
 
+        with self._lock:
             try:
                 # Use detected port (may be from autodetect or config)
                 port = self._detected_port or self._config.gps_port

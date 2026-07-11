@@ -8,6 +8,7 @@ without requiring actual GPS hardware.
 
 import pytest
 import time
+import threading
 from datetime import datetime, timezone
 from unittest.mock import Mock, MagicMock, patch
 
@@ -59,9 +60,13 @@ class TestGPSManagerInitialization:
         assert manager._logger == mock_logger
 
     @pytest.mark.unit
-    def test_manager_starts_in_disconnected_state(self, gps_manager):
-        """GPS manager should start in DISCONNECTED state."""
-        assert gps_manager._state == GPSState.DISCONNECTED
+    def test_manager_starts_in_disabled_state(self, gps_manager):
+        """GPS manager should initialize in DISABLED state.
+
+        DISCONNECTED is only entered once the reader thread runs (start());
+        __init__ leaves the manager DISABLED.
+        """
+        assert gps_manager._state == GPSState.DISABLED
 
     @pytest.mark.unit
     def test_manager_has_thread_lock(self, gps_manager):
@@ -118,7 +123,7 @@ class TestFixQuality:
         assert GPSFixQuality.INVALID.value == 0
         assert GPSFixQuality.GPS_FIX.value == 1
         assert GPSFixQuality.DGPS_FIX.value == 2
-        assert GPSFixQuality.RTK_FIX.value == 4
+        assert GPSFixQuality.RTK_FIXED.value == 4
         assert GPSFixQuality.RTK_FLOAT.value == 5
 
     @pytest.mark.unit
@@ -186,7 +191,11 @@ class TestGPSStatus:
     def test_get_status_reflects_state(self, gps_manager):
         """Status should reflect current GPS state."""
         gps_manager._state = GPSState.FIX_VALID
-        gps_manager._connected = True
+        # status.connected is derived from an open serial handle
+        # (self._serial is not None and self._serial.is_open), not a field.
+        mock_serial = MagicMock()
+        mock_serial.is_open = True
+        gps_manager._serial = mock_serial
         gps_manager._position = GPSPosition(
             latitude=21.347,
             longitude=-157.903,
@@ -226,7 +235,7 @@ class TestPushCallback:
         """Should accept and store push callback."""
         callback = Mock()
         gps_manager.set_push_callback(callback)
-        assert gps_manager._push_callback == callback
+        assert gps_manager._push_location_callback == callback
 
     @pytest.mark.unit
     def test_push_location_calls_callback(self, gps_manager):
@@ -306,16 +315,79 @@ class TestGPSLifecycle:
     @pytest.mark.unit
     def test_stop_when_not_started(self, gps_manager):
         """Stop should handle not-started state gracefully."""
-        # Should not raise
+        # Should not raise; stop() ends with _update_state(DISABLED) by design.
         gps_manager.stop()
-        assert gps_manager._state == GPSState.DISCONNECTED
+        assert gps_manager._state == GPSState.DISABLED
 
     @pytest.mark.unit
-    def test_stop_sets_stop_event(self, gps_manager):
-        """Stop should set the stop event."""
+    def test_stop_sets_stop_event_when_thread_running(self, gps_manager):
+        """Stop should set the stop event to signal a running reader thread.
+
+        The set is guarded behind a live thread (if self._thread and
+        self._thread.is_alive()); with no thread it is intentionally skipped.
+        """
+        fake_thread = Mock()
+        fake_thread.is_alive.return_value = True
+        gps_manager._thread = fake_thread
         gps_manager._stop_event.clear()
         gps_manager.stop()
         assert gps_manager._stop_event.is_set()
+
+
+class TestGPSConnectLockScope:
+    """G2: autodetect scan runs outside _lock and honors _stop_event."""
+
+    @pytest.mark.unit
+    def test_connect_scans_outside_lock_and_honors_stop(self, gps_manager):
+        """_connect must not hold _lock during the multi-second autodetect
+        scan, and the scan must abort promptly when _stop_event is set.
+
+        Under the pre-fix code _connect held _lock across _autodetect_port's
+        up-to-3s-per-port scan (blocking get_status) and the scan ignored
+        _stop_event (blocking a prompt stop). This test fails both ways under
+        the old code and passes under the fixed code.
+        """
+        # Auto mode, nothing detected yet -> _connect will run the scan.
+        gps_manager._auto_mode = True
+        gps_manager._detected_port = ""
+        gps_manager._config.dev_port = ""
+
+        fake_port = Mock()
+        fake_port.device = 'COM99'
+        fake_port.description = 'USB Serial Device'
+
+        with patch('serial.tools.list_ports.comports', return_value=[fake_port]), \
+             patch('serial.Serial') as mock_serial:
+            # Probe never yields NMEA -> the scan busy-loops its per-port read
+            # window until _stop_event aborts it.
+            mock_serial.return_value.__enter__.return_value.in_waiting = 0
+
+            gps_manager._stop_event.clear()
+
+            connect_thread = threading.Thread(target=gps_manager._connect)
+            connect_thread.start()
+            try:
+                # Let the scan enter the per-port read window.
+                time.sleep(0.3)
+
+                # Lock is NOT held during the scan: get_status returns promptly.
+                t0 = time.time()
+                status = gps_manager.get_status()
+                elapsed = time.time() - t0
+                assert elapsed < 0.5, (
+                    f"get_status blocked {elapsed:.2f}s -> _lock held during scan"
+                )
+                assert isinstance(status, GPSStatus)
+
+                # A stop request during the scan is honored well under 3s/port.
+                gps_manager._stop_event.set()
+                connect_thread.join(timeout=1.0)
+                assert not connect_thread.is_alive(), (
+                    "scan did not abort promptly on _stop_event"
+                )
+            finally:
+                gps_manager._stop_event.set()
+                connect_thread.join(timeout=3.0)
 
 
 class TestGPSDateTime:
@@ -437,5 +509,5 @@ class TestStateTransitions:
         """_update_state should log state transitions."""
         gps_manager._state = GPSState.DISCONNECTED
         gps_manager._update_state(GPSState.CONNECTED)
-        # Verify logging was called
-        mock_logger.info.assert_called()
+        # _update_state logs the transition at debug level, not info.
+        mock_logger.debug.assert_called()
