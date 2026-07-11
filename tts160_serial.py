@@ -613,45 +613,101 @@ class V357Protocol:
 
     @staticmethod
     def parse_set_response(data: bytes) -> List[Tuple[int, Any]]:
-        """Parse SET command response.
+        """Parse a v357 SET command response frame.
+
+        Wire format (firmware ``pack_cmd_response_data``,
+        ``central/binary.c:2441-2480``, the authority): a single ``[count]`` byte
+        then, per response, ``[type][length][data...]`` where ``length`` is one
+        byte and ``data`` is exactly ``length`` bytes, decoded by ``type``
+        (``CmdResponseType``); see the per-type widths the firmware packs
+        (``binary.c:1063-1084``):
+
+            NONE  (0): length 0            -> None
+            INT   (1): length 1 (int8_t)   -> signed int status/reject code
+            FLOAT (2): length 4 (float32)  -> float
+            STRING(3): length N (ascii)    -> str
+            ERROR (4): length 4 (int32_t)  -> BinaryError (raw int if unknown)
+
+        A standard SET success is ``01 01 01 00`` -> ``[(INT, 0)]``; a reject is
+        an INT with a nonzero code; a genuine failure is an ERROR. Callers MUST
+        test the VALUE (e.g. ``result[0][1] == 0``), never mere non-emptiness --
+        an ERROR/reject response is itself a non-empty list.
 
         Args:
             data: Binary response data
 
         Returns:
-            List of (response_type, value) tuples
+            List of ``(response_type, value)`` tuples. Malformed/truncated frames
+            are logged and the responses decoded so far are returned (never a
+            silent ``[]`` that would hide a framing bug).
         """
+        logger = logging.getLogger(__name__)
+
         if not data:
+            logger.warning("parse_set_response: empty SET response frame")
             return []
 
-        results = []
+        results: List[Tuple[int, Any]] = []
         count = data[0]
         offset = 1
 
-        for _ in range(count):
-            if offset >= len(data):
+        for i in range(count):
+            # Each response needs at least a type byte + a length byte.
+            if offset + 2 > len(data):
+                logger.warning(
+                    "parse_set_response: truncated frame -- header promised %d "
+                    "responses, only %d decoded before header ran out "
+                    "(offset=%d, len=%d)",
+                    count, i, offset, len(data)
+                )
                 break
 
             resp_type = data[offset]
-            offset += 1
+            length = data[offset + 1]
+            offset += 2
+
+            if offset + length > len(data):
+                logger.warning(
+                    "parse_set_response: truncated response %d -- type=%d needs "
+                    "%d data byte(s), only %d remain",
+                    i, resp_type, length, len(data) - offset
+                )
+                break
+
+            payload = data[offset:offset + length]
+            offset += length
 
             if resp_type == CmdResponseType.NONE:
                 results.append((resp_type, None))
             elif resp_type == CmdResponseType.INT:
-                if offset + 4 <= len(data):
-                    value = struct.unpack_from('<i', data, offset)[0]
-                    offset += 4
-                    results.append((resp_type, value))
+                # Firmware packs INT as a single int8_t (length 1); decode the
+                # length-sized payload as a little-endian signed integer.
+                value = int.from_bytes(payload, byteorder='little', signed=True)
+                results.append((resp_type, value))
             elif resp_type == CmdResponseType.FLOAT:
-                if offset + 4 <= len(data):
-                    value = struct.unpack_from('<f', data, offset)[0]
-                    offset += 4
-                    results.append((resp_type, value))
+                if length == 4:
+                    results.append((resp_type, struct.unpack('<f', payload)[0]))
+                else:
+                    logger.warning(
+                        "parse_set_response: FLOAT response %d has length %d "
+                        "(expected 4); dropping", i, length
+                    )
+            elif resp_type == CmdResponseType.STRING:
+                results.append((resp_type, payload.decode('ascii', errors='replace')))
             elif resp_type == CmdResponseType.ERROR:
-                if offset + 4 <= len(data):
-                    error_code = struct.unpack_from('<i', data, offset)[0]
-                    offset += 4
-                    results.append((resp_type, BinaryError(error_code)))
+                # Firmware packs ERROR as an int32_t (length 4).
+                error_code = int.from_bytes(payload, byteorder='little', signed=True)
+                try:
+                    value: Any = BinaryError(error_code)
+                except ValueError:
+                    value = error_code
+                results.append((resp_type, value))
+            else:
+                logger.warning(
+                    "parse_set_response: unknown response type %d "
+                    "(length %d) in response %d; skipping",
+                    resp_type, length, i
+                )
 
         return results
 

@@ -23,7 +23,7 @@ from tts160_serial import (
     ResponseError,
     V357Protocol,
 )
-from tts160_types import SetCommand
+from tts160_types import SetCommand, CmdResponseType, BinaryError
 
 
 class TestBinaryParserFormatString:
@@ -467,3 +467,92 @@ class TestV357ProtocolSetHeadEncoding:
         payload = bytes(range(22))
         frame = V357Protocol.build_set_command(SetCommand.SET_LOCATION, payload)
         assert frame == b':*!S H;' + bytes([22]) + payload + b'#'
+
+
+class TestV357ProtocolParseSetResponse:
+    """Regression tests for the binary-SET RESPONSE parser (G1 fix).
+
+    The firmware packs a SET response as [count] then, per response,
+    [type][length][data...] (pack_cmd_response_data, central/binary.c:2441-2480):
+    NONE(0)=len0, INT(1)=len1 int8, FLOAT(2)=len4, STRING(3)=strlen ascii,
+    ERROR(4)=len4 int32. The old parser read NO length byte and unpacked a fixed
+    4-byte int for INT, so the real success frame (01 01 01 00) parsed to [] and
+    EVERY SET (align/sync/GPS push) read as failed. These lock the wire format:
+    an INT status of 0 == success; a non-empty ERROR/reject list == failure.
+    """
+
+    @pytest.mark.unit
+    def test_success_frame_parses_to_int_zero(self):
+        """The real SET success frame 01 01 01 00 -> [(INT, 0)] (was [])."""
+        result = V357Protocol.parse_set_response(bytes([0x01, 0x01, 0x01, 0x00]))
+        assert result == [(CmdResponseType.INT, 0)]
+        # The success check every consumer uses must now pass.
+        assert result[0][1] == 0
+
+    @pytest.mark.unit
+    def test_int_reject_code_detected_as_failure(self):
+        """An INT reject (code 2 / code 5) is non-empty but its VALUE != 0."""
+        for code in (2, 5):
+            frame = bytes([0x01, CmdResponseType.INT, 0x01, code])
+            result = V357Protocol.parse_set_response(frame)
+            assert result == [(CmdResponseType.INT, code)]
+            # Truthy list, but the value-based check correctly reports failure.
+            assert bool(result) is True
+            assert (result[0][1] == 0) is False
+
+    @pytest.mark.unit
+    def test_error_response_detected_as_failure(self):
+        """An ERROR response (int32) is decoded and its value is not 0."""
+        # ERROR type, length 4, int32 = -1 (PARSE_FAILED)
+        frame = bytes([0x01, CmdResponseType.ERROR, 0x04]) + struct.pack('<i', -1)
+        result = V357Protocol.parse_set_response(frame)
+        assert len(result) == 1
+        assert result[0][0] == CmdResponseType.ERROR
+        assert result[0][1] == BinaryError.PARSE_FAILED
+        assert (result[0][1] == 0) is False
+
+    @pytest.mark.unit
+    def test_multi_response_frame(self):
+        """A multi-response frame decodes each [type][length][data] in order."""
+        frame = (
+            bytes([0x03])                                   # count = 3
+            + bytes([CmdResponseType.INT, 0x01, 0x00])      # INT 0
+            + bytes([CmdResponseType.FLOAT, 0x04]) + struct.pack('<f', 1.5)
+            + bytes([CmdResponseType.NONE, 0x00])           # NONE
+        )
+        result = V357Protocol.parse_set_response(frame)
+        assert len(result) == 3
+        assert result[0] == (CmdResponseType.INT, 0)
+        assert result[1][0] == CmdResponseType.FLOAT
+        assert abs(result[1][1] - 1.5) < 1e-6
+        assert result[2] == (CmdResponseType.NONE, None)
+
+    @pytest.mark.unit
+    def test_string_response(self):
+        """A STRING response (length N ascii) decodes to the text."""
+        msg = b'OK'
+        frame = bytes([0x01, CmdResponseType.STRING, len(msg)]) + msg
+        result = V357Protocol.parse_set_response(frame)
+        assert result == [(CmdResponseType.STRING, 'OK')]
+
+    @pytest.mark.unit
+    def test_truncated_frame_logs_and_stops(self, caplog):
+        """A truncated frame is logged and yields only what was fully decoded."""
+        # Header claims 2 responses; the second INT is missing its data byte.
+        frame = bytes([0x02, CmdResponseType.INT, 0x01, 0x00,
+                       CmdResponseType.INT, 0x01])  # last data byte missing
+        import logging
+        with caplog.at_level(logging.WARNING):
+            result = V357Protocol.parse_set_response(frame)
+        # First response decoded; truncated second dropped (not a silent []).
+        assert result == [(CmdResponseType.INT, 0)]
+        assert any('truncated' in rec.message.lower() for rec in caplog.records)
+
+    @pytest.mark.unit
+    def test_empty_frame_logs_warning(self, caplog):
+        """An empty frame returns [] but logs (never a silent success/failure)."""
+        import logging
+        with caplog.at_level(logging.WARNING):
+            result = V357Protocol.parse_set_response(b'')
+        assert result == []
+        assert any('empty' in rec.message.lower() for rec in caplog.records)

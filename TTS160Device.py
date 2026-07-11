@@ -2172,7 +2172,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 payload
             )
 
-            if result:
+            # A SET response is a non-empty list for BOTH success and failure
+            # (an INT reject code or an ERROR is still non-empty), so test the
+            # VALUE, not mere truthiness: success is an INT status of 0.
+            if result and result[0][1] == 0:
                 self._logger.info(
                     f"GPS location pushed to mount: {location_name} "
                     f"({latitude:.6f}°, {longitude:.6f}°)"
