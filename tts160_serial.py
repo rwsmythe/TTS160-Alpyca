@@ -28,6 +28,7 @@ import serial
 
 from tts160_types import (
     CommandType,
+    V357Category,
     BINARY_TYPE_SPECS,
     VARIABLE_TYPES,
     QUERY_GROUPS,
@@ -39,6 +40,12 @@ from tts160_types import (
     CmdResponseType,
 )
 import math
+
+# The valid binary-variable category letters, DERIVED from the single source of
+# truth (V357Category) so the build_query allow-list cannot drift from the enum
+# again (the C1 typo class: a hand-copied 'TCMALODK' dropped the real X category
+# and admitted a bogus K). See TestV357ProtocolCategoryValidation.
+VALID_V357_CATEGORIES = frozenset(c.value for c in V357Category)
 
 
 # -----------------
@@ -343,7 +350,7 @@ class V357Protocol:
             if not var or len(var) < 2:
                 raise ValueError(f"Invalid variable format: {var}")
             category = var[0].upper()
-            if category not in 'TCMALODX':
+            if category not in VALID_V357_CATEGORIES:
                 raise ValueError(f"Invalid category in variable: {var}")
             try:
                 var_id = int(var[1:])
@@ -454,7 +461,7 @@ class V357Protocol:
         return chr(ord('A') + cmd_id - 10)
 
     @staticmethod
-    def build_set_command(cmd_id: int, data: bytes = b'') -> str:
+    def build_set_command(cmd_id: int, data: bytes = b'') -> bytes:
         """Build a :*!S SET command.
 
         Args:
@@ -462,16 +469,15 @@ class V357Protocol:
             data: Binary parameter data
 
         Returns:
-            Command string with embedded binary data
+            Command bytes with embedded binary data
         """
         # v357 wire format: :*!S <cmd_head>;<len><binary># (single length byte after ';')
-        # The head is ONE base-36 char matching the firmware decode.
+        # The head is ONE base-36 char matching the firmware decode. The single
+        # LEN byte carries the raw payload length (0 for an empty payload), so the
+        # empty and non-empty cases share one bytes-returning form -- unifying the
+        # return type (was: bytes on the data branch, str on the empty branch).
         cmd_head = V357Protocol._encode_set_head(cmd_id)
-        if data:
-            # Encode binary data as part of command (LEN byte follows the ';')
-            return f":*!S {cmd_head};".encode('ascii') + bytes([len(data)]) + data + b'#'
-        else:
-            return f":*!S {cmd_head};\x00#"
+        return f":*!S {cmd_head};".encode('ascii') + bytes([len(data)]) + data + b'#'
 
     @staticmethod
     def build_set_command_bytes(cmd_id: int, data: bytes = b'') -> bytes:

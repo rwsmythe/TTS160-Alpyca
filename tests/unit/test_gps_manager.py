@@ -261,7 +261,7 @@ class TestPushCallback:
     @pytest.mark.unit
     def test_push_location_no_callback(self, gps_manager):
         """Should handle missing callback gracefully."""
-        gps_manager._push_callback = None
+        gps_manager._push_location_callback = None
         gps_manager._position = GPSPosition(
             latitude=21.347,
             longitude=-157.903,

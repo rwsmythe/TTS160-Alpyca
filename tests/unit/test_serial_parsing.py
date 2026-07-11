@@ -23,7 +23,7 @@ from tts160_serial import (
     ResponseError,
     V357Protocol,
 )
-from tts160_types import SetCommand, CmdResponseType, BinaryError
+from tts160_types import SetCommand, CmdResponseType, BinaryError, V357Category
 
 
 class TestBinaryParserFormatString:
@@ -408,6 +408,19 @@ class TestV357ProtocolCategoryValidation:
         """The bogus 'K' category (from the old typo) must be rejected."""
         with pytest.raises(ValueError, match="Invalid category"):
             V357Protocol.build_query(['K5'])
+
+    @pytest.mark.unit
+    def test_allow_list_derived_from_enum(self):
+        """The build_query allow-list must be DERIVED from V357Category.
+
+        Deriving the set from the enum (not a hand-copied string literal) is
+        what prevents the C1 typo class from recurring: the allow-list can no
+        longer silently diverge from the single source of truth.
+        """
+        from tts160_serial import VALID_V357_CATEGORIES
+        assert VALID_V357_CATEGORIES == {c.value for c in V357Category}
+        # And it must contain exactly the 8 real category letters.
+        assert VALID_V357_CATEGORIES == set('TCMALODX')
 
 
 class TestV357ProtocolSetHeadEncoding:
