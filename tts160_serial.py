@@ -307,7 +307,8 @@ class V357Protocol:
 
     Protocol Overview:
         - GET: `:*!G <vars>#` returns `BINARY:<format>\n<data>`
-        - SET: `:*!S <cmd>[,<cmd>];<data>#` returns binary response
+        - SET: `:*!S <cmd>[,<cmd>];<len><data>#` returns binary response
+          (`<len>` = one byte, the raw length of `<data>`; v357 counted framing)
 
     All coordinates are in radians. Multi-byte values are little-endian.
     """
@@ -446,13 +447,13 @@ class V357Protocol:
         Returns:
             Command string with embedded binary data
         """
-        # Format: :*!S <cmd_hex>;<binary>#
+        # v357 wire format: :*!S <cmd_hex>;<len><binary># (single length byte after ';')
         cmd_hex = f"{cmd_id:02X}"
         if data:
-            # Encode binary data as part of command
-            return f":*!S {cmd_hex};".encode('ascii') + data + b'#'
+            # Encode binary data as part of command (LEN byte follows the ';')
+            return f":*!S {cmd_hex};".encode('ascii') + bytes([len(data)]) + data + b'#'
         else:
-            return f":*!S {cmd_hex};#"
+            return f":*!S {cmd_hex};\x00#"
 
     @staticmethod
     def build_set_command_bytes(cmd_id: int, data: bytes = b'') -> bytes:
@@ -465,8 +466,11 @@ class V357Protocol:
         Returns:
             Command bytes with embedded binary data
         """
+        # v357 wire format: :*!S <cmd_hex>;<len><binary>#  -- the single length byte
+        # after the ';' lets the firmware count the raw payload verbatim, so payload
+        # bytes equal to '#'/':'/0x06 are data, not framing.
         cmd_hex = f"{cmd_id:02X}"
-        return f":*!S {cmd_hex};".encode('ascii') + data + b'#'
+        return f":*!S {cmd_hex};".encode('ascii') + bytes([len(data)]) + data + b'#'
 
     @staticmethod
     def pack_guide_command(direction: int, duration_ms: int) -> bytes:
