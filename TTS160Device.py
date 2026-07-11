@@ -33,6 +33,7 @@ from tts160_types import (
     QUERY_GROUPS,
 )
 from tts160_serial import V357Protocol
+from astro_services import AstroServices
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
     AlignmentModes, TelescopeAxes, GuideDirections, Rate
@@ -383,9 +384,14 @@ class AstropyCachingMixin:
         Cached GCRS coordinate frame for current time.
         
         Returns a cached GCRS (Geocentric Celestial Reference System) frame object,
-        refreshing if expired (>TTL seconds old). This frame represents the current
-        epoch for topocentric equatorial coordinate transformations.
-        
+        refreshing if expired (>TTL seconds old). This frame is GEOCENTRIC: it is
+        built with no ``location=`` (no ``obsgeoloc``/``obsgeovel``), so it is a
+        geocentric -- not topocentric -- equatorial frame. For the direction-only
+        RA/Dec the driver transforms (no source distance is ever attached), the
+        geocentric-vs-topocentric difference through to Alt/Az is only ~0.13-0.24
+        arcsec (diurnal aberration); it would matter only for a near-Earth body
+        given a finite distance, which this code never supplies.
+
         Returns:
             GCRS: Cached coordinate frame object
             
@@ -1012,7 +1018,7 @@ class CoordinateUtilsMixin:
 
     def _altaz_to_gcrs(self, azimuth: float, altitude: float) -> Tuple[float, float]:
         """
-        Convert Alt/Az coordinates to topocentric equatorial GCRS RA/Dec (current epoch).
+        Convert Alt/Az coordinates to geocentric equatorial GCRS RA/Dec (current epoch).
         
         Args:
             azimuth: Azimuth in decimal degrees (0-360)
@@ -1037,7 +1043,7 @@ class CoordinateUtilsMixin:
                 frame=altaz_frame
             )
             
-            # Transform to GCRS at current time (topocentric equatorial)
+            # Transform to GCRS at current time (geocentric equatorial)
             gcrs_coord = altaz_coord.transform_to(self._gcrs_frame)
             
             return gcrs_coord.ra.hour, gcrs_coord.dec.degree
@@ -1049,7 +1055,7 @@ class CoordinateUtilsMixin:
 
     def _gcrs_to_altaz(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
-        Convert topocentric equatorial GCRS RA/Dec (current epoch) to Alt/Az coordinates.
+        Convert geocentric equatorial GCRS RA/Dec (current epoch) to Alt/Az coordinates.
         
         Args:
             right_ascension: Right ascension in decimal hours (0-24)
@@ -1093,7 +1099,7 @@ class CoordinateUtilsMixin:
 
     def _icrs_to_gcrs(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
-        Convert J2000 ICRS RA/Dec to topocentric equatorial GCRS RA/Dec (current epoch).
+        Convert J2000 ICRS RA/Dec to geocentric equatorial GCRS RA/Dec (current epoch).
         
         Accounts for precession, nutation, and other time-dependent effects.
         
@@ -1138,7 +1144,7 @@ class CoordinateUtilsMixin:
 
     def _gcrs_to_icrs(self, right_ascension: float, declination: float) -> Tuple[float, float]:
         """
-        Convert topocentric equatorial GCRS RA/Dec (current epoch) to J2000 ICRS RA/Dec.
+        Convert geocentric equatorial GCRS RA/Dec (current epoch) to J2000 ICRS RA/Dec.
         
         Removes precession, nutation, and other time-dependent effects.
         
@@ -1183,40 +1189,25 @@ class CoordinateUtilsMixin:
     
     def _calculate_sidereal_time(self, time: datetime = None) -> float:
         """
-        Calculate local apparent sidereal time using AstroPy.
-        
+        Local Apparent Sidereal Time in hours (0-24).
+
+        Thin delegate to the authoritative astrometry service
+        (``AstroServices.local_sidereal_time``) -- the single sidereal-time
+        implementation in the driver.  This is Local APPARENT sidereal time
+        (astropy 'apparent' model: precession + nutation), matching the ASCOM
+        ITelescopeV4 SiderealTime definition.
+
         Args:
             time: UTC datetime for calculation (defaults to current time)
-            
+
         Returns:
-            float: Local sidereal time in hours (0-24)
-            
+            float: Local apparent sidereal time in hours (0-24)
+
         Raises:
-            DriverException: If calculation fails
-            ValueError: If time parameter invalid
+            RuntimeError: If calculation fails
         """
         try:
-            if time is None:
-                time = datetime.now(timezone.utc)
-                
-            if not isinstance(time, datetime):
-                raise ValueError(f"Time must be datetime object, got {type(time)}")
-            
-            self._logger.debug(f"Calculating sidereal time for {time}")
-            
-            # Convert to AstroPy Time object
-            astro_time = Time(time)
-            
-            # Get Greenwich Mean Sidereal Time
-            gmst = astro_time.sidereal_time('mean', 'greenwich').hour
-            
-            # Convert to local sidereal time
-            longitude_hours = self._site_location.lon.degree / 15.0
-            lst = (gmst + longitude_hours) % 24
-            
-            self._logger.debug(f"Calculated LST: {lst:.6f}h (GMST: {gmst:.6f}h, Lon: {longitude_hours:.6f}h)")
-            return lst
-            
+            return self._astro_services.local_sidereal_time(time)
         except Exception as ex:
             self._logger.error(f"Sidereal time calculation failed: {ex}")
             raise RuntimeError("Sidereal time calculation failed", ex)
@@ -1421,7 +1412,15 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 self._logger.debug("Site location initialized from configuration")
             except Exception as ex:
                 self._logger.warning(f"Site location initialization failed, using defaults: {ex}")
-            
+
+            # Authoritative astrometry service (single sidereal/epoch source).
+            # Holds a location PROVIDER (not a snapshot) so it tracks runtime
+            # site-location updates without needing reconstruction.
+            self._astro_services = AstroServices(
+                location_provider=lambda: self._site_location,
+                logger=self._logger,
+            )
+
             # Hardware-specific constants and operational parameters
             self._initialize_hardware_constants()
             
@@ -2996,37 +2995,63 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     @property
     def SiderealTime(self) -> float:
         """
-        Local apparent sidereal time in hours.
-        
-        Gets sidereal time from mount and converts to local sidereal time
-        using site longitude. Required for pointing calculations.
-        
+        Local Apparent Sidereal Time in hours (ASCOM ITelescopeV4 SiderealTime).
+
+        Per the ASCOM ITelescopeV4 specification, SiderealTime is the LOCAL
+        APPARENT sidereal time (hours) at the telescope's location.  The value
+        is sourced from the authoritative astrometry service
+        (``AstroServices.local_sidereal_time``: system clock + site longitude,
+        astropy 'apparent' model -- precession + nutation), which is the single
+        sidereal-time implementation in the driver.
+
+        The mount's own GMST (``:GS#``) is NO LONGER used for this value; it
+        remains available only as a logged diagnostic
+        (``_mount_sidereal_time``).
+
         Returns:
-            float: Local sidereal time in hours (0-24)
-            
+            float: Local apparent sidereal time in hours (0-24)
+
         Raises:
-            NotConnectedException: If device not connected
-            DriverException: If command fails or mount communication error
+            ConnectionError: If device not connected
+            RuntimeError: If calculation fails
         """
         if not self._Connected and not self._Connecting:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving sidereal time from mount")
-            # Get GMST from mount
-            result = self._send_command(":GS#", CommandType.STRING).rstrip('#')
-            gmst = self._hms_to_hours(result)
-            
-            # Convert to local sidereal time
-            longitude_hours = self._site_location.lon.degree / 15.0
-            lst = (gmst + longitude_hours) % 24
-            
-            self._logger.debug(f"Sidereal time - GMST: {gmst:.3f}h, LST: {lst:.3f}h")
+            lst = self._astro_services.local_sidereal_time()
+            self._logger.debug(f"Sidereal time (service): LST {lst:.6f}h")
             self.TTS160_cache.update_property('SiderealTime', lst)
             return lst
         except Exception as ex:
-            self._logger.error(f"Failed to retrieve sidereal time: {ex}")
+            self._logger.error(f"Failed to compute sidereal time: {ex}")
             raise RuntimeError("Failed to get sidereal time", ex)
+
+    def _mount_sidereal_time(self) -> float:
+        """
+        Diagnostic: Local Sidereal Time derived from the MOUNT's clock.
+
+        Retained ONLY as a logged diagnostic (and to drive the firmware-bug
+        workaround in ``UTCDate`` that needs a ``:GS#`` round-trip after a time
+        set).  The authoritative sidereal value used by the driver comes from
+        ``SiderealTime`` / ``AstroServices``, not this method.  The mount value
+        is GMST-mean-derived, so it differs from the apparent service value by
+        the equation of the equinoxes (~17 arcsec) plus any mount/system clock
+        skew.
+
+        Returns:
+            float: Mount-derived local sidereal time in hours (0-24)
+        """
+        # Get GMST from mount
+        result = self._send_command(":GS#", CommandType.STRING).rstrip('#')
+        gmst = self._hms_to_hours(result)
+
+        # Convert to local sidereal time
+        longitude_hours = self._site_location.lon.degree / 15.0
+        lst = (gmst + longitude_hours) % 24
+
+        self._logger.debug(f"Mount sidereal time (diagnostic) - GMST: {gmst:.3f}h, LST: {lst:.3f}h")
+        return lst
 
 
     def DestinationSideOfPier(self, ra: float, dec: float) -> PierSide:
@@ -3076,10 +3101,19 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
     @property
     def DoesRefraction(self) -> bool:
+        """
+        Atmospheric refraction correction state (NOT implemented).
+
+        The driver applies NO atmospheric refraction to its coordinate
+        transforms: the AltAz frame is built with no pressure, so astropy adds
+        no refraction, and the GCRS/ICRS paths are geocentric. This property is
+        therefore not implemented rather than returning an inert flag.
+        """
         raise NotImplementedError("Get DoesRefraction is not implemented")
-    
+
     @DoesRefraction.setter
     def DoesRefraction(self, value: bool ) -> None:
+        """Not implemented -- the driver applies no atmospheric refraction."""
         raise NotImplementedError("Set DoesRefraction is not implemented")
 
     @property
@@ -5146,9 +5180,11 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             if not (time_response.rstrip('#') == '1'):
                 raise RuntimeError(f"Invalid time: {time_str}")
             
-            # Firmware bug workaround - throwaway SiderealTime call
-            _ = self.SiderealTime
-            
+            # Firmware bug workaround - throwaway mount :GS# round-trip.
+            # SiderealTime now reads the astrometry service (no mount I/O), so
+            # the diagnostic mount path preserves the required :GS# side effect.
+            _ = self._mount_sidereal_time()
+
             self._invalidate_all_caches()
 
             self._logger.info("Mount time set successfully")
