@@ -2133,7 +2133,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
         SerialManager.align_point.
 
         Args:
-            index: Alignment point index (1, 2, or 3).
+            index: Alignment point index (0, 1, or 2) -- firmware 0x12 range.
             ra_hours: Plate-solved RA in hours (JNOW frame).
             dec_degrees: Plate-solved Dec in degrees (JNOW frame).
 
@@ -2212,7 +2212,7 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             manual = bool(point_flags & (1 << (3 + i)))
 
             records.append(AlignmentPointRecord(
-                index=i + 1,
+                index=i,
                 equatorial=(ra_rad, dec_rad),
                 altaz=(alt_rad, az_rad),
                 ticks=(h_ticks, e_ticks),

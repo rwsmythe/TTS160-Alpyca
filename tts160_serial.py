@@ -1528,7 +1528,8 @@ class SerialManager:
         call perform_alignment() after replacing points.
 
         Args:
-            index: Alignment point index (1, 2, or 3)
+            index: Alignment point index (0, 1, or 2) -- firmware ALIGN_POINT
+                (0x12) range; see binary.c case BINARY_CMD_ALIGN_POINT
             ra_hours: Plate-solved Right Ascension in hours (0.0 to 24.0)
             dec_degrees: Plate-solved Declination in degrees (-90.0 to +90.0)
             priority: Command priority (default: NORMAL)
@@ -1545,8 +1546,8 @@ class SerialManager:
             >>> if success:
             ...     serial_mgr.perform_alignment()
         """
-        # Validate input ranges
-        if index < 1 or index > 3:
+        # Validate input ranges (firmware accepts point_index 0-2, binary.c 0x12)
+        if index < 0 or index > 2:
             self._logger.error(f"Invalid alignment point index: {index}")
             return (False, 1)
 

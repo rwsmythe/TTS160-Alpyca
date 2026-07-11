@@ -141,7 +141,8 @@ class AlignmentPointRecord:
     accumulation for determining which point should be replaced.
 
     Attributes:
-        index: Point index (1, 2, or 3).
+        index: Point index (0, 1, or 2) -- firmware ALIGN_POINT (0x12) range,
+            equal to the point's position in the alignment-point list.
         equatorial: (ra, dec) coordinates in radians.
         altaz: (alt, az) coordinates in radians.
         ticks: (h_ticks, e_ticks) encoder counts.

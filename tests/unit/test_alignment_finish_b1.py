@@ -398,6 +398,80 @@ class TestFirmwareIssuance:
 
 
 # ---------------------------------------------------------------------------
+# B1.1 -- align_point index contract: driver 0-based == firmware 0x12 range
+#
+# Firmware authority: TTS-Central central/binary.c case BINARY_CMD_ALIGN_POINT
+# (0x12) documents "[0] point_index (uint8_t, 0-2)" and rejects index > 2 with
+# error 1 (invalid index).  The driver convention is re-ranged to 0-based so the
+# engine-produced index == the list position == the firmware-accepted index.
+# ---------------------------------------------------------------------------
+
+class TestAlignPointIndexContract:
+
+    def _mgr(self):
+        from tts160_serial import SerialManager
+        mgr = SerialManager.__new__(SerialManager)
+        mgr._logger = Mock()
+        mgr.execute_set_command = Mock(return_value=[(0, 0)])
+        return mgr
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("index", [0, 1, 2])
+    def test_all_valid_firmware_indices_pack_on_wire(self, index):
+        """Each firmware-valid index (0, 1, 2) is accepted and packed raw."""
+        mgr = self._mgr()
+        success, err = mgr.align_point(index, 12.5, 45.0)
+        assert (success, err) == (True, 0)
+        cmd_id, data = mgr.execute_set_command.call_args[0][:2]
+        from tts160_types import SetCommand
+        assert cmd_id == SetCommand.ALIGN_POINT == 0x12
+        assert data == struct.pack('<Bff', index, 12.5, 45.0)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("index", [-1, 3, 4])
+    def test_out_of_range_index_rejected_invalid_index_code(self, index):
+        """Out-of-range index -> (False, 1) invalid-index; no wire command."""
+        mgr = self._mgr()
+        success, err = mgr.align_point(index, 12.5, 45.0)
+        assert (success, err) == (False, 1)
+        mgr.execute_set_command.assert_not_called()
+
+    @pytest.mark.unit
+    def test_engine_produced_index_equals_firmware_accepted_index(self):
+        """End-to-end pin: the index the engine builds from firmware data is
+        0-based, equals its list position, and is exactly what align_point packs
+        onto the wire (engine-produced index == firmware-accepted index)."""
+        from TTS160Device import TTS160Device
+
+        # A16=3 points; nonzero ticks-per-rev; arbitrary per-point ticks/coords.
+        data = {'A16': 3, 'A17': 0, 'M8': 1_000_000, 'M9': 1_000_000}
+        for i in range(3):
+            data[f'A{4 + i * 2}'] = 100 * (i + 1)     # h_ticks
+            data[f'A{5 + i * 2}'] = 200 * (i + 1)     # e_ticks
+            data[f'A{10 + i * 2}'] = 0.1 * (i + 1)    # ra_rad
+            data[f'A{11 + i * 2}'] = 0.2 * (i + 1)    # dec_rad
+
+        dev = TTS160Device.__new__(TTS160Device)
+        dev._logger = Mock()
+        dev._serial_manager = Mock()
+        dev._serial_manager.query_variable_group = Mock(return_value=data)
+
+        records = dev._get_alignment_data_for_alignment()
+        assert len(records) == 3
+        # Engine convention: 0-based, index == list position, firmware-valid set.
+        assert [r.index for r in records] == [0, 1, 2]
+
+        # Each engine-produced index packs onto the wire unchanged and is accepted.
+        mgr = self._mgr()
+        for r in records:
+            mgr.execute_set_command.reset_mock()
+            success, err = mgr.align_point(r.index, 12.5, 45.0)
+            assert (success, err) == (True, 0)
+            _, wire = mgr.execute_set_command.call_args[0][:2]
+            assert wire == struct.pack('<Bff', r.index, 12.5, 45.0)
+
+
+# ---------------------------------------------------------------------------
 # F5 / AM5 -- get_status() responsive during a capture
 # ---------------------------------------------------------------------------
 
