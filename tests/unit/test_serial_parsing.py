@@ -23,6 +23,7 @@ from tts160_serial import (
     ResponseError,
     V357Protocol,
 )
+from tts160_types import SetCommand
 
 
 class TestBinaryParserFormatString:
@@ -407,3 +408,62 @@ class TestV357ProtocolCategoryValidation:
         """The bogus 'K' category (from the old typo) must be rejected."""
         with pytest.raises(ValueError, match="Invalid category"):
             V357Protocol.build_query(['K5'])
+
+
+class TestV357ProtocolSetHeadEncoding:
+    """Regression tests for the binary-SET command-head encoding (X1 fix).
+
+    The firmware (central/binary.c:517-523) reads ONE base-36 char per command
+    in a loop until ';' ('0'-'9' -> 0-9, 'A'-'Z' -> 10-35). The driver formerly
+    emitted the head as two hex chars (f"{cmd_id:02X}"), so e.g. SET_LOCATION
+    (0x11) went out as "11" and the firmware mis-parsed it as TWO separate
+    commands [1, 1]. The head must be a SINGLE base-36 char (0x11 -> 'H').
+    Frames below carry the Arc-7 counted-length byte after ';'.
+    """
+
+    @pytest.mark.unit
+    def test_set_location_head_is_single_base36_char(self):
+        """SET_LOCATION (0x11) frame head must be the single char 'H', not '11'."""
+        payload = bytes(range(22))  # a 22-byte location payload, all distinct
+        frame = V357Protocol.build_set_command_bytes(SetCommand.SET_LOCATION, payload)
+
+        # Exact frame: ':*!S H;' + <LEN=22> + payload + '#'
+        assert frame == b':*!S H;' + bytes([22]) + payload + b'#'
+        # Explicitly reject the old two-hex-char head.
+        assert b':*!S 11;' not in frame
+
+    @pytest.mark.unit
+    def test_single_digit_id_head(self):
+        """A single-digit id (GUIDE = 0x05) encodes as '5' (not '05')."""
+        payload = struct.pack('<BH', 1, 35)  # direction=1, duration_ms=35
+        frame = V357Protocol.build_set_command_bytes(SetCommand.GUIDE, payload)
+
+        assert frame == b':*!S 5;' + bytes([len(payload)]) + payload + b'#'
+        assert b':*!S 05;' not in frame
+
+    @pytest.mark.unit
+    def test_encode_set_head_matches_firmware_decode(self):
+        """The head encoder matches the firmware base-36 decode across the range."""
+        # 0-9 -> '0'-'9'; 10-35 -> 'A'-'Z'
+        assert V357Protocol._encode_set_head(0) == '0'
+        assert V357Protocol._encode_set_head(9) == '9'
+        assert V357Protocol._encode_set_head(10) == 'A'
+        assert V357Protocol._encode_set_head(SetCommand.SET_TRACK_RATE) == 'D'  # 0x0D
+        assert V357Protocol._encode_set_head(SetCommand.SET_LOCATION) == 'H'   # 0x11
+        assert V357Protocol._encode_set_head(SetCommand.PERFORM_ALIGNMENT) == 'J'  # 0x13
+        assert V357Protocol._encode_set_head(35) == 'Z'
+
+    @pytest.mark.unit
+    def test_out_of_range_head_raises(self):
+        """An id outside the base-36 head range (0-35) must raise, not truncate."""
+        with pytest.raises(ValueError):
+            V357Protocol._encode_set_head(36)
+        with pytest.raises(ValueError):
+            V357Protocol._encode_set_head(-1)
+
+    @pytest.mark.unit
+    def test_build_set_command_str_head(self):
+        """The str builder (build_set_command) also emits the single-char head."""
+        payload = bytes(range(22))
+        frame = V357Protocol.build_set_command(SetCommand.SET_LOCATION, payload)
+        assert frame == b':*!S H;' + bytes([22]) + payload + b'#'

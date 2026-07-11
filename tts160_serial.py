@@ -437,6 +437,23 @@ class V357Protocol:
         return result
 
     @staticmethod
+    def _encode_set_head(cmd_id: int) -> str:
+        """Encode a binary-SET command id as ONE base-36 character.
+
+        The firmware reads exactly one character per command in a loop until
+        ';' (``central/binary.c:517-523``): '0'-'9' -> 0-9, 'A'-'Z' -> 10-35.
+        A two-hex-char head (e.g. "11") is therefore mis-parsed as TWO separate
+        commands, so the head MUST be a single base-36 char (0x11 -> 'H').
+        """
+        if not 0 <= cmd_id <= 35:
+            raise ValueError(
+                f"SET command id out of base-36 head range (0-35): {cmd_id}"
+            )
+        if cmd_id < 10:
+            return chr(ord('0') + cmd_id)
+        return chr(ord('A') + cmd_id - 10)
+
+    @staticmethod
     def build_set_command(cmd_id: int, data: bytes = b'') -> str:
         """Build a :*!S SET command.
 
@@ -447,13 +464,14 @@ class V357Protocol:
         Returns:
             Command string with embedded binary data
         """
-        # v357 wire format: :*!S <cmd_hex>;<len><binary># (single length byte after ';')
-        cmd_hex = f"{cmd_id:02X}"
+        # v357 wire format: :*!S <cmd_head>;<len><binary># (single length byte after ';')
+        # The head is ONE base-36 char matching the firmware decode.
+        cmd_head = V357Protocol._encode_set_head(cmd_id)
         if data:
             # Encode binary data as part of command (LEN byte follows the ';')
-            return f":*!S {cmd_hex};".encode('ascii') + bytes([len(data)]) + data + b'#'
+            return f":*!S {cmd_head};".encode('ascii') + bytes([len(data)]) + data + b'#'
         else:
-            return f":*!S {cmd_hex};\x00#"
+            return f":*!S {cmd_head};\x00#"
 
     @staticmethod
     def build_set_command_bytes(cmd_id: int, data: bytes = b'') -> bytes:
@@ -466,11 +484,12 @@ class V357Protocol:
         Returns:
             Command bytes with embedded binary data
         """
-        # v357 wire format: :*!S <cmd_hex>;<len><binary>#  -- the single length byte
+        # v357 wire format: :*!S <cmd_head>;<len><binary>#  -- the single length byte
         # after the ';' lets the firmware count the raw payload verbatim, so payload
-        # bytes equal to '#'/':'/0x06 are data, not framing.
-        cmd_hex = f"{cmd_id:02X}"
-        return f":*!S {cmd_hex};".encode('ascii') + bytes([len(data)]) + data + b'#'
+        # bytes equal to '#'/':'/0x06 are data, not framing. The head is ONE base-36
+        # char matching the firmware decode (a two-hex-char head mis-parses).
+        cmd_head = V357Protocol._encode_set_head(cmd_id)
+        return f":*!S {cmd_head};".encode('ascii') + bytes([len(data)]) + data + b'#'
 
     @staticmethod
     def pack_guide_command(direction: int, duration_ms: int) -> bytes:
