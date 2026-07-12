@@ -34,6 +34,7 @@ from tts160_types import (
     QUERY_GROUPS,
     BINARY_MAX_VARS_PER_COMMAND,
     SetCommand,
+    EphemerisBody,
     SlewType,
     GuideDirection,
     BinaryError,
@@ -561,6 +562,53 @@ class V357Protocol:
             Packed binary data
         """
         return struct.pack('<Bf', direction, speed_deg_sec)
+
+    @staticmethod
+    def pack_time_reference(lst_rad: float) -> bytes:
+        """Pack payload for SET_TIME_REFERENCE (0x14).
+
+        Args:
+            lst_rad: Local (apparent) sidereal time in radians. Wrapped to
+                [0, 2*pi) on the wire; the firmware normalizes on receipt.
+
+        Returns:
+            4-byte packed data (single float, little-endian).
+        """
+        two_pi = 2.0 * math.pi
+        lst_rad = lst_rad % two_pi
+        return struct.pack('<f', lst_rad)
+
+    @staticmethod
+    def pack_body_ephemeris(
+        body_id: int,
+        ra_rad: float,
+        dec_rad: float,
+        ra_rate_rad_s: float,
+        dec_rate_rad_s: float,
+    ) -> bytes:
+        """Pack payload for SET_BODY_EPHEMERIS (0x15).
+
+        Args:
+            body_id: EphemerisBody id (0=Sun, 1=Moon, 2..9=planets).
+            ra_rad: Topocentric apparent-of-date Right Ascension (radians).
+                Wrapped to [0, 2*pi) on the wire (firmware re-normalizes).
+            dec_rad: Topocentric apparent-of-date Declination (radians).
+            ra_rate_rad_s: RA rate in radians/second.
+            dec_rate_rad_s: Dec rate in radians/second.
+
+        Returns:
+            17-byte packed data: uint8 + 4 * float (little-endian).
+        """
+        two_pi = 2.0 * math.pi
+        ra_rad = ra_rad % two_pi
+        return struct.pack(
+            '<Bffff',
+            int(body_id) & 0xFF,
+            ra_rad,
+            dec_rad,
+            ra_rate_rad_s,
+            dec_rate_rad_s,
+        )
 
     @staticmethod
     def pack_location(
@@ -1617,6 +1665,79 @@ class SerialManager:
         else:
             self._logger.error("No response from perform_alignment command")
             return (False, -1)
+
+    def push_time_reference(
+        self,
+        lst_rad: float,
+        priority: Optional[CommandPriority] = None
+    ) -> Tuple[bool, int]:
+        """FC-1: push a precise sidereal reference (SET_TIME_REFERENCE 0x14).
+
+        The mount consumes the pushed anchor "latest, if fresh" for its LST
+        seams and ages back to onboard calculation after the validity window.
+
+        Args:
+            lst_rad: Local (apparent) sidereal time in radians.
+            priority: Command priority (default: NORMAL)
+
+        Returns:
+            Tuple of (success, error_code) where error_code is the firmware
+            response (0=success, 2=invalid value, 5=insufficient data).
+        """
+        data = V357Protocol.pack_time_reference(lst_rad)
+        result = self.execute_set_command(SetCommand.SET_TIME_REFERENCE, data, priority)
+        if len(result) > 0:
+            error_code = result[0][1]
+            success = (error_code == 0)
+            if not success:
+                self._logger.warning(f"push_time_reference failed, error code: {error_code}")
+            return (success, error_code)
+        self._logger.error("No response from push_time_reference command")
+        return (False, -1)
+
+    def push_body_ephemeris(
+        self,
+        body_id: int,
+        ra_rad: float,
+        dec_rad: float,
+        ra_rate_rad_s: float,
+        dec_rate_rad_s: float,
+        priority: Optional[CommandPriority] = None
+    ) -> Tuple[bool, int]:
+        """FC-1: push a body ephemeris (SET_BODY_EPHEMERIS 0x15).
+
+        Position must be TOPOCENTRIC apparent of-date (radians); rates in
+        radians/second. The mount consumes this for the selected body when
+        fresh, else falls back to its onboard ephemeris.
+
+        Args:
+            body_id: EphemerisBody id (0=Sun, 1=Moon, 2..9=planets).
+            ra_rad: Topocentric apparent-of-date RA (radians).
+            dec_rad: Topocentric apparent-of-date Dec (radians).
+            ra_rate_rad_s: RA rate (radians/second).
+            dec_rate_rad_s: Dec rate (radians/second).
+            priority: Command priority (default: NORMAL)
+
+        Returns:
+            Tuple of (success, error_code) where error_code is the firmware
+            response (0=success, 1=invalid body id, 3=invalid Dec,
+            5=insufficient data).
+        """
+        if body_id < 0 or body_id > int(EphemerisBody.PLUTO):
+            self._logger.error(f"Invalid ephemeris body id: {body_id}")
+            return (False, 1)
+        data = V357Protocol.pack_body_ephemeris(
+            body_id, ra_rad, dec_rad, ra_rate_rad_s, dec_rate_rad_s
+        )
+        result = self.execute_set_command(SetCommand.SET_BODY_EPHEMERIS, data, priority)
+        if len(result) > 0:
+            error_code = result[0][1]
+            success = (error_code == 0)
+            if not success:
+                self._logger.warning(f"push_body_ephemeris failed, error code: {error_code}")
+            return (success, error_code)
+        self._logger.error("No response from push_body_ephemeris command")
+        return (False, -1)
 
     def get_alignment_status(
         self,

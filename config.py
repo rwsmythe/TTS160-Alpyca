@@ -186,6 +186,49 @@ class Config:
     SERVER_SECTION = 'server'
     LOGGING_SECTION = 'logging'
     GUI_SECTION = 'gui'
+    TELESCOPE_SECTION = 'telescope'
+
+    # ------------------------------------
+    # Telescope Section (FC-1 ephemeris push)
+    # ------------------------------------
+
+    @property
+    def ephemeris_push_enabled(self) -> bool:
+        """FC-1 ephemeris push kill-switch. DEFAULT ON (missing key -> True)."""
+        val = self._get_toml(self.TELESCOPE_SECTION, 'ephemeris_push_enabled')
+        if val == '' or val is None:
+            return True
+        return bool(val)
+
+    @ephemeris_push_enabled.setter
+    def ephemeris_push_enabled(self, value: bool) -> None:
+        self._put_toml(self.TELESCOPE_SECTION, 'ephemeris_push_enabled', bool(value))
+
+    @property
+    def ephemeris_lst_interval_s(self) -> float:
+        """Cadence (seconds) for the 0x14 sidereal-reference push (default 600)."""
+        val = self._get_toml(self.TELESCOPE_SECTION, 'ephemeris_lst_interval_s')
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return 600.0
+
+    @ephemeris_lst_interval_s.setter
+    def ephemeris_lst_interval_s(self, value: float) -> None:
+        self._put_toml(self.TELESCOPE_SECTION, 'ephemeris_lst_interval_s', float(value))
+
+    @property
+    def ephemeris_body_interval_s(self) -> float:
+        """Cadence (seconds) for the 0x15 body-ephemeris push (default 120)."""
+        val = self._get_toml(self.TELESCOPE_SECTION, 'ephemeris_body_interval_s')
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return 120.0
+
+    @ephemeris_body_interval_s.setter
+    def ephemeris_body_interval_s(self, value: float) -> None:
+        self._put_toml(self.TELESCOPE_SECTION, 'ephemeris_body_interval_s', float(value))
     
     # ---------------
     # Network Section

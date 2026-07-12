@@ -226,6 +226,28 @@ class SetCommand(IntEnum):
     # V1 Alignment Monitor commands (firmware v357+)
     ALIGN_POINT = 0x12       # Replace alignment point: index (uint8) + ra_hours (float) + dec_deg (float)
     PERFORM_ALIGNMENT = 0x13 # Recalculate alignment model: no parameters
+    # FC-1 ephemeris push (firmware v357+): driver pushes precise time/body data
+    SET_TIME_REFERENCE = 0x14  # Push sidereal reference: lst (float, radians)
+    SET_BODY_EPHEMERIS = 0x15  # Push body ephemeris: body_id (uint8) + ra,dec (float rad) + ra_rate,dec_rate (float rad/s)
+
+
+class EphemerisBody(IntEnum):
+    """FC-1 body ids for SET_BODY_EPHEMERIS (0x15).
+
+    MIRRORS the firmware Planet_Tracking_Index enumeration (globals.h /
+    binary.h EPHEM_BODY_*): 0=Sun, 1=Moon, 2..9=planets. Kept in lockstep
+    with central/binary.h.
+    """
+    SUN = 0
+    MOON = 1
+    MERCURY = 2
+    VENUS = 3
+    MARS = 4
+    JUPITER = 5
+    SATURN = 6
+    URANUS = 7
+    NEPTUNE = 8
+    PLUTO = 9
 
 
 class SlewType(IntEnum):

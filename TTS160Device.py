@@ -33,7 +33,7 @@ from tts160_types import (
     QUERY_GROUPS,
 )
 from tts160_serial import V357Protocol
-from astro_services import AstroServices
+from astro_services import AstroServices, EphemerisPusher, EphemerisPushConfig
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
     AlignmentModes, TelescopeAxes, GuideDirections, Rate
@@ -1421,6 +1421,10 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
                 logger=self._logger,
             )
 
+            # FC-1 ephemeris pusher (created lazily on connect; see
+            # _start_ephemeris_pusher / _stop_ephemeris_pusher).
+            self._ephemeris_pusher = None
+
             # Hardware-specific constants and operational parameters
             self._initialize_hardware_constants()
             
@@ -1795,6 +1799,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Start cache thread
             self.TTS160_cache.start_cache_thread()
 
+            # FC-1: start pushing precise time/ephemeris to the mount (if enabled).
+            self._start_ephemeris_pusher()
+
             self._logger.info("TTS160 mount connection completed successfully")
             
         except Exception as ex:
@@ -1984,6 +1991,40 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
         except Exception as ex:
             self._logger.warning(f"Failed to start GPS manager: {ex}")
+
+    def _start_ephemeris_pusher(self) -> None:
+        """Start the FC-1 ephemeris pusher (SET 0x14/0x15) if enabled in config.
+
+        Best-effort: any failure is logged, never propagated -- the mount
+        degrades gracefully to its onboard calculation if pushes never arrive.
+        """
+        try:
+            if not self._config.ephemeris_push_enabled:
+                self._logger.info("FC-1 ephemeris push disabled by config")
+                return
+            cfg = EphemerisPushConfig(
+                enabled=True,
+                lst_interval_s=self._config.ephemeris_lst_interval_s,
+                body_interval_s=self._config.ephemeris_body_interval_s,
+            )
+            self._ephemeris_pusher = EphemerisPusher(
+                sender=self._serial_manager,
+                astro=self._astro_services,
+                config=cfg,
+                logger=self._logger,
+            )
+            self._ephemeris_pusher.start()
+        except Exception as ex:
+            self._logger.warning(f"FC-1 ephemeris pusher failed to start: {ex}")
+
+    def _stop_ephemeris_pusher(self) -> None:
+        """Stop the FC-1 ephemeris pusher cleanly (best-effort)."""
+        try:
+            if self._ephemeris_pusher is not None:
+                self._ephemeris_pusher.stop()
+                self._ephemeris_pusher = None
+        except Exception as ex:
+            self._logger.warning(f"FC-1 ephemeris pusher failed to stop: {ex}")
 
     def _stop_gps(self) -> None:
         """Stop GPS manager if running.
@@ -2381,6 +2422,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             #self._executor.shutdown(wait=True)
             self._send_command(":Q#", CommandType.BLIND)
             #time.sleep(1)
+            # Stop the FC-1 ephemeris pusher cleanly
+            self._stop_ephemeris_pusher()
+
             # Stop alignment monitor if running
             self._stop_alignment()
 
