@@ -21,3 +21,4 @@ ratetest.csv
 logparser.py
 *.spec
 *.pyc
+.claude/settings.local.json
