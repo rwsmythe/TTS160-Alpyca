@@ -29,12 +29,18 @@
       "Bash(do touch \"$dir/.gitkeep\")",
       "Bash(done)",
       "Bash(find:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(claude mcp list:*)",
+      "Bash(claude plugins list:*)",
+      "Bash(py:*)",
+      "mcp__plugin_github_github__get_me",
+      "mcp__plugin_github_github__get_file_contents"
     ],
     "additionalDirectories": [
       "C:\\Users\\astronomy\\TTS160\\TTS160-Test-Harness",
       "c:\\Users\\astronomy\\TTS160\\TTS160 Alpyca\\.claude\\skills",
-      "C:\\Users\\astronomy\\TTS160\\TTS160-Test-Harness\\.claude\\skills"
+      "C:\\Users\\astronomy\\TTS160\\TTS160-Test-Harness\\.claude\\skills",
+      "C:\\Users\\astronomy\\TTS160\\TTS-Central"
     ]
   }
 }

@@ -1,7 +1,6 @@
 ---
 name: run-tests
 description: Run unit tests, integration tests, or all with coverage
-disable-model-invocation: true
 ---
 
 # Run Tests
