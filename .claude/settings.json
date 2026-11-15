@@ -10,6 +10,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wc -c CLAUDE.md | awk '{if ($1 > 50000) {print \"WARNING: CLAUDE.md is \" $1 \" bytes, consider trimming\" > \"/dev/stderr\"}}'",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }
