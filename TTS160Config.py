@@ -32,6 +32,7 @@
 # SOFTWARE.
 # -----------------------------------------------------------------------------
 
+import math
 import threading
 from pathlib import Path
 from typing import Any, Union
@@ -292,6 +293,44 @@ class TTS160Config:
     @slew_settle_time.setter
     def slew_settle_time(self, value: int) -> None:
         self._put_toml(self.DRIVER_SECTION, 'slew_settle_time', value)
+
+    @property
+    def ephemeris_push_enabled(self) -> bool:
+        """FC-1 ephemeris push (SET 0x14/0x15). OFF BY DEFAULT: only a TOML ``true`` enables it."""
+        return self._get_toml(self.DRIVER_SECTION, 'ephemeris_push_enabled') is True
+
+    @ephemeris_push_enabled.setter
+    def ephemeris_push_enabled(self, value: bool) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'ephemeris_push_enabled', bool(value))
+
+    @staticmethod
+    def _positive_seconds(value: Any, default: float) -> float:
+        """A finite, positive number of seconds, else ``default`` (missing / invalid)."""
+        if isinstance(value, bool):
+            return default
+        try:
+            seconds = float(value)
+        except (TypeError, ValueError):
+            return default
+        return seconds if math.isfinite(seconds) and seconds > 0 else default
+
+    @property
+    def ephemeris_lst_interval_s(self) -> float:
+        """Cadence (seconds) of the 0x14 sidereal-reference push (missing / invalid -> 600)."""
+        return self._positive_seconds(self._get_toml(self.DRIVER_SECTION, 'ephemeris_lst_interval_s'), 600.0)
+
+    @ephemeris_lst_interval_s.setter
+    def ephemeris_lst_interval_s(self, value: float) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'ephemeris_lst_interval_s', float(value))
+
+    @property
+    def ephemeris_body_interval_s(self) -> float:
+        """Cadence (seconds) of the 0x15 body-ephemeris push (missing / invalid -> 120)."""
+        return self._positive_seconds(self._get_toml(self.DRIVER_SECTION, 'ephemeris_body_interval_s'), 120.0)
+
+    @ephemeris_body_interval_s.setter
+    def ephemeris_body_interval_s(self, value: float) -> None:
+        self._put_toml(self.DRIVER_SECTION, 'ephemeris_body_interval_s', float(value))
 
     # --------------
     # GPS Section

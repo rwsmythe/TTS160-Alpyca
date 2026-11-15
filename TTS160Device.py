@@ -2809,13 +2809,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def _park_v357(self) -> bool:
         """Park the mount using v357 protocol."""
         import struct
-        data = struct.pack('<B', 0)  # 0 = park
+        data = struct.pack('<B', 1)  # non-zero = park (firmware binary.c:2030-2035 sets Park_Cmd)
         return self._execute_v357_set(SetCommand.PARK_UNPARK, data)
 
     def _unpark_v357(self) -> bool:
         """Unpark the mount using v357 protocol."""
         import struct
-        data = struct.pack('<B', 1)  # 1 = unpark
+        data = struct.pack('<B', 0)  # 0 = unpark (firmware binary.c:2030-2035 sets Unpark_Cmd)
         return self._execute_v357_set(SetCommand.PARK_UNPARK, data)
 
     def _set_tracking_rate_v357(self, rate: int) -> bool:
@@ -3249,25 +3249,25 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def SiteLatitude(self) -> float:
         """
         Site latitude in degrees (geodetic, WGS84, positive North).
-        
-        Retrieves current latitude from mount using extended precision format
+
+        Retrieves current latitude from mount via the v357 binary variable C18
+        (C_LATITUDE, float32 radians, north-positive: firmware sign 1 = South)
         and updates internal configuration and site location objects.
-        
+
         Returns:
             float: Latitude in degrees (-90 to +90)
-            
+
         Raises:
             NotConnectedException: If device not connected
             DriverException: If retrieval or parsing fails
         """
         if not self._Connected and not self._Connecting:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving site latitude from mount")
-            command = ":*Gt#"
-            latitude = self._send_command(command, CommandType.STRING).rstrip("#")
-            latitude_deg = self._dms_to_degrees(latitude)
+            self._logger.debug("Retrieving site latitude from mount (v357 C18)")
+            result = self._query_v357(['C18'])
+            latitude_deg = math.degrees(result['C18'])
 
             # Update site location and configuration
             self._site_location = EarthLocation(
@@ -3293,25 +3293,28 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def SiteLongitude(self) -> float:
         """
         Site longitude in degrees (geodetic, WGS84, positive East).
-        
-        Retrieves current longitude from mount using extended precision format.
-        Mount reports East-negative, converts to standard East-positive convention.
-        
+
+        Retrieves current longitude from mount via the v357 binary variable C17
+        (C_LONGITUDE, float32 radians). C17 is read in the firmware's arithmetic
+        convention -- West-positive, the sign its sidereal time, :Gg# and the
+        handpad use -- and negated to the ASCOM East-positive convention; a site
+        written over the link (SET_LOCATION / :Sg) therefore reads back sign-inverted,
+        which is the firmware defect F-FW-0722, not compensated here.
+
         Returns:
             float: Longitude in degrees (-180 to +180, positive East)
-            
+
         Raises:
             NotConnectedException: If device not connected
-            DriverException: If retrieval or parsing fails  
+            DriverException: If retrieval or parsing fails
         """
         if not self._Connected and not self._Connecting:
             raise ConnectionError("Device not connected")
-        
+
         try:
-            self._logger.debug("Retrieving site longitude from mount")
-            command = ":*Gg#"
-            longitude = self._send_command(command, CommandType.STRING).rstrip("#")
-            longitude_deg = -1 * self._dms_to_degrees(longitude)  # Convert East-negative to East-positive
+            self._logger.debug("Retrieving site longitude from mount (v357 C17)")
+            result = self._query_v357(['C17'])
+            longitude_deg = -math.degrees(result['C17'])  # West-positive C17 -> ASCOM East-positive
 
             # Update site location and configuration
             self._site_location = EarthLocation(
@@ -4016,9 +4019,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             raise ConnectionError("Device not connected")
         
         try:
-            command = ":*Gd#"
-            declination_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
-            declination_deg = declination_rad * 180 / math.pi
+            # v357 L10 (L_OBJECT_DEC): float32 radians of the target set by :Sd
+            result = self._query_v357(['L10'])
+            declination_deg = math.degrees(result['L10'])
             self.TTS160_cache.update_property('TargetDeclination', declination_deg)
             return declination_deg
         except Exception as ex:
@@ -4072,9 +4075,9 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             raise ConnectionError("Device not connected")
 
         try:
-            command = ":*Gr#"
-            right_ascension_rad = float(self._send_command(command, CommandType.STRING).rstrip("#"))
-            right_ascension_hr = (right_ascension_rad * 180 / math.pi * 24 / 360) % 24
+            # v357 L9 (L_OBJECT_RA): float32 radians of the target set by :Sr
+            result = self._query_v357(['L9'])
+            right_ascension_hr = (math.degrees(result['L9']) / 15.0) % 24
             self.TTS160_cache.update_property('TargetRightAscension', right_ascension_hr)
             return right_ascension_hr
         except Exception as ex:

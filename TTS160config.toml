@@ -15,6 +15,10 @@ pulse_guide_equatorial_frame = true
 pulse_guide_altitude_compensation = true
 pulse_guide_max_compensation = 1000
 pulse_guide_compensation_buffer = 20
+# FC-1 ephemeris push (SET 0x14/0x15): enabling is the operator's choice after the firmware side is dealt with.
+ephemeris_push_enabled = false
+ephemeris_lst_interval_s = 600.0
+ephemeris_body_interval_s = 120.0
 
 [gps]
 enabled = true

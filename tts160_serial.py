@@ -1544,7 +1544,7 @@ class SerialManager:
         Returns:
             True if park command accepted
         """
-        data = struct.pack('<B', 0)  # 0 = park
+        data = struct.pack('<B', 1)  # non-zero = park (firmware binary.c:2030-2035 sets Park_Cmd)
         result = self.execute_set_command(SetCommand.PARK_UNPARK, data, priority)
         return len(result) > 0 and result[0][1] == 0
 
@@ -1554,7 +1554,7 @@ class SerialManager:
         Returns:
             True if unpark command accepted
         """
-        data = struct.pack('<B', 1)  # 1 = unpark
+        data = struct.pack('<B', 0)  # 0 = unpark (firmware binary.c:2030-2035 sets Unpark_Cmd)
         result = self.execute_set_command(SetCommand.PARK_UNPARK, data, priority)
         return len(result) > 0 and result[0][1] == 0
 
