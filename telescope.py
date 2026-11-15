@@ -1300,7 +1300,7 @@ class park:
             # -----------------------------
             ### DEVICE OPERATION(PARAM) ###
             # -----------------------------
-            TTS160_dev.Park
+            TTS160_dev.Park()
             resp.text = MethodResponse(req).json
         except Exception as ex:
             resp.text = MethodResponse(req,

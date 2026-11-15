@@ -2809,13 +2809,13 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
     def _park_v357(self) -> bool:
         """Park the mount using v357 protocol."""
         import struct
-        data = struct.pack('<B', 0)  # 0 = park
+        data = struct.pack('<B', 1)  # non-zero = park (firmware binary.c:2030-2035 sets Park_Cmd)
         return self._execute_v357_set(SetCommand.PARK_UNPARK, data)
 
     def _unpark_v357(self) -> bool:
         """Unpark the mount using v357 protocol."""
         import struct
-        data = struct.pack('<B', 1)  # 1 = unpark
+        data = struct.pack('<B', 0)  # 0 = unpark (firmware binary.c:2030-2035 sets Unpark_Cmd)
         return self._execute_v357_set(SetCommand.PARK_UNPARK, data)
 
     def _set_tracking_rate_v357(self, rate: int) -> bool:

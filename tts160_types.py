@@ -216,7 +216,7 @@ class SetCommand(IntEnum):
     SET_DATE = 0x08          # Set date: month + day + year (uint16)
     SET_LOCAL_TIME = 0x09    # Set time: hour + minute + second (uint16)
     SET_PARK_LOCATION = 0x0A # Set park: position (uint8) + [az (float) + alt (float)]
-    PARK_UNPARK = 0x0B       # Park/unpark: action (uint8) [0=park, 1=unpark]
+    PARK_UNPARK = 0x0B       # Park/unpark: action (uint8) [1=park, 0=unpark] (as implemented, binary.c:2030-2035)
     ROTATOR_OPS = 0x0C       # Rotator operations: operation (uint8)
     SET_TRACK_RATE = 0x0D    # Set track rate: rate_index (uint8) [0=Sidereal,1=Lunar,2=Solar]
     SET_TRACKING = 0x0E      # Enable/disable tracking: state (uint8)
