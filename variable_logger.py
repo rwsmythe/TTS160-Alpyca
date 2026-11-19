@@ -2,6 +2,8 @@
 
 The [debug_logger] directory is relative to the driver's working directory,
 where TTS160config.toml is read, and must already exist.
+T31 and T32 are rejected because their quaternion decoding is unsupported.
+C17 and C18 (site longitude and latitude) are rejected and must never be logged.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -44,6 +46,8 @@ def validate_variables(variables: Sequence[str]) -> tuple[str, ...]:
             raise VariableListError(f"invalid variable: {variable!r}")
         if variable in ("T31", "T32"):
             raise VariableListError(f"unsupported quaternion variable: {variable}")
+        if variable in ("C17", "C18"):
+            raise VariableListError(f"site coordinate variable must never be logged: {variable}")
         if variable in seen:
             raise VariableListError(f"duplicate variable: {variable}")
         seen.add(variable)

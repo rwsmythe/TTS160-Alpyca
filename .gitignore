@@ -22,3 +22,4 @@ logparser.py
 *.spec
 *.pyc
 .claude/settings.local.json
+variable_logs/

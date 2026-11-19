@@ -20,7 +20,8 @@ def test_default_list_is_valid_and_two_queries():
 
 
 @pytest.mark.parametrize("bad", [[], ["T0"], ["T100"], ["Q1"], ["t1"], ["T1", "T1"],
-                                 ["T31"], ["T32"], ["T1 "], ["T"], [f"T{i}" for i in range(1, 22)]])
+                                 ["T31"], ["T32"], ["C17"], ["C18"], ["T1 "], ["T"],
+                                 [f"T{i}" for i in range(1, 22)]])
 def test_bad_lists_are_rejected(bad):
     with pytest.raises(vl.VariableListError):
         vl.validate_variables(bad)
