@@ -159,6 +159,61 @@ def test_on_grid_poll_with_short_read_keeps_next_grid_point(make):
     assert obj._next_due == 6.0
 
 
+def test_late_ordinary_poll_keeps_next_grid_point(make):
+    obj, clock = make(Mock(return_value={"T1": 1}))
+    obj._next_due = 5.0
+    clock.return_value = 5.001
+    obj.poll_once()
+    assert obj._next_due == 6.0
+
+
+@pytest.mark.parametrize("late", [False, True], ids=["exact_due", "late_1_to_16_ms"])
+def test_non_dyadic_interval_with_large_start_never_skips_a_slot(make, late):
+    start, interval = 98765.4321, 1.3
+    clock = Mock(return_value=start)
+    query = Mock(return_value={"T1": 1})
+    obj, _ = make(query, clock=clock, interval_s=interval)
+    for slot in range(50):
+        delay = (slot % 16 + 1) / 1000 if late else 0.0
+        clock.return_value = start + slot * interval + delay
+        obj.poll_once()
+        assert obj._next_due == start + (slot + 1) * interval, slot
+        assert query.call_count == slot + 1
+
+
+def test_ordinary_poll_after_recovery_keeps_next_grid_point(make):
+    clock = Mock(return_value=0.0)
+
+    def fail(variables):
+        clock.return_value = 0.5
+        raise TimeoutError("off grid")
+
+    query = Mock(side_effect=fail)
+    obj, _ = make(query, clock=clock)
+    obj.poll_once()
+    assert obj._next_due == 30.5
+    query.side_effect = None
+    query.return_value = {"T1": 1}
+    clock.return_value = 30.5
+    obj.poll_once()
+    assert obj._next_due == 32.0
+    clock.return_value = 32.004
+    obj.poll_once()
+    assert obj._next_due == 33.0
+
+
+def test_real_thread_keeps_full_poll_rate(tmp_path, monkeypatch):
+    # Scale only the validation threshold for this short real-clock rate test.
+    monkeypatch.setattr(vl, "MIN_INTERVAL_S", 0.2)
+    obj = vl.VariableLogger(lambda v: {"T1": 1}, ["T1"], 0.2, str(tmp_path), logging.getLogger("t"))
+    try:
+        assert obj.start()
+        time.sleep(2.1)
+    finally:
+        obj.stop()
+    assert len(read_rows(obj)) - 1 >= 9
+
+
 @pytest.mark.parametrize("variables,interval,message", [
     (["T31"], 1.0, "T31"), (["T1"], 0.5, "1.0"),
     (["T1"], float("nan"), "1.0"), (["T1"], float("inf"), "1.0"),
@@ -195,6 +250,27 @@ def test_unwritable_directory_refuses_start(tmp_path, monkeypatch, caplog):
     assert str(tmp_path / "missing" / "x") in caplog.records[0].getMessage()
     assert "directory must already exist" in caplog.records[0].getMessage()
     assert not (tmp_path / "missing").exists()
+
+
+@pytest.mark.parametrize("error_type", [FileNotFoundError, FileExistsError, PermissionError])
+def test_start_refusal_distinguishes_missing_directory_from_other_open_errors(
+        tmp_path, monkeypatch, caplog, error_type):
+    monkeypatch.chdir(tmp_path)
+    directory = tmp_path / "logs"
+    stamp = dt.datetime(2026, 1, 2, tzinfo=dt.timezone.utc)
+    obj = vl.VariableLogger(Mock(), ["T1"], 1.0, "logs", logging.getLogger("t"), utcnow=lambda: stamp)
+    with patch.object(Path, "open", side_effect=error_type("open refused")):
+        assert obj.start() is False
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.WARNING
+    message = caplog.records[0].getMessage()
+    assert str(directory) in message
+    assert "open refused" in message
+    if error_type is FileNotFoundError:
+        assert "directory must already exist" in message
+    else:
+        assert str(directory / "variables-20260102T000000Z.csv") in message
+        assert "must already exist" not in message
 
 
 def test_write_error_mid_run_stops_logger(make, caplog):

@@ -1,7 +1,8 @@
 """Read firmware variables into timestamped CSV rows without changing mount state.
 
-The [debug_logger] directory is relative to the driver's working directory,
-where TTS160config.toml is read, and must already exist.
+The [debug_logger] directory is relative to the driver process's working
+directory and must already exist. When run from source, this is the repo root,
+where TTS160config.toml is read.
 T31 and T32 are rejected because their quaternion decoding is unsupported.
 C17 and C18 (site longitude and latitude) are rejected and must never be logged.
 """
@@ -109,6 +110,7 @@ class VariableLogger:
         self._running = False
         self._started_at = 0.0
         self._next_due = 0.0
+        self._after_backoff = False
 
     @property
     def path(self) -> Optional[str]:
@@ -135,14 +137,17 @@ class VariableLogger:
                 path = Path(directory) / f"variables-{stamp}.csv"
                 try:
                     self._file = path.open("x", newline="", encoding="utf-8")
-                except OSError as ex:
+                except FileNotFoundError as ex:
                     raise OSError(f"Cannot open CSV in {directory}; directory must already exist: {ex}") from ex
+                except OSError as ex:
+                    raise OSError(f"Cannot open CSV {path}: {ex}") from ex
                 self._writer = csv.writer(self._file)
                 self._writer.writerow(header_row(self._variables))
                 self._file.flush()
                 self._path = str(path)
                 self._started_at = self._clock()
                 self._next_due = self._started_at
+                self._after_backoff = False
                 self._stop.clear()
                 self._running = True
                 self._thread = threading.Thread(target=self._run, name="variable-logger", daemon=True)
@@ -199,10 +204,16 @@ class VariableLogger:
             now = self._clock()
             if error:
                 self._next_due = now + BACKOFF_S
+                self._after_backoff = True
             else:
                 slot = math.floor((now - self._started_at) / self._interval_s) + 1
-                earliest_slot = math.ceil((poll_started + self._interval_s - self._started_at) / self._interval_s)
-                slot = max(slot, earliest_slot)
+                # Subtraction at a large clock origin can round an exact slot down.
+                if self._started_at + slot * self._interval_s <= now:
+                    slot += 1
+                if self._after_backoff:
+                    earliest_slot = math.ceil((poll_started + self._interval_s - self._started_at) / self._interval_s)
+                    slot = max(slot, earliest_slot)
+                    self._after_backoff = False
                 self._next_due = self._started_at + slot * self._interval_s
 
     def _run(self) -> None:
