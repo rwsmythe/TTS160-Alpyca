@@ -33,6 +33,8 @@ from tts160_types import (
     QUERY_GROUPS,
 )
 from tts160_serial import V357Protocol
+from tts160_serial import CommandPriority
+from variable_logger import VariableLogger
 from astro_services import AstroServices, EphemerisPusher, EphemerisPushConfig
 from telescope import (
     TelescopeMetadata, EquatorialCoordinateType, DriveRates, PierSide,
@@ -1862,6 +1864,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
             # Start GPS manager if enabled
             self._start_gps_if_enabled()
 
+            self._start_variable_logger_if_enabled()
+
             # Start alignment monitor if enabled
             self._start_alignment_if_enabled()
 
@@ -1991,6 +1995,36 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
         except Exception as ex:
             self._logger.warning(f"Failed to start GPS manager: {ex}")
+
+    def _start_variable_logger_if_enabled(self) -> None:
+        """Start optional read-only CSV logging without failing Connect."""
+        try:
+            if not self._config.debug_logger_enabled:
+                return
+            current = getattr(self, '_variable_logger', None)
+            if current is not None and current.running:
+                return
+            self._variable_logger = VariableLogger(
+                query=lambda v: self._serial_manager.query_variables(v, priority=CommandPriority.LOW),
+                variables=self._config.debug_logger_variables,
+                interval_s=self._config.debug_logger_interval_s,
+                directory=self._config.debug_logger_directory,
+                logger=self._logger,
+            )
+            self._variable_logger.start()
+        except Exception as ex:
+            self._logger.warning(f"Variable logger failed to start: {ex}")
+
+    def _stop_variable_logger(self) -> None:
+        """Stop CSV logging best effort, containing all cleanup failures."""
+        try:
+            current = getattr(self, '_variable_logger', None)
+            if current is not None:
+                current.stop()
+        except Exception as ex:
+            self._logger.warning(f"Variable logger failed to stop: {ex}")
+        finally:
+            self._variable_logger = None
 
     def _start_ephemeris_pusher(self) -> None:
         """Start the FC-1 ephemeris pusher (SET 0x14/0x15) if enabled in config.
@@ -2427,6 +2461,8 @@ class TTS160Device(AstropyCachingMixin, CapabilitiesMixin, ConfigurationMixin, C
 
             # Stop alignment monitor if running
             self._stop_alignment()
+
+            self._stop_variable_logger()
 
             # Stop GPS manager if running
             self._stop_gps()

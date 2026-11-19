@@ -32,6 +32,22 @@
 # SOFTWARE.
 # -----------------------------------------------------------------------------
 
+"""Persistent device configuration.
+
+Optional read-only variable logging (a missing section disables it)::
+
+    [debug_logger]
+    enabled = false
+    # variables defaults to list(variable_logger.DEFAULT_VARIABLES)
+    interval_s = 1.0
+    directory = "variable_logs"
+
+Set variables to an array of 1 to 20 variable IDs to override the default.
+The directory must already exist. T31 and T32 are not supported.
+"""
+
+from variable_logger import DEFAULT_VARIABLES
+
 import math
 import threading
 from pathlib import Path
@@ -187,6 +203,7 @@ class TTS160Config:
     SITE_SECTION = 'site'
     DRIVER_SECTION = 'driver'
     GPS_SECTION = 'gps'
+    DEBUG_LOGGER_SECTION = 'debug_logger'
     ALIGNMENT_SECTION = 'alignment'
     
     # --------------
@@ -381,6 +398,46 @@ class TTS160Config:
     @gps_min_satellites.setter
     def gps_min_satellites(self, value: int) -> None:
         self._put_toml(self.GPS_SECTION, 'min_satellites', value)
+
+    @property
+    def debug_logger_enabled(self) -> bool:
+        """Enable read-only CSV logging; disabled when the key is absent."""
+        value = self._get_toml(self.DEBUG_LOGGER_SECTION, 'enabled')
+        return False if value is None else value
+
+    @debug_logger_enabled.setter
+    def debug_logger_enabled(self, value: bool) -> None:
+        self._put_toml(self.DEBUG_LOGGER_SECTION, 'enabled', value)
+
+    @property
+    def debug_logger_variables(self) -> list[str]:
+        """Variable IDs to log, preserving invalid lists for logger validation."""
+        value = self._get_toml(self.DEBUG_LOGGER_SECTION, 'variables')
+        return list(DEFAULT_VARIABLES) if value is None else value
+
+    @debug_logger_variables.setter
+    def debug_logger_variables(self, value: list[str]) -> None:
+        self._put_toml(self.DEBUG_LOGGER_SECTION, 'variables', value)
+
+    @property
+    def debug_logger_interval_s(self) -> float:
+        """Polling interval in seconds; validated by the logger before starting."""
+        value = self._get_toml(self.DEBUG_LOGGER_SECTION, 'interval_s')
+        return 1.0 if value is None else value
+
+    @debug_logger_interval_s.setter
+    def debug_logger_interval_s(self, value: float) -> None:
+        self._put_toml(self.DEBUG_LOGGER_SECTION, 'interval_s', value)
+
+    @property
+    def debug_logger_directory(self) -> str:
+        """Existing output directory for variable CSV files."""
+        value = self._get_toml(self.DEBUG_LOGGER_SECTION, 'directory')
+        return 'variable_logs' if value is None else value
+
+    @debug_logger_directory.setter
+    def debug_logger_directory(self, value: str) -> None:
+        self._put_toml(self.DEBUG_LOGGER_SECTION, 'directory', value)
 
     @property
     def gps_push_on_connect(self) -> bool:
