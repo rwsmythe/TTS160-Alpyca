@@ -29,6 +29,7 @@ DEFAULT_VARIABLES: tuple[str, ...] = (
 MAX_VARIABLES = 20
 MIN_INTERVAL_S = 1.0
 BACKOFF_S = 30.0
+FAILURES_BEFORE_BACKOFF = 2
 
 
 class VariableListError(ValueError):
@@ -111,6 +112,7 @@ class VariableLogger:
         self._started_at = 0.0
         self._next_due = 0.0
         self._after_backoff = False
+        self._consecutive_failures = 0
 
     @property
     def path(self) -> Optional[str]:
@@ -203,6 +205,10 @@ class VariableLogger:
                 return
             now = self._clock()
             if error:
+                self._consecutive_failures += 1
+            else:
+                self._consecutive_failures = 0
+            if self._consecutive_failures >= FAILURES_BEFORE_BACKOFF:
                 self._next_due = now + BACKOFF_S
                 self._after_backoff = True
             else:
