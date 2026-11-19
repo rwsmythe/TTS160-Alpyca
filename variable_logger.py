@@ -1,9 +1,15 @@
 """Read firmware variables into timestamped CSV rows without changing mount state."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+import csv
 from datetime import datetime, timezone
+import logging
+import math
+from pathlib import Path
 import re
-from typing import Any
+import threading
+import time
+from typing import Any, Optional
 
 from tts160_types import BINARY_MAX_VARS_PER_COMMAND
 
@@ -14,6 +20,7 @@ DEFAULT_VARIABLES: tuple[str, ...] = (
 )
 MAX_VARIABLES = 20
 MIN_INTERVAL_S = 1.0
+BACKOFF_S = 30.0
 
 
 class VariableListError(ValueError):
@@ -66,3 +73,138 @@ def format_row(utc: datetime, elapsed_s: float, variables: Sequence[str],
         else:
             row.append(str(value) if isinstance(value, (str, int)) else repr(value))
     return [*row, error]
+
+
+class VariableLogger:
+    """Poll an injected read function on a daemon thread and flush each CSV row."""
+
+    def __init__(self, query: Callable[[list[str]], Mapping[str, Any]], variables: Sequence[str],
+                 interval_s: float, directory: str, logger: logging.Logger,
+                 clock: Callable[[], float] = time.monotonic,
+                 utcnow: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+                 wait: Optional[Callable[[float], bool]] = None):
+        self._query = query
+        self._variables = variables
+        self._interval_s = interval_s
+        self._directory = directory
+        self._logger = logger
+        self._clock = clock
+        self._utcnow = utcnow
+        self._stop = threading.Event()
+        self._wait = wait if wait is not None else self._stop.wait
+        self._lock = threading.RLock()
+        self._thread: Optional[threading.Thread] = None
+        self._file = None
+        self._writer = None
+        self._path: Optional[str] = None
+        self._running = False
+        self._started_at = 0.0
+        self._next_due = 0.0
+
+    @property
+    def path(self) -> Optional[str]:
+        """The current or most recent CSV path, if opened successfully."""
+        return self._path
+
+    @property
+    def running(self) -> bool:
+        """Whether the logger is accepting polls (False immediately after stop)."""
+        return self._running
+
+    def start(self) -> bool:
+        """Validate settings and open the CSV before starting a polling thread."""
+        if self._thread is not None and self._thread.is_alive():
+            return self._running
+        with self._lock:
+            try:
+                self._variables = validate_variables(self._variables)
+                if (isinstance(self._interval_s, bool) or not isinstance(self._interval_s, (float, int))
+                        or not math.isfinite(self._interval_s) or self._interval_s < MIN_INTERVAL_S):
+                    raise ValueError(f"interval_s must be finite and at least {MIN_INTERVAL_S}")
+                stamp = self._utcnow().astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                path = Path(self._directory) / f"variables-{stamp}.csv"
+                self._file = path.open("x", newline="", encoding="utf-8")
+                self._writer = csv.writer(self._file)
+                self._writer.writerow(header_row(self._variables))
+                self._file.flush()
+                self._path = str(path)
+                self._started_at = self._clock()
+                self._next_due = self._started_at
+                self._stop.clear()
+                self._running = True
+                self._thread = threading.Thread(target=self._run, name="variable-logger", daemon=True)
+                self._thread.start()
+                return True
+            except Exception as ex:
+                self._running = False
+                self._stop.set()
+                self._close_file()
+                self._logger.warning("Variable logger could not start: %s", ex)
+                return False
+
+    def stop(self, timeout: float = 2.0) -> None:
+        """Stop promptly; a blocked query's thread closes its own file on return."""
+        self._stop.set()
+        self._running = False
+        thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=timeout)
+        if thread is None or not thread.is_alive():
+            with self._lock:
+                self._close_file()
+
+    def poll_once(self) -> None:
+        """Read each chunk once when due, preserving partial values on a failure."""
+        with self._lock:
+            if not self._running or self._stop.is_set() or self._clock() < self._next_due:
+                return
+            utc = self._utcnow()
+            elapsed_s = self._clock() - self._started_at
+            values: dict[str, Any] = {}
+            error = ""
+            for chunk in chunk_variables(self._variables):
+                if self._stop.is_set():
+                    return
+                try:
+                    values.update(self._query(chunk))
+                except Exception as ex:
+                    error = f"{type(ex).__name__}: {ex}"
+                    break
+            if self._stop.is_set():
+                return
+            try:
+                self._writer.writerow(format_row(utc, elapsed_s, self._variables, values, error))
+                self._file.flush()
+            except Exception as ex:
+                self._running = False
+                self._stop.set()
+                self._logger.error("Variable logger write failed: %s", ex)
+                self._close_file()
+                return
+            now = self._clock()
+            if error:
+                self._next_due = now + BACKOFF_S
+            else:
+                slot = math.floor((now - self._started_at) / self._interval_s) + 1
+                self._next_due = self._started_at + slot * self._interval_s
+
+    def _run(self) -> None:
+        """Sleep to the next scheduled poll without replaying missed slots."""
+        try:
+            while not self._stop.is_set():
+                delay = max(0.0, self._next_due - self._clock())
+                if self._wait(delay) or self._stop.is_set():
+                    break
+                self.poll_once()
+        finally:
+            self._running = False
+            with self._lock:
+                self._close_file()
+
+    def _close_file(self) -> None:
+        """Close once, containing cleanup errors so shutdown remains best effort."""
+        if self._file is not None and not self._file.closed:
+            try:
+                self._file.close()
+            except OSError:
+                pass
