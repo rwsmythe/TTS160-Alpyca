@@ -57,7 +57,8 @@ def make(tmp_path):
 
     def factory(query, variables=("T1", "T2"), interval_s=1.0, **kwargs):
         clock = kwargs.pop("clock", Mock(return_value=0.0))
-        obj = vl.VariableLogger(query, variables, interval_s, str(tmp_path), logging.getLogger("t"),
+        directory = kwargs.pop("directory", str(tmp_path))
+        obj = vl.VariableLogger(query, variables, interval_s, directory, logging.getLogger("t"),
                                 clock=clock, **kwargs)
         with patch("variable_logger.threading.Thread") as thread:
             thread.return_value.is_alive.return_value = False
@@ -123,6 +124,40 @@ def test_second_chunk_failure_keeps_first_chunk_values(make):
     assert read_rows(obj)[1][2:] == ["7"] * 10 + ["", "", "TimeoutError: chunk 2"]
 
 
+def test_off_grid_recovery_keeps_a_full_interval_before_next_poll(make):
+    clock = Mock(return_value=0.0)
+
+    def fail(variables):
+        clock.return_value = 0.5
+        raise TimeoutError("off grid")
+
+    query = Mock(side_effect=fail)
+    obj, _ = make(query, clock=clock)
+    obj.poll_once()
+    assert obj._next_due == 30.5
+    query.side_effect = None
+    query.return_value = {"T1": 1, "T2": 2}
+    clock.return_value = 30.5
+    obj.poll_once()
+    assert obj._next_due == 32.0
+    clock.return_value = 31.999
+    obj.poll_once()
+    assert query.call_count == 2
+
+
+def test_on_grid_poll_with_short_read_keeps_next_grid_point(make):
+    clock = Mock(return_value=0.0)
+
+    def query(variables):
+        clock.return_value = 5.3
+        return {"T1": 1, "T2": 2}
+
+    obj, _ = make(query, clock=clock)
+    clock.return_value = 5.0
+    obj.poll_once()
+    assert obj._next_due == 6.0
+
+
 @pytest.mark.parametrize("variables,interval,message", [
     (["T31"], 1.0, "T31"), (["T1"], 0.5, "1.0"),
     (["T1"], float("nan"), "1.0"), (["T1"], float("inf"), "1.0"),
@@ -137,12 +172,28 @@ def test_start_refuses_bad_list_and_bad_interval(tmp_path, caplog, variables, in
     assert list(tmp_path.iterdir()) == []
 
 
-def test_unwritable_directory_refuses_start(tmp_path, caplog):
-    obj = vl.VariableLogger(Mock(), ["T1"], 1.0, str(tmp_path / "missing" / "x"), logging.getLogger("t"))
+def test_successful_start_logs_one_info_with_absolute_csv_path(make, tmp_path, monkeypatch, caplog):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "existing").mkdir()
+    with caplog.at_level(logging.INFO, logger="t"):
+        obj, _ = make(Mock(return_value={}), directory="existing")
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.INFO
+    expected = tmp_path / "existing" / Path(obj.path).name
+    assert obj.path == str(expected)
+    assert caplog.records[0].getMessage() == f"Variable logger writing {expected}"
+
+
+def test_unwritable_directory_refuses_start(tmp_path, monkeypatch, caplog):
+    monkeypatch.chdir(tmp_path)
+    obj = vl.VariableLogger(Mock(), ["T1"], 1.0, str(Path("missing") / "x"), logging.getLogger("t"))
     assert obj.start() is False
     assert not obj.running
     assert len(caplog.records) == 1
     assert caplog.records[0].levelno == logging.WARNING
+    assert str(tmp_path / "missing" / "x") in caplog.records[0].getMessage()
+    assert "directory must already exist" in caplog.records[0].getMessage()
+    assert not (tmp_path / "missing").exists()
 
 
 def test_write_error_mid_run_stops_logger(make, caplog):

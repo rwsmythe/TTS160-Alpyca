@@ -1,10 +1,15 @@
-"""Read firmware variables into timestamped CSV rows without changing mount state."""
+"""Read firmware variables into timestamped CSV rows without changing mount state.
+
+The [debug_logger] directory is relative to the driver's working directory,
+where TTS160config.toml is read, and must already exist.
+"""
 
 from collections.abc import Callable, Mapping, Sequence
 import csv
 from datetime import datetime, timezone
 import logging
 import math
+import os
 from pathlib import Path
 import re
 import threading
@@ -122,8 +127,12 @@ class VariableLogger:
                         or not math.isfinite(self._interval_s) or self._interval_s < MIN_INTERVAL_S):
                     raise ValueError(f"interval_s must be finite and at least {MIN_INTERVAL_S}")
                 stamp = self._utcnow().astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-                path = Path(self._directory) / f"variables-{stamp}.csv"
-                self._file = path.open("x", newline="", encoding="utf-8")
+                directory = os.path.abspath(self._directory)
+                path = Path(directory) / f"variables-{stamp}.csv"
+                try:
+                    self._file = path.open("x", newline="", encoding="utf-8")
+                except OSError as ex:
+                    raise OSError(f"Cannot open CSV in {directory}; directory must already exist: {ex}") from ex
                 self._writer = csv.writer(self._file)
                 self._writer.writerow(header_row(self._variables))
                 self._file.flush()
@@ -134,6 +143,7 @@ class VariableLogger:
                 self._running = True
                 self._thread = threading.Thread(target=self._run, name="variable-logger", daemon=True)
                 self._thread.start()
+                self._logger.info("Variable logger writing %s", self._path)
                 return True
             except Exception as ex:
                 self._running = False
@@ -158,8 +168,9 @@ class VariableLogger:
         with self._lock:
             if not self._running or self._stop.is_set() or self._clock() < self._next_due:
                 return
+            poll_started = self._clock()
             utc = self._utcnow()
-            elapsed_s = self._clock() - self._started_at
+            elapsed_s = poll_started - self._started_at
             values: dict[str, Any] = {}
             error = ""
             for chunk in chunk_variables(self._variables):
@@ -186,6 +197,8 @@ class VariableLogger:
                 self._next_due = now + BACKOFF_S
             else:
                 slot = math.floor((now - self._started_at) / self._interval_s) + 1
+                earliest_slot = math.ceil((poll_started + self._interval_s - self._started_at) / self._interval_s)
+                slot = max(slot, earliest_slot)
                 self._next_due = self._started_at + slot * self._interval_s
 
     def _run(self) -> None:
