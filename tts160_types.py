@@ -33,7 +33,7 @@ class V357Category(str, Enum):
     LX200 = 'L'       # Slew state, sync, goto flags (max ID: 12)
     MOTOR = 'O'       # Jerk, position, numerator/denominator (max ID: 16)
     DISPLAY = 'D'     # Menu state, scroll flags (max ID: 5)
-    COMPUTED = 'X'    # Real-time alt/az, free memory (max ID: 3)
+    COMPUTED = 'X'    # Real-time alt/az, free memory (max ID: 5)
 
 
 class TrackingVar(IntEnum):
@@ -201,6 +201,8 @@ class ComputedVar(IntEnum):
     CURRENT_ALT = 1          # float: Current altitude (radians, computed on demand)
     CURRENT_AZ = 2           # float: Current azimuth (radians, computed on demand)
     FREE_MEM = 3             # uint16: Available RAM (bytes)
+    MIN_FREE_MEM = 4         # uint16: Minimum free RAM since boot (bytes; campaign debug build only)
+    LOOP_MAX_TICKS = 5       # uint16: Maximum loop ticks since boot (campaign debug build only)
 
 
 class SetCommand(IntEnum):
@@ -473,6 +475,8 @@ VARIABLE_TYPES: Dict[Tuple[str, int], str] = {
     ('X', 1): 'f',    # CURRENT_ALT
     ('X', 2): 'f',    # CURRENT_AZ
     ('X', 3): 'H',    # FREE_MEM
+    ('X', 4): 'H',    # MIN_FREE_MEM
+    ('X', 5): 'H',    # LOOP_MAX_TICKS
 }
 
 

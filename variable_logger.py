@@ -5,6 +5,11 @@ directory and must already exist. When run from source, this is the repo root,
 where TTS160config.toml is read.
 T31 and T32 are rejected because their quaternion decoding is unsupported.
 C17 and C18 (site longitude and latitude) are rejected and must never be logged.
+
+X3, X4 and X5 are always polled in addition to the configured list, which may not name them.
+X3 joins the ordinary chunks. X4 and X5 are each asked in a query of their own, because a
+firmware without them answers the whole query with the text ERROR:PARSE_ERROR. Two consecutive
+such answers drop that id for the session; any other failure is an ordinary failed read.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -19,6 +24,7 @@ import threading
 import time
 from typing import Any, Optional
 
+from tts160_serial import ResponseError
 from tts160_types import BINARY_MAX_VARS_PER_COMMAND
 
 
@@ -30,6 +36,12 @@ MAX_VARIABLES = 20
 MIN_INTERVAL_S = 1.0
 BACKOFF_S = 30.0
 FAILURES_BEFORE_BACKOFF = 2
+CHUNKED_FIXED_VARIABLES: tuple[str, ...] = ("X3",)
+SINGLE_ID_VARIABLES: tuple[str, ...] = ("X4", "X5")
+FIXED_VARIABLES: tuple[str, ...] = (*CHUNKED_FIXED_VARIABLES, *SINGLE_ID_VARIABLES)
+# What query_variables raises when the mount answers the text frame "ERROR:PARSE_ERROR\n".
+NOT_FOUND_MESSAGE = "Expected binary response for v357 query, got text: ERROR:PARSE_ERROR\n"
+NOT_FOUND_STRIKES = 2
 
 
 class VariableListError(ValueError):
@@ -50,6 +62,8 @@ def validate_variables(variables: Sequence[str]) -> tuple[str, ...]:
             raise VariableListError(f"unsupported quaternion variable: {variable}")
         if variable in ("C17", "C18"):
             raise VariableListError(f"site coordinate variable must never be logged: {variable}")
+        if variable in FIXED_VARIABLES:
+            raise VariableListError(f"duplicate of a fixed column (always logged): {variable}")
         if variable in seen:
             raise VariableListError(f"duplicate variable: {variable}")
         seen.add(variable)
@@ -64,8 +78,13 @@ def chunk_variables(variables: Sequence[str], size: int = BINARY_MAX_VARS_PER_CO
 
 
 def header_row(variables: Sequence[str]) -> list[str]:
-    """Return the fixed-width CSV header."""
-    return ["utc", "elapsed_s", *variables, "error"]
+    """Return the fixed-width CSV header: the configured ids, then X3, X4 and X5."""
+    return ["utc", "elapsed_s", *variables, *FIXED_VARIABLES, "error"]
+
+
+def is_not_found(ex: Exception) -> bool:
+    """Whether a single-id query failed because the firmware does not know the id."""
+    return isinstance(ex, ResponseError) and str(ex) == NOT_FOUND_MESSAGE
 
 
 def format_row(utc: datetime, elapsed_s: float, variables: Sequence[str],
@@ -73,7 +92,7 @@ def format_row(utc: datetime, elapsed_s: float, variables: Sequence[str],
     """Format values for csv.writer, retaining missing columns and unusual values."""
     row = [utc.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
            f"{elapsed_s:.3f}"]
-    for variable in variables:
+    for variable in (*variables, *FIXED_VARIABLES):
         value = values.get(variable)
         if value is None:
             row.append("")
@@ -113,6 +132,8 @@ class VariableLogger:
         self._next_due = 0.0
         self._after_backoff = False
         self._consecutive_failures = 0
+        self._strikes = dict.fromkeys(SINGLE_ID_VARIABLES, 0)
+        self._absent: set[str] = set()
 
     @property
     def path(self) -> Optional[str]:
@@ -150,6 +171,8 @@ class VariableLogger:
                 self._started_at = self._clock()
                 self._next_due = self._started_at
                 self._after_backoff = False
+                self._strikes = dict.fromkeys(SINGLE_ID_VARIABLES, 0)
+                self._absent = set()
                 self._stop.clear()
                 self._running = True
                 self._thread = threading.Thread(target=self._run, name="variable-logger", daemon=True)
@@ -184,7 +207,7 @@ class VariableLogger:
             elapsed_s = poll_started - self._started_at
             values: dict[str, Any] = {}
             error = ""
-            for chunk in chunk_variables(self._variables):
+            for chunk in chunk_variables((*self._variables, *CHUNKED_FIXED_VARIABLES)):
                 if self._stop.is_set():
                     return
                 try:
@@ -192,6 +215,24 @@ class VariableLogger:
                 except Exception as ex:
                     error = f"{type(ex).__name__}: {ex}"
                     break
+            else:
+                errors = []
+                for variable in SINGLE_ID_VARIABLES:
+                    if variable in self._absent:
+                        continue
+                    if self._stop.is_set():
+                        return
+                    try:
+                        values[variable] = self._query([variable]).get(variable)
+                    except Exception as ex:
+                        if is_not_found(ex):
+                            self._not_found(variable)
+                        else:
+                            errors.append(f"{variable} {type(ex).__name__}: {ex}")
+                    else:
+                        if values[variable] is not None:  # only a value resets the strikes
+                            self._strikes[variable] = 0
+                error = "; ".join(errors)
             if self._stop.is_set():
                 return
             try:
@@ -221,6 +262,17 @@ class VariableLogger:
                     slot = max(slot, earliest_slot)
                     self._after_backoff = False
                 self._next_due = self._started_at + slot * self._interval_s
+
+    def _not_found(self, variable: str) -> None:
+        """Count a not-found answer; the second consecutive one drops the id for the session."""
+        self._strikes[variable] += 1
+        if self._strikes[variable] >= NOT_FOUND_STRIKES:
+            self._absent.add(variable)
+            self._logger.warning("Variable logger: %s is absent from this firmware; not asked again this session",
+                                 variable)
+        else:
+            self._logger.info("Variable logger: %s answered ERROR:PARSE_ERROR and may be absent; asking again",
+                              variable)
 
     def _run(self) -> None:
         """Sleep to the next scheduled poll without replaying missed slots."""

@@ -37,7 +37,7 @@ def test_row_formats_awkward_values_and_keeps_width():
     vars_ = ["T1", "T2", "T16", "X1", "C5"]
     row = vl.format_row(t, 12.3456, vars_,
                         {"T1": -5, "T2": float("nan"), "T16": float("inf"), "X1": (1, 2)}, "")
-    assert row == ["2026-01-02T03:04:05.678Z", "12.346", "-5", "nan", "inf", "(1, 2)", "", ""]
+    assert row == ["2026-01-02T03:04:05.678Z", "12.346", "-5", "nan", "inf", "(1, 2)", "", "", "", "", ""]
     assert len(row) == len(vl.header_row(vars_))
     stream = io.StringIO()
     csv.writer(stream).writerow(row)
@@ -83,10 +83,10 @@ def test_writes_header_then_one_row_per_poll(make):
     clock.return_value = 1.0
     obj.poll_once()
     rows = read_rows(obj)
-    assert rows[0] == ["utc", "elapsed_s", "T1", "T2", "error"]
+    assert rows[0] == ["utc", "elapsed_s", "T1", "T2", "X3", "X4", "X5", "error"]
     assert len(rows) == 3
-    assert rows[1][1:] == ["0.000", "1", "2", ""]
-    assert rows[2][1:] == ["1.000", "1", "2", ""]
+    assert rows[1][1:] == ["0.000", "1", "2", "", "", "", ""]
+    assert rows[2][1:] == ["1.000", "1", "2", "", "", "", ""]
 
 
 def test_only_query_is_ever_called(make):
@@ -95,7 +95,7 @@ def test_only_query_is_ever_called(make):
     for i in range(3):
         clock.return_value = float(i)
         obj.poll_once()
-    assert query.call_args_list == [call(["T1", "T2"])] * 3
+    assert query.call_args_list == [call(["T1", "T2", "X3"]), call(["X4"]), call(["X5"])] * 3
     assert query.mock_calls == query.call_args_list
 
 
@@ -103,7 +103,7 @@ def test_failure_writes_blank_row_then_keeps_next_grid_slot(make):
     query = Mock(side_effect=TimeoutError("no response"))
     obj, clock = make(query)
     obj.poll_once()
-    assert read_rows(obj)[1][2:] == ["", "", "TimeoutError: no response"]
+    assert read_rows(obj)[1][2:] == ["", "", "", "", "", "TimeoutError: no response"]
     assert obj._next_due == 1.0
     assert not obj._after_backoff
     clock.return_value = 0.999
@@ -113,12 +113,12 @@ def test_failure_writes_blank_row_then_keeps_next_grid_slot(make):
     query.return_value = {"T1": 1, "T2": 2}
     clock.return_value = 1.0
     obj.poll_once()
-    assert read_rows(obj)[2][2:] == ["1", "2", ""]
+    assert read_rows(obj)[2][2:] == ["1", "2", "", "", "", ""]
     assert obj._next_due == 2.0
 
 
 def test_one_failed_poll_between_successes_keeps_next_grid_slot(make):
-    query = Mock(side_effect=[{"T1": 1}, TimeoutError("no response"), {"T1": 2}])
+    query = Mock(side_effect=[{"T1": 1}, {}, {}, TimeoutError("no response"), {"T1": 2}, {}, {}])
     obj, clock = make(query)
     obj.poll_once()
     clock.return_value = 1.0
@@ -128,13 +128,13 @@ def test_one_failed_poll_between_successes_keeps_next_grid_slot(make):
     clock.return_value = 2.0
     obj.poll_once()
     rows = read_rows(obj)[1:]
-    assert query.call_count == 3
+    assert query.call_count == 7
     assert [row[1] for row in rows] == ["0.000", "1.000", "2.000"]
     assert [row[-1] for row in rows] == ["", "TimeoutError: no response", ""]
 
 
 def test_two_consecutive_failed_polls_back_off_then_probe_once(make):
-    query = Mock(side_effect=[TimeoutError("first"), TimeoutError("second"), {"T1": 1}])
+    query = Mock(side_effect=[TimeoutError("first"), TimeoutError("second"), {"T1": 1}, {}, {}])
     obj, clock = make(query)
     obj.poll_once()
     clock.return_value = 1.0
@@ -149,7 +149,7 @@ def test_two_consecutive_failed_polls_back_off_then_probe_once(make):
     clock.return_value = 31.0
     obj.poll_once()
     obj.poll_once()
-    assert query.call_count == 3
+    assert query.call_count == 5
     assert obj._next_due == 32.0
     assert [row[-1] for row in read_rows(obj)[1:]] == ["TimeoutError: first", "TimeoutError: second", ""]
 
@@ -165,17 +165,17 @@ def test_silent_mount_for_95_seconds_has_five_error_rows(make):
     print(f"Observed silent-mount poll times: {poll_times}")
     assert poll_times == [0.0, 1.0, 31.0, 61.0, 91.0]
     assert query.call_count == 5
-    assert all(row[2:] == ["", "", "TimeoutError: no response"] for row in rows)
+    assert all(row[2:] == ["", "", "", "", "", "TimeoutError: no response"] for row in rows)
     assert obj._next_due == 121.0
 
 
 def test_success_resets_failures_between_failed_polls(make):
-    query = Mock(side_effect=[TimeoutError("first"), {"T1": 1}, TimeoutError("second"), {"T1": 2}])
+    query = Mock(side_effect=[TimeoutError("first"), {"T1": 1}, {}, {}, TimeoutError("second"), {"T1": 2}, {}, {}])
     obj, clock = make(query)
-    for second in range(4):
+    for second, calls in zip(range(4), (1, 4, 5, 8)):
         clock.return_value = float(second)
         obj.poll_once()
-        assert query.call_count == second + 1
+        assert query.call_count == calls
         assert obj._next_due == second + 1.0
         assert not obj._after_backoff
     assert [row[-1] for row in read_rows(obj)[1:]] == ["TimeoutError: first", "", "TimeoutError: second", ""]
@@ -186,8 +186,8 @@ def test_second_chunk_failure_keeps_first_chunk_values(make):
     query = Mock(side_effect=[dict.fromkeys(variables[:10], 7), TimeoutError("chunk 2")])
     obj, _ = make(query, variables=variables)
     obj.poll_once()
-    assert query.call_args_list == [call(variables[:10]), call(variables[10:])]
-    assert read_rows(obj)[1][2:] == ["7"] * 10 + ["", "", "TimeoutError: chunk 2"]
+    assert query.call_args_list == [call(variables[:10]), call(variables[10:] + ["X3"])]
+    assert read_rows(obj)[1][2:] == ["7"] * 10 + ["", "", "", "", "", "TimeoutError: chunk 2"]
 
 
 def test_off_grid_recovery_keeps_a_full_interval_before_next_poll(make):
@@ -210,7 +210,7 @@ def test_off_grid_recovery_keeps_a_full_interval_before_next_poll(make):
     assert obj._next_due == 33.0
     clock.return_value = 32.999
     obj.poll_once()
-    assert query.call_count == 3
+    assert query.call_count == 5
 
 
 def test_on_grid_poll_with_short_read_keeps_next_grid_point(make):
@@ -245,7 +245,7 @@ def test_non_dyadic_interval_with_large_start_never_skips_a_slot(make, late):
         clock.return_value = start + slot * interval + delay
         obj.poll_once()
         assert obj._next_due == start + (slot + 1) * interval, slot
-        assert query.call_count == slot + 1
+        assert query.call_count == 3 * (slot + 1)
 
 
 def test_ordinary_poll_after_recovery_keeps_next_grid_point(make):
@@ -354,7 +354,7 @@ def test_write_error_mid_run_stops_logger(make, caplog):
     assert caplog.records[0].levelno == logging.ERROR
     clock.return_value = 1.0
     obj.poll_once()
-    assert query.call_count == 1
+    assert query.call_count == 3
 
 
 def test_slow_poll_skips_missed_slots_and_backoff_starts_after_failure(make):
@@ -405,7 +405,7 @@ def test_stop_ends_thread_within_timeout_while_query_blocks(tmp_path):
         obj.stop()
     assert not obj._thread.is_alive()
     assert obj._file.closed
-    assert all(len(row) == 4 for row in read_rows(obj))
+    assert all(len(row) == 7 for row in read_rows(obj))
 
 
 def test_module_source_names_no_state_changing_call():
