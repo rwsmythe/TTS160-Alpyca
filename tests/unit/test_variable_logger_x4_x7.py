@@ -228,7 +228,7 @@ def test_x4_query_is_followed_by_the_gap_before_the_next_query(make):
 
 @pytest.mark.parametrize("outcome", [400, parse_error(), TimeoutError("lost"), ResponseError("garbled")],
                          ids=["value", "not_found", "timeout", "other_failure"])
-def test_the_gap_follows_x4_whatever_x4_answers(make, outcome):
+def test_x4_gap_follows_valid_answers_and_failures_stop_the_poll(make, outcome):
     mount = Mount(scripts={"X4": [outcome]})
     obj, _ = make(mount)
     obj.poll_once()
@@ -647,12 +647,91 @@ def test_failed_x4_writes_row_skips_remaining_ids_and_backs_off_immediately(make
     assert len(read_dicts(obj)) == 2
 
 
-def test_failed_x4_leaves_even_dropped_following_ids_blank(make):
-    mount = Mount(scripts={"X4": [TimeoutError("lost")]})
-    obj, _ = make(mount)
-    obj._absent.update({"X5", "X6", "X7"})
+def test_failed_x4_keeps_dropped_ids_absent_and_unasked_live_ids_blank(make):
+    mount = Mount(scripts={"X4": [4, 4, TimeoutError("lost")], "X6": [parse_error(), parse_error()]})
+    obj, clock = make(mount)
+    run_polls(obj, clock, 3)
+    row = read_dicts(obj)[-1]
+    assert [row[v] for v in SINGLES] == ["", "", "absent", ""]
+    assert mount.calls[-2:] == [["T1", "T2", "X3"], ["X4"]]
+    assert mount.calls.count(["X6"]) == 2
+    assert obj._absent == {"X6"}  # retain session state
+
+
+# ---------------------------------------------------------------- review r1: caller verdict and retained coverage
+
+@pytest.mark.parametrize("case,wire_failures", [
+    ("x4_invalid_text", 0), ("chunk_parse_error", 0),
+    ("x4_invalid_text", 2), ("x4_corrupt_binary", 0),
+])
+def test_invalid_wire_answer_counts_final_attempt_as_failed(manager, mock_serial_port, make, case, wire_failures):
+    command = b":*!G T1,T2,X3#" if case == "chunk_parse_error" else b":*!G X4#"
+    reply = {
+        "x4_invalid_text": b"ERROR:VAR_ERROR\n",
+        "chunk_parse_error": b"ERROR:PARSE_ERROR\n",
+        "x4_corrupt_binary": b"BINARY:H\n\x01",  # truncated value falls back to text
+    }[case]
+    wire = FakeWire(mock_serial_port, {
+        b":*!G T1,T2,X3#": b"BINARY:2fH\n" + struct.pack("<2fH", 1, 2, 3), command: reply,
+    })
+    fail_writes(mock_serial_port, wire, {command: wire_failures})
+    obj, _ = make(manager.query_variables)
+    if case != "chunk_parse_error":
+        # Read the ordinary chunk before counting only the rejected single-id call.
+        ordinary_chunk_attempts = 1
+    else:
+        ordinary_chunk_attempts = 0
     obj.poll_once()
     row = read_dicts(obj)[0]
-    assert [row[v] for v in SINGLES] == [""] * 4
-    assert mount.calls == [["T1", "T2", "X3"], ["X4"]]
-    assert obj._absent == {"X5", "X6", "X7"}  # retain session state
+    assert row["error"].startswith("ResponseError:" if case == "chunk_parse_error" else "X4 ResponseError:")
+    assert int(row["failed"]) == wire_failures + 1
+    assert int(row["queries"]) == ordinary_chunk_attempts + wire_failures + 1
+    record = ts.get_last_command_attempts()
+    assert (record.attempts, record.failed) == (wire_failures + 1, wire_failures)  # wire outcome is unchanged
+    assert mock_serial_port.write.call_count == int(row["queries"])
+
+
+def test_two_non_x4_failures_are_joined_and_both_cells_blank(make):
+    mount = Mount(scripts={"X5": [TimeoutError("lost")], "X6": [ResponseError("garbled")]})
+    obj, _ = make(mount)
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert row["error"] == "X5 TimeoutError: lost; X6 ResponseError: garbled"
+    assert (row["X5"], row["X6"], row["X7"]) == ("", "", "7")
+    assert (row["queries"], row["failed"]) == ("5", "2")
+
+
+@pytest.mark.parametrize("variable", ["X5", "X6", "X7"])
+def test_failed_non_x4_single_id_leaves_own_cell_blank(make, variable):
+    mount = Mount(scripts={variable: [TimeoutError("lost")]})
+    obj, _ = make(mount)
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert row[variable] == ""
+    assert row["error"] == f"{variable} TimeoutError: lost"
+    assert row["failed"] == "1"
+    assert mount.calls == [["T1", "T2", "X3"], *[[v] for v in SINGLES]]
+
+
+@pytest.mark.parametrize("where,outcome,has_error", [
+    ("chunk", parse_error(), True), ("chunk", TimeoutError("lost"), True),
+    ("X4", ResponseError("garbled"), True), ("X5", TimeoutError("lost"), True),
+    ("X4", parse_error(), False), ("X6", 7, False),
+])
+def test_every_nonempty_error_has_at_least_one_failed_attempt(make, where, outcome, has_error):
+    mount = Mount(scripts={where: [outcome]})
+
+    def query(variables):
+        if where == "chunk":
+            raise outcome
+        return mount(variables)
+
+    obj, _ = make(query)
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert bool(row["error"]) is has_error
+    assert 0 <= int(row["failed"]) <= int(row["queries"])
+    if row["error"]:
+        assert int(row["failed"]) >= 1
+    else:
+        assert row["failed"] == "0"

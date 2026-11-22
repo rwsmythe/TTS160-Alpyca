@@ -357,6 +357,8 @@ def test_parse_error_from_an_ordinary_chunk_is_an_ordinary_failure(make):
     assert query.call_count == 2  # the chunk failure ends the poll: X4/X5 not asked
     rows = read_rows(obj)[1:]
     assert all(row[-1] == f"ResponseError: {PARSE_ERROR_MESSAGE}" for row in rows)
+    header = read_rows(obj)[0]
+    assert all(int(dict(zip(header, row))["failed"]) >= 1 for row in rows)
     assert obj._after_backoff and obj._next_due == 31.0
     assert obj._absent == set() and obj._strikes == {"X4": 0, "X5": 0, "X6": 0, "X7": 0}
 

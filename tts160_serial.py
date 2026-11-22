@@ -80,8 +80,9 @@ def get_last_command_attempts() -> Optional[CommandAttempts]:
 
     Each call publishes a new immutable record, including when the counts match.
     A queue wait timeout records 1 / 1; the abandoned worker's later execution
-    cannot change that caller's record. A valid text answer counts as success,
-    even if query_variables subsequently raises ResponseError (e.g. not-found).
+    cannot change that caller's record. This records wire outcomes: a returned
+    text response counts as success here. The logger adds the caller's verdict
+    when query_variables rejects that response as an invalid answer.
     """
     return getattr(_attempt_context, 'last', None)
 

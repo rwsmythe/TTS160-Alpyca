@@ -10,14 +10,16 @@ X3 to X7 are always polled in addition to the configured list, which may not nam
 X3 joins the ordinary chunks. X4 to X7 are each asked in a query of their own, because a
 firmware without them answers the whole query with the text ERROR:PARSE_ERROR. Two consecutive
 such answers drop that id for the session; any other failure is an ordinary failed read.
-After a failed X4 (other than not-found), X5 to X7 are not asked, their cells are blank,
-and the row is written before taking BACKOFF_S immediately. Otherwise the logger waits
+After a failed X4 (other than not-found), X5 to X7 are not asked. Unasked live ids have
+blank cells; dropped ids stay ABSENT in every row. The row is written before taking
+BACKOFF_S immediately. Otherwise the logger waits
 X4_GAP_S before sending anything else. This 20 ms spacing is not guaranteed on a link
 that has already timed out for 30 s: the transport may still execute its abandoned request.
 Each row counts wire attempts in queries and attempts without a valid answer in failed
-(a not-found text is a valid answer). A recovered retry row intentionally has failed >= 1
-and an empty error column. An X4 to X7 cell reads ABSENT when the id answered not-found or
-has been dropped, unless skipped after a failed X4; failed or unasked cells are blank.
+(a not-found text is a valid answer only for a single-id X4 to X7 query).
+A recovered retry row intentionally has failed >= 1 and an empty error column.
+An X4 to X7 cell reads ABSENT when the id answered not-found or
+has been dropped; failed or unasked live ids have blank cells.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -234,7 +236,8 @@ class VariableLogger:
                 try:
                     return self._query(variables)
                 except Exception as ex:
-                    call_failed = not is_not_found(ex)
+                    call_failed = not (len(variables) == 1 and variables[0] in SINGLE_ID_VARIABLES
+                                       and is_not_found(ex))
                     raise
                 finally:
                     record = get_last_command_attempts()
@@ -244,6 +247,8 @@ class VariableLogger:
                     else:
                         queries += record.attempts
                         failed += record.failed
+                        if call_failed and record.failed < record.attempts:
+                            failed += 1  # the caller rejected the final wire answer
 
             for chunk in chunk_variables((*self._variables, *CHUNKED_FIXED_VARIABLES)):
                 if self._stop.is_set():
@@ -270,8 +275,6 @@ class VariableLogger:
                             errors.append(f"{variable} {type(ex).__name__}: {ex}")
                             if variable == "X4":
                                 x4_failed = True
-                                for skipped in SINGLE_ID_VARIABLES[1:]:
-                                    values.pop(skipped, None)
                                 break
                     else:
                         if values[variable] is not None:  # only a value resets the strikes
