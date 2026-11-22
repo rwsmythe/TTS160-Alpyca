@@ -12,7 +12,8 @@ firmware without them answers the whole query with the text ERROR:PARSE_ERROR. T
 such answers drop that id for the session; any other failure is an ordinary failed read.
 Whatever X4 answers, the logger waits X4_GAP_S before it sends anything else.
 Each row records the queries it sent and how many of them failed (a not-found answer is an
-answer, not a failure).
+answer, not a failure). An X4 to X7 cell reads ABSENT when the id answered not-found or has been
+dropped; it is blank only when its query failed or was not sent after an earlier failure.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -45,6 +46,8 @@ FIXED_VARIABLES: tuple[str, ...] = (*CHUNKED_FIXED_VARIABLES, *SINGLE_ID_VARIABL
 # What query_variables raises when the mount answers the text frame "ERROR:PARSE_ERROR\n".
 NOT_FOUND_MESSAGE = "Expected binary response for v357 query, got text: ERROR:PARSE_ERROR\n"
 NOT_FOUND_STRIKES = 2
+# The cell text for an id answered not-found or dropped for the session (CHARC 183326Z).
+ABSENT = "absent"
 # The least time between the X4 query's return and the next query sent (CHARC 181842Z).
 X4_GAP_S = 0.020
 
@@ -213,7 +216,7 @@ class VariableLogger:
             poll_started = self._clock()
             utc = self._utcnow()
             elapsed_s = poll_started - self._started_at
-            values: dict[str, Any] = {}
+            values: dict[str, Any] = dict.fromkeys(self._absent, ABSENT)  # dropped: never asked
             error = ""
             queries = failed = 0
             for chunk in chunk_variables((*self._variables, *CHUNKED_FIXED_VARIABLES)):
@@ -238,6 +241,7 @@ class VariableLogger:
                         values[variable] = self._query([variable]).get(variable)
                     except Exception as ex:
                         if is_not_found(ex):
+                            values[variable] = ABSENT
                             self._not_found(variable)
                         else:
                             failed += 1

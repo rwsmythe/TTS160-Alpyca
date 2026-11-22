@@ -306,7 +306,8 @@ def test_parse_error_once_then_values_keeps_the_id_and_resets_strikes(make, capl
         run_polls(obj, clock, 2, start=3)  # PARSE_ERROR, value: still kept
         assert "X4" not in obj._absent
         run_polls(obj, clock, 3, start=5)  # two consecutive: dropped on the second
-    assert [row[5] for row in read_rows(obj)[1:]] == ["absent", "41", "42", "absent", "43", "absent", "absent", "absent"]
+    assert [row[5] for row in read_rows(obj)[1:]] == \
+        ["absent", "41", "42", "absent", "43", "absent", "absent", "absent"]
     assert mount.calls.count(["X4"]) == 7
     assert "X4" in obj._absent
     messages = [r.getMessage() for r in caplog.records if "X4" in r.getMessage()]
