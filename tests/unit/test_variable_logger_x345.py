@@ -93,6 +93,8 @@ def test_ground_logger_over_real_query_path_classifies_parse_error(manager, mock
         b":*!G T1,X3#": b"BINARY:fH\n" + struct.pack("<fH", 1.5, 2000),
         b":*!G X4#": b"ERROR:PARSE_ERROR\n",
         b":*!G X5#": b"ERROR:PARSE_ERROR\n",
+        b":*!G X6#": b"ERROR:PARSE_ERROR\n",
+        b":*!G X7#": b"ERROR:PARSE_ERROR\n",
     })
     clock = Mock(return_value=0.0)
     obj = vl.VariableLogger(manager.query_variables, ["T1"], 1.0, str(tmp_path), logging.getLogger("t"),
@@ -107,11 +109,12 @@ def test_ground_logger_over_real_query_path_classifies_parse_error(manager, mock
                 obj.poll_once()
     finally:
         obj.stop()
-    assert wire.written == [b":*!G T1,X3#", b":*!G X4#", b":*!G X5#",
-                            b":*!G T1,X3#", b":*!G X4#", b":*!G X5#",
+    assert wire.written == [b":*!G T1,X3#", b":*!G X4#", b":*!G X5#", b":*!G X6#", b":*!G X7#",
+                            b":*!G T1,X3#", b":*!G X4#", b":*!G X5#", b":*!G X6#", b":*!G X7#",
                             b":*!G T1,X3#"]
     assert len(read_rows(obj)) == 4  # header + three data rows
-    assert all(row[2:] == ["1.5", "2000", "", "", ""] for row in read_rows(obj)[1:])
+    assert [row[2:] for row in read_rows(obj)[1:]] == [["1.5", "2000", "", "", "", "", "", q, "0", ""]
+                                                       for q in ("5", "5", "1")]
     assert obj._consecutive_failures == 0
 
 
@@ -121,11 +124,11 @@ def test_types_gain_x4_and_x5_as_uint16():
     assert tt.ComputedVar.FREE_MEM == 3
     assert tt.ComputedVar.MIN_FREE_MEM == 4
     assert tt.ComputedVar.LOOP_MAX_TICKS == 5
-    assert [m.value for m in tt.ComputedVar] == [1, 2, 3, 4, 5]
+    assert [m.value for m in tt.ComputedVar] == [1, 2, 3, 4, 5, 6, 7]
     assert tt.VARIABLE_TYPES[("X", 3)] == "H"
     assert tt.VARIABLE_TYPES[("X", 4)] == "H"
     assert tt.VARIABLE_TYPES[("X", 5)] == "H"
-    assert ("X", 6) not in tt.VARIABLE_TYPES
+    assert ("X", 8) not in tt.VARIABLE_TYPES
 
 
 # ---------------------------------------------------------------- list, header, columns
@@ -142,8 +145,9 @@ def test_x1_x2_remain_configurable():
 
 def test_header_appends_x3_x4_x5_before_error():
     assert vl.header_row(vl.DEFAULT_VARIABLES) == ["utc", "elapsed_s", *vl.DEFAULT_VARIABLES,
-                                                   "X3", "X4", "X5", "error"]
-    assert vl.header_row(["C5", "T1"]) == ["utc", "elapsed_s", "C5", "T1", "X3", "X4", "X5", "error"]
+                                                   "X3", "X4", "X5", "X6", "X7", "queries", "failed", "error"]
+    assert vl.header_row(["C5", "T1"]) == ["utc", "elapsed_s", "C5", "T1", "X3", "X4", "X5", "X6", "X7",
+                                           "queries", "failed", "error"]
 
 
 # ---------------------------------------------------------------- poll behaviour
@@ -205,9 +209,9 @@ def test_both_present_values_land_and_sequence_is_chunks_then_x4_then_x5(make):
     obj, clock = make(mount, variables=vl.DEFAULT_VARIABLES)
     obj.poll_once()
     default = list(vl.DEFAULT_VARIABLES)
-    assert mount.calls == [default[:10], default[10:], ["X3"], ["X4"], ["X5"]]
+    assert mount.calls == [default[:10], default[10:], ["X3"], ["X4"], ["X5"], ["X6"], ["X7"]]
     rows = read_rows(obj)
-    assert rows[0] == ["utc", "elapsed_s", *default, "X3", "X4", "X5", "error"]
+    assert rows[0] == ["utc", "elapsed_s", *default, "X3", "X4", "X5", "X6", "X7", "queries", "failed", "error"]
     row = dict(zip(rows[0], rows[1]))
     assert (row["T1"], row["O12"], row["X3"], row["X4"], row["X5"], row["error"]) == \
         ("1", "12", "3000", "400", "5", "")
@@ -218,8 +222,8 @@ def test_small_list_puts_x3_in_the_same_chunk(make):
     mount = Mount(scripts={"X4": [1], "X5": [2]})
     obj, _ = make(mount)
     obj.poll_once()
-    assert mount.calls == [["T1", "T2", "X3"], ["X4"], ["X5"]]
-    assert read_rows(obj)[1][2:] == ["7", "7", "7", "1", "2", ""]
+    assert mount.calls == [["T1", "T2", "X3"], ["X4"], ["X5"], ["X6"], ["X7"]]
+    assert read_rows(obj)[1][2:] == ["7", "7", "7", "1", "2", "7", "7", "5", "0", ""]
 
 
 def test_both_absent_dropped_after_second_parse_error_never_asked_again(make, caplog):
@@ -227,11 +231,12 @@ def test_both_absent_dropped_after_second_parse_error_never_asked_again(make, ca
     obj, clock = make(mount)
     with caplog.at_level(logging.INFO, logger="t"):
         run_polls(obj, clock, 5)
-    per_poll = [["T1", "T2", "X3"], ["X4"], ["X5"]]
-    assert mount.calls == per_poll * 2 + [["T1", "T2", "X3"]] * 3
+    per_poll = [["T1", "T2", "X3"], ["X4"], ["X5"], ["X6"], ["X7"]]
+    assert mount.calls == per_poll * 2 + [["T1", "T2", "X3"], ["X6"], ["X7"]] * 3
     rows = read_rows(obj)[1:]
     # Not found is not a failure: the error column stays empty (the chosen marker is none).
-    assert all(row[2:] == ["7", "7", "7", "", "", ""] for row in rows)
+    assert [row[2:] for row in rows] == [["7", "7", "7", "", "", "7", "7", q, "0", ""]
+                                         for q in ("5", "5", "3", "3", "3")]
     assert [float(row[1]) for row in rows] == [0.0, 1.0, 2.0, 3.0, 4.0]  # no back-off
     assert obj._consecutive_failures == 0
     assert not obj._after_backoff
@@ -249,13 +254,13 @@ def test_lost_x4_reply_once_is_an_ordinary_failure_and_x4_is_asked_again(make):
     assert obj._consecutive_failures == 1
     assert obj._next_due == 1.0 and not obj._after_backoff  # one lost reply alone: no back-off
     run_polls(obj, clock, 2, start=1)
-    assert mount.calls == [["T1", "T2", "X3"], ["X4"], ["X5"]] * 3
+    assert mount.calls == [["T1", "T2", "X3"], ["X4"], ["X5"], ["X6"], ["X7"]] * 3
     rows = read_rows(obj)[1:]
     assert rows[0][2:6] == ["7", "7", "7", ""]
     assert rows[0][6] == "51"  # X5 still asked and logged in the same poll
-    assert rows[0][7] == f"X4 ResponseError: {LOST_REPLY_MESSAGE}"
-    assert rows[1][2:] == ["7", "7", "7", "41", "52", ""]
-    assert rows[2][2:] == ["7", "7", "7", "42", "53", ""]
+    assert rows[0][-1] == f"X4 ResponseError: {LOST_REPLY_MESSAGE}"
+    assert rows[1][2:] == ["7", "7", "7", "41", "52", "7", "7", "5", "0", ""]
+    assert rows[2][2:] == ["7", "7", "7", "42", "53", "7", "7", "5", "0", ""]
     assert obj._consecutive_failures == 0
 
 
@@ -343,7 +348,7 @@ def test_parse_error_from_an_ordinary_chunk_is_an_ordinary_failure(make):
     rows = read_rows(obj)[1:]
     assert all(row[-1] == f"ResponseError: {PARSE_ERROR_MESSAGE}" for row in rows)
     assert obj._after_backoff and obj._next_due == 31.0
-    assert obj._absent == set() and obj._strikes == {"X4": 0, "X5": 0}
+    assert obj._absent == set() and obj._strikes == {"X4": 0, "X5": 0, "X6": 0, "X7": 0}
 
 
 def test_failed_ordinary_chunk_skips_x4_and_x5_in_that_poll(make):
@@ -352,7 +357,7 @@ def test_failed_ordinary_chunk_skips_x4_and_x5_in_that_poll(make):
     obj, _ = make(mount, variables=variables)
     obj.poll_once()
     assert [c.args[0] for c in mount.call_args_list] == [variables[:10], variables[10:] + ["X3"]]
-    assert read_rows(obj)[1][2:] == ["7"] * 10 + ["", "", "", "", "", "TimeoutError: chunk 2"]
+    assert read_rows(obj)[1][2:] == ["7"] * 10 + ["", "", "", "", "", "", "", "2", "1", "TimeoutError: chunk 2"]
 
 
 def test_stop_during_a_single_id_query_writes_no_row(make):
@@ -401,7 +406,7 @@ def test_restart_begins_a_new_session_with_fresh_strikes(make):
         thread.return_value.is_alive.return_value = False
         with patch.object(obj, "_utcnow", return_value=obj._utcnow().replace(year=2030)):
             assert obj.start()
-    assert obj._absent == set() and obj._strikes == {"X4": 0, "X5": 0}
+    assert obj._absent == set() and obj._strikes == {"X4": 0, "X5": 0, "X6": 0, "X7": 0}
 
 
 def test_module_sends_no_new_command_kind():
