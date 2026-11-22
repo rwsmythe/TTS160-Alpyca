@@ -10,10 +10,14 @@ X3 to X7 are always polled in addition to the configured list, which may not nam
 X3 joins the ordinary chunks. X4 to X7 are each asked in a query of their own, because a
 firmware without them answers the whole query with the text ERROR:PARSE_ERROR. Two consecutive
 such answers drop that id for the session; any other failure is an ordinary failed read.
-Whatever X4 answers, the logger waits X4_GAP_S before it sends anything else.
-Each row records the queries it sent and how many of them failed (a not-found answer is an
-answer, not a failure). An X4 to X7 cell reads ABSENT when the id answered not-found or has been
-dropped; it is blank only when its query failed or was not sent after an earlier failure.
+After a failed X4 (other than not-found), X5 to X7 are not asked, their cells are blank,
+and the row is written before taking BACKOFF_S immediately. Otherwise the logger waits
+X4_GAP_S before sending anything else. This 20 ms spacing is not guaranteed on a link
+that has already timed out for 30 s: the transport may still execute its abandoned request.
+Each row counts wire attempts in queries and attempts without a valid answer in failed
+(a not-found text is a valid answer). A recovered retry row intentionally has failed >= 1
+and an empty error column. An X4 to X7 cell reads ABSENT when the id answered not-found or
+has been dropped, unless skipped after a failed X4; failed or unasked cells are blank.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -28,7 +32,7 @@ import threading
 import time
 from typing import Any, Optional
 
-from tts160_serial import ResponseError
+from tts160_serial import ResponseError, get_last_command_attempts
 from tts160_types import BINARY_MAX_VARS_PER_COMMAND
 
 
@@ -49,6 +53,7 @@ NOT_FOUND_STRIKES = 2
 # The cell text for an id answered not-found or dropped for the session (CHARC 183326Z).
 ABSENT = "absent"
 # The least time between the X4 query's return and the next query sent (CHARC 181842Z).
+# Not guaranteed after a 30 s timeout: the serial worker may still execute that request.
 X4_GAP_S = 0.020
 
 
@@ -99,7 +104,7 @@ def format_row(utc: datetime, elapsed_s: float, variables: Sequence[str],
                values: Mapping[str, Any], error: str = "", queries: int = 0, failed: int = 0) -> list[str]:
     """Format values for csv.writer, retaining missing columns and unusual values.
 
-    ``queries`` is the number of queries the row sent; ``failed`` how many of them raised.
+    ``queries`` counts wire attempts; ``failed`` counts attempts without a valid answer.
     """
     row = [utc.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
            f"{elapsed_s:.3f}"]
@@ -219,14 +224,33 @@ class VariableLogger:
             values: dict[str, Any] = dict.fromkeys(self._absent, ABSENT)  # dropped: never asked
             error = ""
             queries = failed = 0
+            x4_failed = False
+
+            def read(variables: list[str]) -> Mapping[str, Any]:
+                """Count this call's transport record, with one attempt for an injected fake."""
+                nonlocal queries, failed
+                before = get_last_command_attempts()
+                call_failed = False
+                try:
+                    return self._query(variables)
+                except Exception as ex:
+                    call_failed = not is_not_found(ex)
+                    raise
+                finally:
+                    record = get_last_command_attempts()
+                    if record is None or record is before:
+                        queries += 1
+                        failed += int(call_failed)
+                    else:
+                        queries += record.attempts
+                        failed += record.failed
+
             for chunk in chunk_variables((*self._variables, *CHUNKED_FIXED_VARIABLES)):
                 if self._stop.is_set():
                     return
-                queries += 1
                 try:
-                    values.update(self._query(chunk))
+                    values.update(read(chunk))
                 except Exception as ex:
-                    failed += 1
                     error = f"{type(ex).__name__}: {ex}"
                     break
             else:
@@ -236,20 +260,23 @@ class VariableLogger:
                         continue
                     if self._stop.is_set():
                         return
-                    queries += 1
                     try:
-                        values[variable] = self._query([variable]).get(variable)
+                        values[variable] = read([variable]).get(variable)
                     except Exception as ex:
                         if is_not_found(ex):
                             values[variable] = ABSENT
                             self._not_found(variable)
                         else:
-                            failed += 1
                             errors.append(f"{variable} {type(ex).__name__}: {ex}")
+                            if variable == "X4":
+                                x4_failed = True
+                                for skipped in SINGLE_ID_VARIABLES[1:]:
+                                    values.pop(skipped, None)
+                                break
                     else:
                         if values[variable] is not None:  # only a value resets the strikes
                             self._strikes[variable] = 0
-                    # Whatever X4 answered, nothing is sent for X4_GAP_S: in this poll or the next.
+                    # After a valid X4 answer, leave the gap in this poll or the next.
                     if variable == "X4" and (self._wait(X4_GAP_S) or self._stop.is_set()):
                         return
                 error = "; ".join(errors)
@@ -269,7 +296,7 @@ class VariableLogger:
                 self._consecutive_failures += 1
             else:
                 self._consecutive_failures = 0
-            if self._consecutive_failures >= FAILURES_BEFORE_BACKOFF:
+            if x4_failed or self._consecutive_failures >= FAILURES_BEFORE_BACKOFF:
                 self._next_due = now + BACKOFF_S
                 self._after_backoff = True
             else:

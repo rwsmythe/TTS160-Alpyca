@@ -5,13 +5,17 @@ over a byte-level fake wire built on the conftest ``mock_serial_port`` fixture.
 """
 
 import csv
+from dataclasses import FrozenInstanceError
 import logging
 import struct
+import threading
 import time
 from unittest.mock import Mock, patch
 
 import pytest
+import serial
 
+import tts160_serial as ts
 from tts160_serial import ResponseError, SerialManager, V357Protocol
 import tts160_types as tt
 import variable_logger as vl
@@ -228,7 +232,10 @@ def test_the_gap_follows_x4_whatever_x4_answers(make, outcome):
     mount = Mount(scripts={"X4": [outcome]})
     obj, _ = make(mount)
     obj.poll_once()
-    assert mount.events == [["T1", "T2", "X3"], ["X4"], GAP, ["X5"], ["X6"], ["X7"]]
+    if isinstance(outcome, Exception) and not vl.is_not_found(outcome):
+        assert mount.events == [["T1", "T2", "X3"], ["X4"]]
+    else:
+        assert mount.events == [["T1", "T2", "X3"], ["X4"], GAP, ["X5"], ["X6"], ["X7"]]
 
 
 def test_the_gap_follows_x4_when_x5_to_x7_are_absent(make):
@@ -245,9 +252,11 @@ def test_the_gap_follows_x4_on_the_back_off_path(make):
     run_polls(obj, clock, 2)
     assert obj._after_backoff
     clock.return_value = obj._next_due
-    obj.poll_once()  # the probe after the back-off
+    obj.poll_once()  # second X4 failure: immediately back off again
+    clock.return_value = obj._next_due
+    obj.poll_once()  # successful probe
     per_poll = [["T1", "T2", "X3"], ["X4"], GAP, ["X5"], ["X6"], ["X7"]]
-    assert mount.events == per_poll * 3
+    assert mount.events == [["T1", "T2", "X3"], ["X4"]] * 2 + per_poll
 
 
 def test_no_gap_when_x4_is_absent(make):
@@ -405,8 +414,9 @@ def test_a_failed_single_id_query_leaves_its_cell_blank(make):
     obj, _ = make(mount)
     obj.poll_once()
     row = read_dicts(obj)[0]
-    assert (row["X4"], row["X5"], row["X6"], row["X7"]) == ("", "7", "", "7")
-    assert row["failed"] == "2"
+    assert (row["X4"], row["X5"], row["X6"], row["X7"]) == ("", "", "", "")
+    assert (row["queries"], row["failed"]) == ("2", "1")  # X6 was never attempted
+    assert mount.calls == [["T1", "T2", "X3"], ["X4"]]
 
 
 def test_ids_not_sent_after_a_failed_chunk_are_blank_and_a_dropped_id_stays_absent(make):
@@ -419,3 +429,230 @@ def test_ids_not_sent_after_a_failed_chunk_are_blank_and_a_dropped_id_stays_abse
     row = read_dicts(obj)[-1]
     assert (row["X3"], row["X4"], row["X5"], row["X6"], row["X7"]) == ("", "", "", "", "absent")
     assert (row["queries"], row["failed"], row["error"]) == ("1", "1", "TimeoutError: chunk")
+
+
+# ---------------------------------------------------------------- T9A-FIX: wire attempts, per caller, and failed X4
+
+def fail_writes(port, wire, failures):
+    """Fail a specified number of writes per command before serving the fake reply."""
+    remaining = dict(failures)
+
+    def write(data):
+        if remaining.get(data, 0):
+            remaining[data] -= 1
+            raise serial.SerialException("injected failed write")
+        return wire.write(data)
+
+    port.write.side_effect = write
+
+
+@pytest.mark.parametrize("queued", [False, True], ids=["direct", "queued"])
+@pytest.mark.parametrize("failures", [0, 2, 5, 6])
+def test_attempt_record_counts_each_write_attempt(manager, mock_serial_port, queued, failures):
+    wire = FakeWire(mock_serial_port, {b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -7)})
+    fail_writes(mock_serial_port, wire, {b":*!G X6#": failures})
+    if queued:
+        manager._start_worker()
+    try:
+        if failures == 6:
+            with pytest.raises(ts.ConnectionError, match="6 attempts"):
+                manager.query_variables(["X6"])
+        else:
+            assert manager.query_variables(["X6"]) == {"X6": -7}
+        record = ts.get_last_command_attempts()
+        assert (record.attempts, record.failed) == (min(failures + 1, 6), failures)
+        assert mock_serial_port.write.call_count == min(failures + 1, 6)
+    finally:
+        manager._stop_worker()
+
+
+def test_reviewer_probe_five_failed_writes_then_success_has_empty_error(manager, mock_serial_port, make):
+    wire = FakeWire(mock_serial_port, {b":*!G T1,T2,X3#": b"BINARY:2fH\n" + struct.pack("<2fH", 1, 2, 3)})
+    fail_writes(mock_serial_port, wire, {b":*!G T1,T2,X3#": 5})
+    obj, _ = make(lambda variables: manager.query_variables(variables))  # same indirection as the device
+    obj._absent.update(SINGLES)  # isolate the probe's one call
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert (row["queries"], row["failed"], row["error"]) == ("6", "5", "")
+    assert (row["T1"], row["T2"], row["X3"]) == ("1.0", "2.0", "3")
+    assert mock_serial_port.write.call_count == 6
+
+
+def test_disconnected_port_counts_six_failed_attempts(manager, mock_serial_port, make):
+    mock_serial_port.is_open = False
+    obj, _ = make(manager.query_variables)
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert (row["queries"], row["failed"]) == ("6", "6")
+    assert row["error"] == "ConnectionError: Command failed after 6 attempts"
+    record = ts.get_last_command_attempts()
+    assert (record.attempts, record.failed) == (6, 6)
+    mock_serial_port.write.assert_not_called()
+
+
+@pytest.mark.parametrize("not_found", [False, True], ids=["clean", "not_found"])
+def test_wire_answers_count_one_without_failure(manager, mock_serial_port, make, not_found):
+    replies = {b":*!G T1,T2,X3#": b"BINARY:2fH\n" + struct.pack("<2fH", 1, 2, 3)}
+    replies.update({f":*!G {v}#".encode(): b"BINARY:H\n" + struct.pack("<H", 7) for v in SINGLES})
+    if not_found:
+        replies[b":*!G X4#"] = b"ERROR:PARSE_ERROR\n"
+    wire = FakeWire(mock_serial_port, replies)
+    records = []
+
+    def query(variables):
+        try:
+            return manager.query_variables(variables)
+        finally:
+            records.append(ts.get_last_command_attempts())
+
+    obj, _ = make(query)
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert (row["queries"], row["failed"], row["error"]) == ("5", "0", "")
+    assert [(r.attempts, r.failed) for r in records] == [(1, 0)] * 5
+    assert row["X4"] == ("absent" if not_found else "7")
+    assert wire.written == [b":*!G T1,T2,X3#", *[f":*!G {v}#".encode() for v in SINGLES]]
+
+
+def test_row_sums_attempts_across_all_chunks_and_single_ids(manager, mock_serial_port, make):
+    chunks = vl.chunk_variables((*vl.DEFAULT_VARIABLES, "X3"))
+    groups = [*chunks, *[[v] for v in SINGLES]]
+    commands = [V357Protocol.build_query(group).encode() for group in groups]
+    replies = {command: b"BINARY:" + f"{len(group)}H\n".encode() + struct.pack(f"<{len(group)}H", *([7] * len(group)))
+               for command, group in zip(commands, groups)}
+    failures = [2, 1, 3, 1, 2, 0, 4]
+    wire = FakeWire(mock_serial_port, replies)
+    fail_writes(mock_serial_port, wire, dict(zip(commands, failures)))
+    manager._start_worker()
+    try:
+        obj, _ = make(lambda variables: manager.query_variables(variables, priority=ts.CommandPriority.LOW),
+                      variables=vl.DEFAULT_VARIABLES)
+        obj.poll_once()
+    finally:
+        manager._stop_worker()
+    row = read_dicts(obj)[0]
+    assert (row["queries"], row["failed"], row["error"]) == ("20", "13", "")
+    assert wire.written == commands
+    assert mock_serial_port.write.call_count == 20
+
+
+@pytest.mark.parametrize("queued", [False, True], ids=["direct", "queued"])
+def test_other_callers_cannot_replace_this_threads_attempt_record(manager, mock_serial_port, queued):
+    wire = FakeWire(mock_serial_port, {
+        b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -7), b":*!G X7#": b"BINARY:B\n\x01",
+    })
+    fail_writes(mock_serial_port, wire, {b":*!G X6#": 5})
+    if queued:
+        manager._start_worker()
+    results = []
+    errors = []
+
+    def other_caller():
+        try:
+            manager.query_variables(["X7"])
+            record = ts.get_last_command_attempts()
+            results.append((record.attempts, record.failed))
+        except Exception as ex:
+            errors.append(ex)
+
+    try:
+        manager.query_variables(["X6"])
+        other = threading.Thread(target=other_caller)
+        other.start()
+        other.join(timeout=2)
+        assert not other.is_alive()
+        assert not errors
+        assert results == [(1, 0)]
+        record = ts.get_last_command_attempts()
+        assert (record.attempts, record.failed) == (6, 5)
+    finally:
+        manager._stop_worker()
+
+
+def test_timeout_record_is_fresh_and_abandoned_execution_cannot_replace_later_call(manager, mock_serial_port):
+    wire = FakeWire(mock_serial_port, {
+        b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -7), b":*!G X7#": b"BINARY:B\n\x01",
+    })
+    fail_writes(mock_serial_port, wire, {b":*!G X6#": 5})
+    manager.query_variables(["X6"])  # prior record must not survive the timeout
+    manager._worker_thread = Mock()  # queued request cannot execute yet
+    try:
+        with pytest.raises(TimeoutError, match="waiting for execution"):
+            manager.send_command(":*!G X6#", timeout=0.0)
+    finally:
+        manager._worker_thread = None
+    timed_out = ts.get_last_command_attempts()
+    assert (timed_out.attempts, timed_out.failed) == (1, 1)
+    manager.query_variables(["X7"])  # later call on the SAME caller thread
+    later = ts.get_last_command_attempts()
+    assert (later.attempts, later.failed) == (1, 0)
+    fail_writes(mock_serial_port, wire, {b":*!G X6#": 5})
+    manager._start_worker()
+    try:
+        manager._command_queue.join()  # abandoned command really runs (six attempts)
+        assert wire.written == [b":*!G X6#", b":*!G X7#", b":*!G X6#"]
+        assert mock_serial_port.write.call_count == 13
+        assert ts.get_last_command_attempts() is later
+        assert (timed_out.attempts, timed_out.failed) == (1, 1)
+    finally:
+        manager._stop_worker()
+
+
+def test_attempt_record_resets_between_calls_and_is_read_only(manager, mock_serial_port):
+    wire = FakeWire(mock_serial_port, {
+        b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -7), b":*!G X7#": b"BINARY:B\n\x01",
+    })
+    fail_writes(mock_serial_port, wire, {b":*!G X6#": 5})
+    manager.query_variables(["X6"])
+    first = ts.get_last_command_attempts()
+    manager.query_variables(["X7"])
+    second = ts.get_last_command_attempts()
+    assert (first.attempts, first.failed) == (6, 5)
+    assert (second.attempts, second.failed) == (1, 0)
+    with pytest.raises(FrozenInstanceError):
+        second.failed = 99
+    manager.query_variables(["X7"])
+    assert ts.get_last_command_attempts() is not second  # fresh even when counts are equal
+
+
+def test_injected_query_does_not_reuse_an_earlier_transport_record(manager, mock_serial_port, make):
+    wire = FakeWire(mock_serial_port, {b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -7)})
+    fail_writes(mock_serial_port, wire, {b":*!G X6#": 5})
+    manager.query_variables(["X6"])
+    obj, _ = make(Mount())
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert (row["queries"], row["failed"], row["error"]) == ("5", "0", "")
+
+
+@pytest.mark.parametrize("failure", [TimeoutError("lost"), ResponseError("garbled"), ConnectionError("offline")])
+def test_failed_x4_writes_row_skips_remaining_ids_and_backs_off_immediately(make, failure):
+    mount = Mount(scripts={"X4": [failure, 4]})
+    obj, clock = make(mount)
+    obj.poll_once()
+    assert mount.calls == [["T1", "T2", "X3"], ["X4"]]
+    row = read_dicts(obj)[0]
+    assert [row[v] for v in SINGLES] == [""] * 4
+    assert (row["queries"], row["failed"]) == ("2", "1")
+    assert row["error"] == f"X4 {type(failure).__name__}: {failure}"
+    assert obj._after_backoff and obj._next_due == vl.BACKOFF_S
+    for when in (1.0, vl.BACKOFF_S - 0.001):
+        clock.return_value = when
+        obj.poll_once()
+        assert len(mount.calls) == 2
+        assert len(read_dicts(obj)) == 1
+    clock.return_value = vl.BACKOFF_S
+    obj.poll_once()
+    assert mount.calls[2:] == [["T1", "T2", "X3"], *[[v] for v in SINGLES]]
+    assert len(read_dicts(obj)) == 2
+
+
+def test_failed_x4_leaves_even_dropped_following_ids_blank(make):
+    mount = Mount(scripts={"X4": [TimeoutError("lost")]})
+    obj, _ = make(mount)
+    obj._absent.update({"X5", "X6", "X7"})
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert [row[v] for v in SINGLES] == [""] * 4
+    assert mount.calls == [["T1", "T2", "X3"], ["X4"]]
+    assert obj._absent == {"X5", "X6", "X7"}  # retain session state

@@ -64,6 +64,28 @@ class CommandPriority(IntEnum):
     LOW = 3        # Background cache updates
 
 
+@dataclass(frozen=True)
+class CommandAttempts:
+    """Read-only counts for one call: attempts and attempts that raised in the transport."""
+
+    attempts: int
+    failed: int
+
+
+_attempt_context = threading.local()
+
+
+def get_last_command_attempts() -> Optional[CommandAttempts]:
+    """Return this calling thread's last call record, or None before its first call.
+
+    Each call publishes a new immutable record, including when the counts match.
+    A queue wait timeout records 1 / 1; the abandoned worker's later execution
+    cannot change that caller's record. A valid text answer counts as success,
+    even if query_variables subsequently raises ResponseError (e.g. not-found).
+    """
+    return getattr(_attempt_context, 'last', None)
+
+
 @dataclass(order=True)
 class _PendingCommand:
     """Internal class for queued commands with priority ordering.
@@ -77,6 +99,7 @@ class _PendingCommand:
     result_event: threading.Event = field(compare=False)
     result: Any = field(default=None, compare=False)
     error: Optional[Exception] = field(default=None, compare=False)
+    attempts: Optional[CommandAttempts] = field(default=None, compare=False)
 
 
 # Thread-local storage for default priority context
@@ -949,6 +972,8 @@ class SerialManager:
                 except Exception as ex:
                     pending.result = None
                     pending.error = ex
+                finally:
+                    pending.attempts = get_last_command_attempts()
 
                 # Signal completion
                 pending.result_event.set()
@@ -982,12 +1007,14 @@ class SerialManager:
         Raises:
             ConnectionError: If all retries fail
         """
+        _attempt_context.last = CommandAttempts(0, 0)
         if self._flush_buffer_on_next_command:
             self._logger.info("Failure detected, flushing receive buffer")
             self.clear_buffers()
             self._flush_buffer_on_next_command = False
 
         for attempt in range(self._max_retries + 1):
+            _attempt_context.last = CommandAttempts(attempt + 1, attempt)
             try:
                 result = self._send_command_once(command, command_type)
                 if attempt > 0:
@@ -995,6 +1022,7 @@ class SerialManager:
                 return result
 
             except Exception as ex:
+                _attempt_context.last = CommandAttempts(attempt + 1, attempt + 1)
                 self._flush_buffer_on_next_command = True
 
                 if attempt == self._max_retries:
@@ -1201,6 +1229,7 @@ class SerialManager:
             ResponseError: If response parsing fails
             TimeoutError: If command times out waiting for execution
         """
+        _attempt_context.last = CommandAttempts(0, 0)
         if not command or not isinstance(command, str):
             raise ValueError("Command must be a non-empty string")
 
@@ -1232,10 +1261,12 @@ class SerialManager:
 
         # Wait for result
         if not pending.result_event.wait(timeout=timeout):
+            _attempt_context.last = CommandAttempts(1, 1)
             raise TimeoutError(
                 f"Command {command} timed out after {timeout}s waiting for execution"
             )
 
+        _attempt_context.last = pending.attempts
         # Check for error
         if pending.error:
             raise pending.error
