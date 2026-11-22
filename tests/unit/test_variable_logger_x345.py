@@ -253,20 +253,19 @@ def test_lost_x4_reply_once_is_an_ordinary_failure_and_x4_is_asked_again(make):
     obj, clock = make(mount)
     run_polls(obj, clock, 1)
     assert obj._consecutive_failures == 1
-    assert obj._next_due == 30.0 and obj._after_backoff
-    run_polls(obj, clock, 2, start=30)
-    assert mount.calls == ([["T1", "T2", "X3"], ["X4"]]
-                           + [["T1", "T2", "X3"], ["X4"], ["X5"], ["X6"], ["X7"]] * 2)
+    assert obj._next_due == 1.0 and not obj._after_backoff
+    run_polls(obj, clock, 2, start=1)
+    assert mount.calls == [["T1", "T2", "X3"], ["X4"], ["X5"], ["X6"], ["X7"]] * 3
     rows = read_rows(obj)[1:]
     assert rows[0][2:6] == ["7", "7", "7", ""]
-    assert rows[0][6:9] == ["", "", ""]  # no X5..X7 after failed X4
+    assert rows[0][6:9] == ["51", "7", "7"]
     assert rows[0][-1] == f"X4 ResponseError: {LOST_REPLY_MESSAGE}"
-    assert rows[1][2:] == ["7", "7", "7", "41", "51", "7", "7", "5", "0", ""]
-    assert rows[2][2:] == ["7", "7", "7", "42", "52", "7", "7", "5", "0", ""]
+    assert rows[1][2:] == ["7", "7", "7", "41", "52", "7", "7", "5", "0", ""]
+    assert rows[2][2:] == ["7", "7", "7", "42", "53", "7", "7", "5", "0", ""]
     assert obj._consecutive_failures == 0
 
 
-def test_x4_timeout_counts_toward_back_off_like_a_failed_chunk(make):
+def test_x4_queue_wait_timeout_backs_off_immediately(make):
     mount = Mount(scripts={"X4": [TimeoutError("first"), TimeoutError("second"), 4]})
     obj, clock = make(mount)
     run_polls(obj, clock, 2)
@@ -280,7 +279,7 @@ def test_x4_timeout_counts_toward_back_off_like_a_failed_chunk(make):
     assert [row[-1] for row in rows] == ["X4 TimeoutError: first", "X4 TimeoutError: second"]
 
 
-def test_x4_failure_prevents_the_scripted_x5_failure(make):
+def test_x4_queue_wait_timeout_prevents_the_scripted_x5_failure(make):
     mount = Mount(scripts={"X4": [TimeoutError("a")], "X5": [ResponseError("garbled")]})
     obj, _ = make(mount)
     obj.poll_once()
@@ -294,7 +293,7 @@ def test_other_text_answers_are_ordinary_failures(make, text):
     error = ResponseError(f"Expected binary response for v357 query, got text: {text}")
     mount = Mount(scripts={"X4": [error, error, error]})
     obj, clock = make(mount)
-    for when in (0.0, 30.0, 60.0):  # every failed X4 immediately backs off; X4 is never dropped
+    for when in (0.0, 1.0, 31.0):  # two consecutive error rows back off; X4 is never dropped
         clock.return_value = when
         obj.poll_once()
     assert mount.calls.count(["X4"]) == 3  # never dropped
@@ -340,9 +339,9 @@ def test_a_zero_value_resets_the_strike(make):
 
 
 def test_lost_reply_between_two_parse_errors_does_not_reset_the_strike(make):
-    mount = Mount(scripts={"X4": [parse_error(), TimeoutError("lost"), parse_error()]})
+    mount = Mount(scripts={"X4": [parse_error(), ResponseError(LOST_REPLY_MESSAGE), parse_error()]})
     obj, clock = make(mount)
-    for when in (0.0, 1.0, 31.0):
+    for when in (0.0, 1.0, 2.0):
         clock.return_value = when
         obj.poll_once()
     assert "X4" in obj._absent

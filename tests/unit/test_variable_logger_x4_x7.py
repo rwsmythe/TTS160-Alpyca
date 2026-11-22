@@ -228,11 +228,11 @@ def test_x4_query_is_followed_by_the_gap_before_the_next_query(make):
 
 @pytest.mark.parametrize("outcome", [400, parse_error(), TimeoutError("lost"), ResponseError("garbled")],
                          ids=["value", "not_found", "timeout", "other_failure"])
-def test_x4_gap_follows_valid_answers_and_failures_stop_the_poll(make, outcome):
+def test_x4_gap_is_skipped_only_for_queue_wait_timeout(make, outcome):
     mount = Mount(scripts={"X4": [outcome]})
     obj, _ = make(mount)
     obj.poll_once()
-    if isinstance(outcome, Exception) and not vl.is_not_found(outcome):
+    if isinstance(outcome, TimeoutError):
         assert mount.events == [["T1", "T2", "X3"], ["X4"]]
     else:
         assert mount.events == [["T1", "T2", "X3"], ["X4"], GAP, ["X5"], ["X6"], ["X7"]]
@@ -414,9 +414,9 @@ def test_a_failed_single_id_query_leaves_its_cell_blank(make):
     obj, _ = make(mount)
     obj.poll_once()
     row = read_dicts(obj)[0]
-    assert (row["X4"], row["X5"], row["X6"], row["X7"]) == ("", "", "", "")
-    assert (row["queries"], row["failed"]) == ("2", "1")  # X6 was never attempted
-    assert mount.calls == [["T1", "T2", "X3"], ["X4"]]
+    assert (row["X4"], row["X5"], row["X6"], row["X7"]) == ("", "7", "", "7")
+    assert (row["queries"], row["failed"]) == ("5", "2")
+    assert mount.calls == [["T1", "T2", "X3"], *[[v] for v in SINGLES]]
 
 
 def test_ids_not_sent_after_a_failed_chunk_are_blank_and_a_dropped_id_stays_absent(make):
@@ -625,35 +625,42 @@ def test_injected_query_does_not_reuse_an_earlier_transport_record(manager, mock
     assert (row["queries"], row["failed"], row["error"]) == ("5", "0", "")
 
 
-@pytest.mark.parametrize("failure", [TimeoutError("lost"), ResponseError("garbled"), ConnectionError("offline")])
-def test_failed_x4_writes_row_skips_remaining_ids_and_backs_off_immediately(make, failure):
+@pytest.mark.parametrize("failure", [TimeoutError("lost"), ResponseError("garbled"), ts.ConnectionError("offline")])
+def test_x4_only_queue_wait_timeout_skips_remaining_ids_and_backs_off_immediately(make, failure):
     mount = Mount(scripts={"X4": [failure, 4]})
     obj, clock = make(mount)
     obj.poll_once()
-    assert mount.calls == [["T1", "T2", "X3"], ["X4"]]
     row = read_dicts(obj)[0]
-    assert [row[v] for v in SINGLES] == [""] * 4
-    assert (row["queries"], row["failed"]) == ("2", "1")
     assert row["error"] == f"X4 {type(failure).__name__}: {failure}"
-    assert obj._after_backoff and obj._next_due == vl.BACKOFF_S
-    for when in (1.0, vl.BACKOFF_S - 0.001):
-        clock.return_value = when
-        obj.poll_once()
-        assert len(mount.calls) == 2
-        assert len(read_dicts(obj)) == 1
-    clock.return_value = vl.BACKOFF_S
+    if isinstance(failure, TimeoutError):
+        assert mount.calls == [["T1", "T2", "X3"], ["X4"]]
+        assert [row[v] for v in SINGLES] == [""] * 4
+        assert (row["queries"], row["failed"]) == ("2", "1")
+        assert obj._after_backoff and obj._next_due == vl.BACKOFF_S
+        for when in (1.0, vl.BACKOFF_S - 0.001):
+            clock.return_value = when
+            obj.poll_once()
+            assert len(mount.calls) == 2
+            assert len(read_dicts(obj)) == 1
+    else:
+        assert mount.events == [["T1", "T2", "X3"], ["X4"], GAP, ["X5"], ["X6"], ["X7"]]
+        assert [row[v] for v in SINGLES] == ["", "7", "7", "7"]
+        assert (row["queries"], row["failed"]) == ("5", "1")
+        assert not obj._after_backoff and obj._next_due == 1.0
+    previous_calls = len(mount.calls)
+    clock.return_value = obj._next_due
     obj.poll_once()
-    assert mount.calls[2:] == [["T1", "T2", "X3"], *[[v] for v in SINGLES]]
+    assert mount.calls[previous_calls:] == [["T1", "T2", "X3"], *[[v] for v in SINGLES]]
     assert len(read_dicts(obj)) == 2
 
 
-def test_failed_x4_keeps_dropped_ids_absent_and_unasked_live_ids_blank(make):
-    mount = Mount(scripts={"X4": [4, 4, TimeoutError("lost")], "X6": [parse_error(), parse_error()]})
+def test_ordinary_x4_failure_keeps_dropped_ids_absent_and_queries_live_ids(make):
+    mount = Mount(scripts={"X4": [4, 4, ResponseError("garbled")], "X6": [parse_error(), parse_error()]})
     obj, clock = make(mount)
     run_polls(obj, clock, 3)
     row = read_dicts(obj)[-1]
-    assert [row[v] for v in SINGLES] == ["", "", "absent", ""]
-    assert mount.calls[-2:] == [["T1", "T2", "X3"], ["X4"]]
+    assert [row[v] for v in SINGLES] == ["", "7", "absent", "7"]
+    assert mount.calls[-4:] == [["T1", "T2", "X3"], ["X4"], ["X5"], ["X7"]]
     assert mount.calls.count(["X6"]) == 2
     assert obj._absent == {"X6"}  # retain session state
 
@@ -673,20 +680,26 @@ def test_invalid_wire_answer_counts_final_attempt_as_failed(manager, mock_serial
     }[case]
     wire = FakeWire(mock_serial_port, {
         b":*!G T1,T2,X3#": b"BINARY:2fH\n" + struct.pack("<2fH", 1, 2, 3), command: reply,
+        b":*!G X5#": b"BINARY:H\n" + struct.pack("<H", 5),
+        b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -6), b":*!G X7#": b"BINARY:B\n\x01",
     })
     fail_writes(mock_serial_port, wire, {command: wire_failures})
-    obj, _ = make(manager.query_variables)
-    if case != "chunk_parse_error":
-        # Read the ordinary chunk before counting only the rejected single-id call.
-        ordinary_chunk_attempts = 1
-    else:
-        ordinary_chunk_attempts = 0
+    target_records = []
+
+    def query(variables):
+        try:
+            return manager.query_variables(variables)
+        finally:
+            if V357Protocol.build_query(variables).encode() == command:
+                target_records.append(ts.get_last_command_attempts())
+
+    obj, _ = make(query)
     obj.poll_once()
     row = read_dicts(obj)[0]
     assert row["error"].startswith("ResponseError:" if case == "chunk_parse_error" else "X4 ResponseError:")
     assert int(row["failed"]) == wire_failures + 1
-    assert int(row["queries"]) == ordinary_chunk_attempts + wire_failures + 1
-    record = ts.get_last_command_attempts()
+    assert int(row["queries"]) == wire_failures + (1 if case == "chunk_parse_error" else 5)
+    record, = target_records
     assert (record.attempts, record.failed) == (wire_failures + 1, wire_failures)  # wire outcome is unchanged
     assert mock_serial_port.write.call_count == int(row["queries"])
 
@@ -735,3 +748,131 @@ def test_every_nonempty_error_has_at_least_one_failed_attempt(make, where, outco
         assert int(row["failed"]) >= 1
     else:
         assert row["failed"] == "0"
+
+
+# ---------------------------------------------------------------- CHARC 210914Z: X4 queue-wait timeout
+
+@pytest.mark.parametrize("failure_kind", ["no_reply", "invalid_text", "retry_exhausted",
+                                         "serial_timeout", "port_builtin_timeout"])
+def test_finished_x4_failure_keeps_polling_after_real_gap(manager, mock_serial_port, make, failure_kind):
+    wire = FakeWire(mock_serial_port, {
+        b":*!G T1,T2,X3#": b"BINARY:2fH\n" + struct.pack("<2fH", 1, 2, 3),
+        b":*!G X4#": b"" if failure_kind == "no_reply" else b"ERROR:VAR_ERROR\n",
+        b":*!G X5#": b"BINARY:H\n" + struct.pack("<H", 5),
+        b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -6), b":*!G X7#": b"BINARY:B\n\x01",
+    })
+    if failure_kind == "retry_exhausted":
+        fail_writes(mock_serial_port, wire, {b":*!G X4#": 6})
+    elif failure_kind in ("serial_timeout", "port_builtin_timeout"):
+        port_error = (serial.SerialTimeoutException("write timed out") if failure_kind == "serial_timeout"
+                      else TimeoutError("port operation timed out"))
+
+        def write(data):
+            if data == b":*!G X4#":
+                raise port_error
+            return wire.write(data)
+
+        mock_serial_port.write.side_effect = write
+    stamps = {}
+    failures = []
+
+    def query(variables):
+        if variables == ["X5"]:
+            stamps["x5_start"] = time.perf_counter()
+        try:
+            return manager.query_variables(variables)
+        except Exception as ex:
+            failures.append(ex)
+            raise
+        finally:
+            if variables == ["X4"]:
+                stamps["x4_return"] = time.perf_counter()
+
+    obj, _ = make(query)  # real stop-event wait: do not inject a fake 20 ms gap
+    obj.poll_once()
+    assert wire.written[-3:] == [b":*!G X5#", b":*!G X6#", b":*!G X7#"]
+    assert stamps["x5_start"] - stamps["x4_return"] >= vl.X4_GAP_S
+    row = read_dicts(obj)[0]
+    assert [row[v] for v in SINGLES] == ["", "5", "-6", "1"]
+    retries_exhausted = failure_kind not in ("no_reply", "invalid_text")
+    assert (row["queries"], row["failed"]) == (("10", "6") if retries_exhausted else ("5", "1"))
+    assert mock_serial_port.write.call_count == int(row["queries"])
+    assert row["error"].startswith("X4 ConnectionError:" if retries_exhausted else "X4 ResponseError:")
+    failure, = failures
+    assert isinstance(failure, ts.ConnectionError if retries_exhausted else ResponseError)
+    assert not isinstance(failure, TimeoutError)
+    if failure_kind == "no_reply":
+        assert str(failure) == "Expected binary response for v357 query, got text: "
+    assert obj._next_due == 1.0 and not obj._after_backoff
+
+
+@pytest.mark.parametrize("dropped", [False, True], ids=["all_live", "x6_dropped"])
+def test_real_x4_queue_wait_timeout_stops_poll_and_preserves_dropped_ids(
+        manager, mock_serial_port, make, dropped):
+    wire = FakeWire(mock_serial_port, {
+        b":*!G T1,T2,X3#": b"BINARY:2fH\n" + struct.pack("<2fH", 1, 2, 3),
+        b":*!G X4#": b"BINARY:H\n" + struct.pack("<H", 4),
+        b":*!G X5#": b"BINARY:H\n" + struct.pack("<H", 5),
+        b":*!G X6#": b"BINARY:i\n" + struct.pack("<i", -6), b":*!G X7#": b"BINARY:B\n\x01",
+    })
+    entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+    execute, send = manager._execute_command_with_retry, manager.send_command
+    calls, failures = [], []
+
+    def held_execute(command, command_type):
+        if command == ":*!G X4#" and not release.is_set():
+            entered.set()
+            assert release.wait(5), "test did not release the held worker"
+            try:
+                return execute(command, command_type)
+            finally:
+                finished.set()
+        return execute(command, command_type)
+
+    def short_send(command, command_type=ts.CommandType.AUTO, priority=None, timeout=30.0):
+        if command == ":*!G X4#" and not release.is_set():
+            timeout = 0.01
+        return send(command, command_type, priority=priority, timeout=timeout)
+
+    def query(variables):
+        calls.append(list(variables))
+        try:
+            return manager.query_variables(variables)
+        except Exception as ex:
+            failures.append(ex)
+            raise
+
+    with patch.object(manager, "_execute_command_with_retry", side_effect=held_execute), \
+            patch.object(manager, "send_command", side_effect=short_send):
+        manager._start_worker()
+        try:
+            obj, clock = make(query)
+            if dropped:
+                obj._absent.add("X6")
+            obj.poll_once()
+            assert entered.wait(1)
+            failure, = failures
+            assert type(failure) is TimeoutError  # the real execution-wait type propagates unwrapped
+            assert failure.__cause__ is None
+            assert calls == [["T1", "T2", "X3"], ["X4"]]
+            assert wire.written == [b":*!G T1,T2,X3#"]  # X4 is still held, not finished
+            row = read_dicts(obj)[0]
+            assert [row[v] for v in SINGLES] == ["", "", "absent" if dropped else "", ""]
+            assert (row["queries"], row["failed"]) == ("2", "1")
+            assert row["error"].startswith("X4 TimeoutError:")
+            assert obj._after_backoff and obj._next_due == vl.BACKOFF_S
+            for when in (1.0, vl.BACKOFF_S - 0.001):
+                clock.return_value = when
+                obj.poll_once()
+                assert len(calls) == 2
+                assert len(read_dicts(obj)) == 1
+            release.set()
+            assert finished.wait(1)  # allow the abandoned request to finish before the next poll
+            clock.return_value = vl.BACKOFF_S
+            obj.poll_once()
+            live_singles = [v for v in SINGLES if not (dropped and v == "X6")]
+            assert calls[2:] == [["T1", "T2", "X3"], *[[v] for v in live_singles]]
+            assert len(read_dicts(obj)) == 2
+        finally:
+            release.set()
+            manager._stop_worker()

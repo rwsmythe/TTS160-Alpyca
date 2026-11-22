@@ -10,10 +10,11 @@ X3 to X7 are always polled in addition to the configured list, which may not nam
 X3 joins the ordinary chunks. X4 to X7 are each asked in a query of their own, because a
 firmware without them answers the whole query with the text ERROR:PARSE_ERROR. Two consecutive
 such answers drop that id for the session; any other failure is an ordinary failed read.
-After a failed X4 (other than not-found), X5 to X7 are not asked. Unasked live ids have
-blank cells; dropped ids stay ABSENT in every row. The row is written before taking
-BACKOFF_S immediately. Otherwise the logger waits
-X4_GAP_S before sending anything else. This 20 ms spacing is not guaranteed on a link
+After an X4 that timed out waiting for execution (the queue-wait TimeoutError), nothing
+more is asked in that poll. Unasked live ids have blank cells; dropped ids stay ABSENT.
+The row is written before taking BACKOFF_S immediately. Every other X4 outcome takes
+X4_GAP_S before continuing with the remaining live ids, and error rows follow the ordinary
+FAILURES_BEFORE_BACKOFF rule. This 20 ms spacing is not guaranteed on a link
 that has already timed out for 30 s: the transport may still execute its abandoned request.
 Each row counts wire attempts in queries and attempts without a valid answer in failed
 (a not-found text is a valid answer only for a single-id X4 to X7 query).
@@ -226,7 +227,7 @@ class VariableLogger:
             values: dict[str, Any] = dict.fromkeys(self._absent, ABSENT)  # dropped: never asked
             error = ""
             queries = failed = 0
-            x4_failed = False
+            x4_queue_timeout = False
 
             def read(variables: list[str]) -> Mapping[str, Any]:
                 """Count this call's transport record, with one attempt for an injected fake."""
@@ -273,13 +274,15 @@ class VariableLogger:
                             self._not_found(variable)
                         else:
                             errors.append(f"{variable} {type(ex).__name__}: {ex}")
-                            if variable == "X4":
-                                x4_failed = True
+                            # Serial I/O failures finish as ResponseError/ConnectionError;
+                            # the execution-wait TimeoutError can leave X4 pending.
+                            if variable == "X4" and isinstance(ex, TimeoutError):
+                                x4_queue_timeout = True
                                 break
                     else:
                         if values[variable] is not None:  # only a value resets the strikes
                             self._strikes[variable] = 0
-                    # After a valid X4 answer, leave the gap in this poll or the next.
+                    # Every completed X4 call leaves the gap in this poll or the next.
                     if variable == "X4" and (self._wait(X4_GAP_S) or self._stop.is_set()):
                         return
                 error = "; ".join(errors)
@@ -299,7 +302,7 @@ class VariableLogger:
                 self._consecutive_failures += 1
             else:
                 self._consecutive_failures = 0
-            if x4_failed or self._consecutive_failures >= FAILURES_BEFORE_BACKOFF:
+            if x4_queue_timeout or self._consecutive_failures >= FAILURES_BEFORE_BACKOFF:
                 self._next_due = now + BACKOFF_S
                 self._after_backoff = True
             else:
