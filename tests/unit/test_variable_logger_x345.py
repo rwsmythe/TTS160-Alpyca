@@ -113,7 +113,7 @@ def test_ground_logger_over_real_query_path_classifies_parse_error(manager, mock
                             b":*!G T1,X3#", b":*!G X4#", b":*!G X5#", b":*!G X6#", b":*!G X7#",
                             b":*!G T1,X3#"]
     assert len(read_rows(obj)) == 4  # header + three data rows
-    assert [row[2:] for row in read_rows(obj)[1:]] == [["1.5", "2000", "", "", "", "", "", q, "0", ""]
+    assert [row[2:] for row in read_rows(obj)[1:]] == [["1.5", "2000", "", "", "", "", q, "0", ""]
                                                        for q in ("5", "5", "1")]
     assert obj._consecutive_failures == 0
 

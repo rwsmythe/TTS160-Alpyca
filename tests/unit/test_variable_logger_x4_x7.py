@@ -275,8 +275,9 @@ def test_the_gap_is_at_least_20_ms_on_the_real_clock(tmp_path):
     try:
         obj.poll_once()
         obj._absent.update({"X5", "X6", "X7"})  # the next query is now the next poll's chunk
-        clock.return_value = 1.0
-        obj.poll_once()
+        for when in (1.0, 2.0):
+            clock.return_value = when
+            obj.poll_once()
     finally:
         obj.stop()
     gaps = [stamps[i + 1][2] - stamps[i][2] for i in range(len(stamps) - 1)

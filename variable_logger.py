@@ -6,10 +6,13 @@ where TTS160config.toml is read.
 T31 and T32 are rejected because their quaternion decoding is unsupported.
 C17 and C18 (site longitude and latitude) are rejected and must never be logged.
 
-X3, X4 and X5 are always polled in addition to the configured list, which may not name them.
-X3 joins the ordinary chunks. X4 and X5 are each asked in a query of their own, because a
+X3 to X7 are always polled in addition to the configured list, which may not name them.
+X3 joins the ordinary chunks. X4 to X7 are each asked in a query of their own, because a
 firmware without them answers the whole query with the text ERROR:PARSE_ERROR. Two consecutive
 such answers drop that id for the session; any other failure is an ordinary failed read.
+Whatever X4 answers, the logger waits X4_GAP_S before it sends anything else.
+Each row records the queries it sent and how many of them failed (a not-found answer is an
+answer, not a failure).
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -37,11 +40,13 @@ MIN_INTERVAL_S = 1.0
 BACKOFF_S = 30.0
 FAILURES_BEFORE_BACKOFF = 2
 CHUNKED_FIXED_VARIABLES: tuple[str, ...] = ("X3",)
-SINGLE_ID_VARIABLES: tuple[str, ...] = ("X4", "X5")
+SINGLE_ID_VARIABLES: tuple[str, ...] = ("X4", "X5", "X6", "X7")
 FIXED_VARIABLES: tuple[str, ...] = (*CHUNKED_FIXED_VARIABLES, *SINGLE_ID_VARIABLES)
 # What query_variables raises when the mount answers the text frame "ERROR:PARSE_ERROR\n".
 NOT_FOUND_MESSAGE = "Expected binary response for v357 query, got text: ERROR:PARSE_ERROR\n"
 NOT_FOUND_STRIKES = 2
+# The least time between the X4 query's return and the next query sent (CHARC 181842Z).
+X4_GAP_S = 0.020
 
 
 class VariableListError(ValueError):
@@ -78,8 +83,8 @@ def chunk_variables(variables: Sequence[str], size: int = BINARY_MAX_VARS_PER_CO
 
 
 def header_row(variables: Sequence[str]) -> list[str]:
-    """Return the fixed-width CSV header: the configured ids, then X3, X4 and X5."""
-    return ["utc", "elapsed_s", *variables, *FIXED_VARIABLES, "error"]
+    """Return the fixed-width CSV header: the configured ids, X3 to X7, the query counts, the error."""
+    return ["utc", "elapsed_s", *variables, *FIXED_VARIABLES, "queries", "failed", "error"]
 
 
 def is_not_found(ex: Exception) -> bool:
@@ -88,8 +93,11 @@ def is_not_found(ex: Exception) -> bool:
 
 
 def format_row(utc: datetime, elapsed_s: float, variables: Sequence[str],
-               values: Mapping[str, Any], error: str = "") -> list[str]:
-    """Format values for csv.writer, retaining missing columns and unusual values."""
+               values: Mapping[str, Any], error: str = "", queries: int = 0, failed: int = 0) -> list[str]:
+    """Format values for csv.writer, retaining missing columns and unusual values.
+
+    ``queries`` is the number of queries the row sent; ``failed`` how many of them raised.
+    """
     row = [utc.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
            f"{elapsed_s:.3f}"]
     for variable in (*variables, *FIXED_VARIABLES):
@@ -102,7 +110,7 @@ def format_row(utc: datetime, elapsed_s: float, variables: Sequence[str],
             row.append(repr(value))
         else:
             row.append(str(value) if isinstance(value, (str, int)) else repr(value))
-    return [*row, error]
+    return [*row, str(queries), str(failed), error]
 
 
 class VariableLogger:
@@ -207,12 +215,15 @@ class VariableLogger:
             elapsed_s = poll_started - self._started_at
             values: dict[str, Any] = {}
             error = ""
+            queries = failed = 0
             for chunk in chunk_variables((*self._variables, *CHUNKED_FIXED_VARIABLES)):
                 if self._stop.is_set():
                     return
+                queries += 1
                 try:
                     values.update(self._query(chunk))
                 except Exception as ex:
+                    failed += 1
                     error = f"{type(ex).__name__}: {ex}"
                     break
             else:
@@ -222,21 +233,26 @@ class VariableLogger:
                         continue
                     if self._stop.is_set():
                         return
+                    queries += 1
                     try:
                         values[variable] = self._query([variable]).get(variable)
                     except Exception as ex:
                         if is_not_found(ex):
                             self._not_found(variable)
                         else:
+                            failed += 1
                             errors.append(f"{variable} {type(ex).__name__}: {ex}")
                     else:
                         if values[variable] is not None:  # only a value resets the strikes
                             self._strikes[variable] = 0
+                    # Whatever X4 answered, nothing is sent for X4_GAP_S: in this poll or the next.
+                    if variable == "X4" and (self._wait(X4_GAP_S) or self._stop.is_set()):
+                        return
                 error = "; ".join(errors)
             if self._stop.is_set():
                 return
             try:
-                self._writer.writerow(format_row(utc, elapsed_s, self._variables, values, error))
+                self._writer.writerow(format_row(utc, elapsed_s, self._variables, values, error, queries, failed))
                 self._file.flush()
             except Exception as ex:
                 self._running = False

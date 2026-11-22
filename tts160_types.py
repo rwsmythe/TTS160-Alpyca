@@ -33,7 +33,7 @@ class V357Category(str, Enum):
     LX200 = 'L'       # Slew state, sync, goto flags (max ID: 12)
     MOTOR = 'O'       # Jerk, position, numerator/denominator (max ID: 16)
     DISPLAY = 'D'     # Menu state, scroll flags (max ID: 5)
-    COMPUTED = 'X'    # Real-time alt/az, free memory (max ID: 5)
+    COMPUTED = 'X'    # Real-time alt/az, free memory (max ID: 7)
 
 
 class TrackingVar(IntEnum):
@@ -202,7 +202,9 @@ class ComputedVar(IntEnum):
     CURRENT_AZ = 2           # float: Current azimuth (radians, computed on demand)
     FREE_MEM = 3             # uint16: Available RAM (bytes)
     MIN_FREE_MEM = 4         # uint16: Minimum free RAM since boot (bytes; campaign debug build only)
-    LOOP_MAX_TICKS = 5       # uint16: Maximum loop ticks since boot (campaign debug build only)
+    LOOP_MAX_TICKS = 5       # uint16: Maximum loop ticks since boot (1/960 s; campaign debug build only)
+    CABLE_REF_TICKS = 6      # int32: Cable-reference azimuth H - N x Ticks_Per_Round.H, ticks (campaign debug only)
+    CLOCK_VALID = 7          # uint8: Last clock read gave a valid date (0 / 1; campaign debug build only)
 
 
 class SetCommand(IntEnum):
@@ -476,7 +478,9 @@ VARIABLE_TYPES: Dict[Tuple[str, int], str] = {
     ('X', 2): 'f',    # CURRENT_AZ
     ('X', 3): 'H',    # FREE_MEM
     ('X', 4): 'H',    # MIN_FREE_MEM
-    ('X', 5): 'H',    # LOOP_MAX_TICKS
+    ('X', 5): 'H',    # LOOP_MAX_TICKS (1/960 s)
+    ('X', 6): 'i',    # CABLE_REF_TICKS (ticks, signed)
+    ('X', 7): 'B',    # CLOCK_VALID (0 / 1)
 }
 
 
