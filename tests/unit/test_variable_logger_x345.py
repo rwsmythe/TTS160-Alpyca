@@ -113,8 +113,9 @@ def test_ground_logger_over_real_query_path_classifies_parse_error(manager, mock
                             b":*!G T1,X3#", b":*!G X4#", b":*!G X5#", b":*!G X6#", b":*!G X7#",
                             b":*!G T1,X3#"]
     assert len(read_rows(obj)) == 4  # header + three data rows
-    assert [row[2:] for row in read_rows(obj)[1:]] == [["1.5", "2000", "", "", "", "", q, "0", ""]
-                                                       for q in ("5", "5", "1")]
+    # Not found and dropped both write "absent" (CHARC 183326Z).
+    assert [row[2:] for row in read_rows(obj)[1:]] == [
+        ["1.5", "2000", "absent", "absent", "absent", "absent", q, "0", ""] for q in ("5", "5", "1")]
     assert obj._consecutive_failures == 0
 
 
@@ -234,8 +235,8 @@ def test_both_absent_dropped_after_second_parse_error_never_asked_again(make, ca
     per_poll = [["T1", "T2", "X3"], ["X4"], ["X5"], ["X6"], ["X7"]]
     assert mount.calls == per_poll * 2 + [["T1", "T2", "X3"], ["X6"], ["X7"]] * 3
     rows = read_rows(obj)[1:]
-    # Not found is not a failure: the error column stays empty (the chosen marker is none).
-    assert [row[2:] for row in rows] == [["7", "7", "7", "", "", "7", "7", q, "0", ""]
+    # Not found is not a failure: the error column stays empty; the cell says "absent" (CHARC 183326Z).
+    assert [row[2:] for row in rows] == [["7", "7", "7", "absent", "absent", "7", "7", q, "0", ""]
                                          for q in ("5", "5", "3", "3", "3")]
     assert [float(row[1]) for row in rows] == [0.0, 1.0, 2.0, 3.0, 4.0]  # no back-off
     assert obj._consecutive_failures == 0
@@ -305,7 +306,7 @@ def test_parse_error_once_then_values_keeps_the_id_and_resets_strikes(make, capl
         run_polls(obj, clock, 2, start=3)  # PARSE_ERROR, value: still kept
         assert "X4" not in obj._absent
         run_polls(obj, clock, 3, start=5)  # two consecutive: dropped on the second
-    assert [row[5] for row in read_rows(obj)[1:]] == ["", "41", "42", "", "43", "", "", ""]
+    assert [row[5] for row in read_rows(obj)[1:]] == ["absent", "41", "42", "absent", "43", "absent", "absent", "absent"]
     assert mount.calls.count(["X4"]) == 7
     assert "X4" in obj._absent
     messages = [r.getMessage() for r in caplog.records if "X4" in r.getMessage()]
@@ -319,7 +320,7 @@ def test_an_answer_without_a_value_does_not_reset_the_strike(make, empty):
     obj, clock = make(mount)
     run_polls(obj, clock, 3)
     assert "X4" in obj._absent  # the empty answer neither strikes nor resets
-    assert [row[5] for row in read_rows(obj)[1:]] == ["", "", ""]
+    assert [row[5] for row in read_rows(obj)[1:]] == ["absent", "", "absent"]
     assert all(row[-1] == "" for row in read_rows(obj)[1:])
 
 
@@ -328,7 +329,7 @@ def test_a_zero_value_resets_the_strike(make):
     obj, clock = make(mount)
     run_polls(obj, clock, 4)
     assert "X4" not in obj._absent
-    assert [row[5] for row in read_rows(obj)[1:]] == ["", "0", "", "5"]
+    assert [row[5] for row in read_rows(obj)[1:]] == ["absent", "0", "absent", "5"]
 
 
 def test_lost_reply_between_two_parse_errors_does_not_reset_the_strike(make):

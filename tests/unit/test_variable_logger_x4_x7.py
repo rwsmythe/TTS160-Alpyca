@@ -308,7 +308,7 @@ def test_build_1_drops_x6_and_x7_and_keeps_polling_x3_to_x5(make, caplog):
     assert obj._absent == {"X6", "X7"}
     rows = read_dicts(obj)
     assert [(r["X3"], r["X4"], r["X5"], r["X6"], r["X7"]) for r in rows] == \
-        [("3000", f"40{i}", f"5{i}", "", "") for i in range(1, 5)]
+        [("3000", f"40{i}", f"5{i}", "absent", "absent") for i in range(1, 5)]
     assert [(r["queries"], r["failed"], r["error"]) for r in rows] == \
         [("5", "0", "")] * 2 + [("3", "0", "")] * 2
     assert [float(r["elapsed_s"]) for r in rows] == [0.0, 1.0, 2.0, 3.0]  # no back-off
@@ -323,7 +323,7 @@ def test_x6_not_found_does_not_stop_x7_in_the_same_poll(make):
     obj, _ = make(mount)
     obj.poll_once()
     row = read_dicts(obj)[0]
-    assert (row["X6"], row["X7"], row["error"]) == ("", "1", "")
+    assert (row["X6"], row["X7"], row["error"]) == ("absent", "1", "")
 
 
 def test_restart_gives_x6_and_x7_fresh_strikes(make):
@@ -377,3 +377,45 @@ def test_format_row_places_queries_and_failed_before_error():
     row = vl.format_row(t, 0.0, ["T1"], {"T1": 1, "X6": -5, "X7": 0}, "e", queries=5, failed=1)
     assert row == ["2026-01-02T00:00:00.000Z", "0.000", "1", "", "", "", "-5", "0", "5", "1", "e"]
     assert len(row) == len(vl.header_row(["T1"]))
+
+
+# ---------------------------------------------------------------- "absent" cells (ruling 183326Z)
+
+def test_a_not_found_x6_and_x7_write_absent(make):
+    mount = Mount(scripts={"X6": [parse_error()], "X7": [parse_error()]})
+    obj, _ = make(mount)
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert (row["X4"], row["X5"], row["X6"], row["X7"]) == ("7", "7", "absent", "absent")
+    assert (row["queries"], row["failed"], row["error"]) == ("5", "0", "")
+    assert obj._strikes["X6"] == 1 and obj._absent == set()  # one strike: still asked
+
+
+def test_an_id_after_two_strikes_writes_absent_without_being_asked(make):
+    mount = Mount(scripts={"X6": [parse_error(), parse_error()]})
+    obj, clock = make(mount)
+    run_polls(obj, clock, 3)
+    assert mount.calls.count(["X6"]) == 2
+    assert [r["X6"] for r in read_dicts(obj)] == ["absent"] * 3
+    assert [r["queries"] for r in read_dicts(obj)] == ["5", "5", "4"]
+
+
+def test_a_failed_single_id_query_leaves_its_cell_blank(make):
+    mount = Mount(scripts={"X6": [TimeoutError("lost")], "X4": [ResponseError("garbled")]})
+    obj, _ = make(mount)
+    obj.poll_once()
+    row = read_dicts(obj)[0]
+    assert (row["X4"], row["X5"], row["X6"], row["X7"]) == ("", "7", "", "7")
+    assert row["failed"] == "2"
+
+
+def test_ids_not_sent_after_a_failed_chunk_are_blank_and_a_dropped_id_stays_absent(make):
+    query = Mount(scripts={"X7": [parse_error(), parse_error()]})
+    obj, clock = make(query)
+    run_polls(obj, clock, 2)  # X7 dropped
+    obj._query = Mock(side_effect=TimeoutError("chunk"))
+    clock.return_value = 2.0
+    obj.poll_once()
+    row = read_dicts(obj)[-1]
+    assert (row["X3"], row["X4"], row["X5"], row["X6"], row["X7"]) == ("", "", "", "", "absent")
+    assert (row["queries"], row["failed"], row["error"]) == ("1", "1", "TimeoutError: chunk")
